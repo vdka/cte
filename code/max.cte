@@ -1,0 +1,5 @@
+
+min := fn (type: $T, a: T, b: T) -> T {
+  if a < b return a
+  else return b
+}
