@@ -1,0 +1,22 @@
+
+extension AstNode.Value {
+{% for type in types.implementing.AstNodeValue %}
+
+    var {{ type.name }}: cte.{{ type.name }} {
+        get {
+            assert(node.kind == cte.{{ type.name }}.astKind)
+            return node.value.assumingMemoryBound(to: cte.{{ type.name }}.self).pointee
+        }
+        set {
+            node.kind = cte.{{ type.name }}.astKind
+            node.value.assumingMemoryBound(to: cte.{{ type.name }}.self).initialize(to: newValue) // TODO(vdka): Deallocate the previous value
+        }
+    }
+{% endfor %}
+}
+
+let maxBytesForNodeValue = max(
+{% for type in types.implementing.AstNodeValue %}
+    MemoryLayout<{{ type.name }}>.size,
+{% endfor %}
+)

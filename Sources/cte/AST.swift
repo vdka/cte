@@ -2,17 +2,17 @@
 struct AstNode {
 
     var kind: AstKind
-    var value: UnsafeRawPointer
+    var value: UnsafeMutableRawPointer
     var tokens: [Token]
 
     init<T: AstNodeValue>(_ value: T, tokens: [Token]) {
         self.kind = T.astKind
         self.tokens = tokens
 
-        let pointer = UnsafeMutablePointer<T>.allocate(capacity: 1)
-        pointer.initialize(to: value)
+        let pointer = UnsafeMutableRawPointer.allocate(bytes: maxBytesForNodeValue, alignedTo: 8)
+        pointer.assumingMemoryBound(to: T.self).initialize(to: value)
 
-        self.value = UnsafeRawPointer(pointer)
+        self.value = pointer
     }
 }
 
@@ -39,6 +39,23 @@ extension AstNode {
     static let empty = AstNode(Empty(), tokens: [])
     static let invalid = AstNode(Invalid(), tokens: [])
 }
+
+extension AstNode {
+
+    struct Value {
+        var node: AstNode
+    }
+
+    var val: Value {
+        get {
+            return Value(node: self)
+        }
+        set {} // allows mutability
+    }
+}
+
+
+// MARK: AstValues
 
 protocol AstNodeValue {
     static var astKind: AstKind { get }
@@ -145,3 +162,4 @@ struct StmtReturn: AstNodeValue {
 
     let value: AstNode
 }
+
