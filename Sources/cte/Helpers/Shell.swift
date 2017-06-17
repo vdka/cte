@@ -11,9 +11,7 @@ func shell(path launchPath: String, args arguments: [String]) -> String {
     process.launch()
     
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
-    guard let result = String(data: data, encoding: .utf8) else {
-        panic()
-    }
+    let result = String(data: data, encoding: .utf8)!
     
     if result.characters.count > 0 {
         let lastIndex = result.index(before: result.endIndex)

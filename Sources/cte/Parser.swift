@@ -74,43 +74,31 @@ struct Parser {
             if let nextToken = lexer.peek(), case .rparen = nextToken.kind {
                 let rparen = advance()
 
-                return AstNode(ExprParen(expr: AstNode.empty), tokens: [lparen, rparen])
+                return AstNode(AstNode.Paren(expr: AstNode.empty), tokens: [lparen, rparen])
             }
 
-            var expr = expression()
-
-            if case .comma? = lexer.peek()?.kind {
-                expr = parseList(with: expr)
-            }
+            let expr = expression()
 
             let rparen = advance(expecting: .lparen)
-            return AstNode(ExprParen(expr: expr), tokens: [lparen, rparen])
+            return AstNode(AstNode.Paren(expr: expr), tokens: [lparen, rparen])
 
         case .ident(let symbol):
             advance()
 
-            let identifier = Identifier(name: symbol)
+            let identifier = AstNode.Identifier(name: symbol)
             return AstNode(identifier, tokens: [token])
 
         case .string(let string):
             advance()
 
-            let litString = StringLiteral(value: string)
+            let litString = AstNode.StringLiteral(value: string)
             return AstNode(litString, tokens: [token])
 
         case .number(let number):
             advance()
 
-            let litNumber = NumberLiteral(value: number)
+            let litNumber = AstNode.NumberLiteral(value: number)
             return AstNode(litNumber, tokens: [token])
-
-        case .dollar:
-            let dollar = advance()
-
-            let expr = expression()
-
-            let ct = CompileTime(stmt: expr)
-            return AstNode(ct, tokens: [dollar])
 
         case .lbrace:
             let lbrace = advance()
@@ -123,7 +111,7 @@ struct Parser {
 
             let rbrace = advance(expecting: .rbrace)
 
-            let stmtBlock = StmtBlock(stmts: stmts)
+            let stmtBlock = AstNode.Block(stmts: stmts)
             return AstNode(stmtBlock, tokens: [lbrace, rbrace])
 
         case .keywordIf:
@@ -134,14 +122,14 @@ struct Parser {
             let body = expression()
 
             guard let elseToken = lexer.peek(), case .keywordElse = elseToken.kind else {
-                let stmtIf = StmtIf(condition: cond, thenStmt: body, elseStmt: nil)
+                let stmtIf = AstNode.If(condition: cond, thenStmt: body, elseStmt: nil)
                 return AstNode(stmtIf, tokens: [ifToken])
             }
 
             advance()
             let elseStmt = expression()
 
-            let stmtIf = StmtIf(condition: cond, thenStmt: body, elseStmt: elseStmt)
+            let stmtIf = AstNode.If(condition: cond, thenStmt: body, elseStmt: elseStmt)
             return AstNode(stmtIf, tokens: [ifToken, elseToken])
 
         case .keywordFn:
@@ -152,6 +140,12 @@ struct Parser {
             var parameters: [AstNode] = []
             if let nextToken = lexer.peek(), nextToken.kind != .rparen {
                 while true {
+
+                    var dollar: Token?
+                    if lexer.peek()?.kind == .dollar {
+                        dollar = advance()
+                    }
+
                     guard let parameterName = lexer.peek(), case .ident(let symbol) = parameterName.kind else {
                         reportError("Expected parameter name", at: lexer.location)
                         return AstNode.invalid
@@ -162,8 +156,10 @@ struct Parser {
 
                     let typeExpr = expression()
 
-                    let parameterNameNode = AstNode(Identifier(name: symbol), tokens: [parameterName])
-                    let declaration = Declaration(identifier: parameterNameNode, type: typeExpr, value: AstNode.empty)
+                    let isCT = dollar != nil
+
+                    let parameterNameNode = AstNode(AstNode.Identifier(name: symbol), tokens: isCT ? [dollar!, parameterName] : [parameterName])
+                    let declaration = AstNode.Declaration(identifier: parameterNameNode, type: typeExpr, value: AstNode.empty, isCompileTime: isCT)
                     let param = AstNode(declaration, tokens: [parameterName, colon])
 
                     parameters.append(param)
@@ -183,11 +179,11 @@ struct Parser {
 
             let body = expression()
 
-            if body.kind != .stmtBlock {
+            if body.kind != .block {
                 reportError("Body of a function should be a block statement", at: body)
             }
 
-            let function = Function(parameters: parameters, returnType: returnType, body: body)
+            let function = AstNode.Function(parameters: parameters, returnType: returnType, body: body)
 
             return AstNode(function, tokens: [fnToken, lparen, rparen, returnArrow])
 
@@ -196,7 +192,7 @@ struct Parser {
 
             let expr = expression()
 
-            let stmtReturn = StmtReturn(value: expr)
+            let stmtReturn = AstNode.Return(value: expr)
 
             return AstNode(stmtReturn, tokens: [returnToken])
 
@@ -231,7 +227,7 @@ struct Parser {
 
             let rparen = advance(expecting: .rparen)
 
-            let exprCall = ExprCall(callee: lvalue, arguments: arguments)
+            let exprCall = AstNode.Call(callee: lvalue, arguments: arguments)
             return AstNode(exprCall, tokens: [lparen, rparen])
 
         case .colon:
@@ -244,61 +240,12 @@ struct Parser {
             let equals = advance(expecting: .equals)
             let value = expression()
 
-            let decl = Declaration(identifier: lvalue, type: type, value: value)
+            let decl = AstNode.Declaration(identifier: lvalue, type: type, value: value, isCompileTime: false)
             return AstNode(decl, tokens: [colon, equals])
 
         default:
             fatalError()
         }
-    }
-
-    /// Will parse from `,`
-    mutating func parseList(with first: AstNode) -> AstNode {
-        assert(lexer.peek()?.kind == .comma)
-
-        let prevState = state
-        state.insert(.parseList)
-        defer {
-            state = prevState
-        }
-
-        var tokens: [Token] = [advance()]
-
-        var wasComma = false
-        var exprs: [AstNode] = [first]
-        loop: while true {
-
-            guard let nextToken = lexer.peek() else {
-                if wasComma {
-                    reportError("Unexpected Comma", at: lexer.lastLocation)
-                }
-                break loop
-            }
-
-            switch nextToken.kind {
-            case .rparen:
-
-                if wasComma {
-                    reportError("Unexpected comma", at: lexer.lastLocation)
-                }
-                break loop
-
-            case .comma:
-                if wasComma || exprs.isEmpty {
-                    reportError("Unexpected comma", at: nextToken.location)
-                }
-                let comma = advance()
-                wasComma = true
-                tokens.append(comma)
-
-            default:
-                let expr = expression()
-                exprs.append(expr)
-                wasComma = false
-            }
-        }
-
-        return AstNode(List(exprs: exprs), tokens: tokens)
     }
 
 

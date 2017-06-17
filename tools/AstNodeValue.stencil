@@ -1,22 +1,36 @@
 
-extension AstNode.Value {
+extension AstNode {
 {% for type in types.implementing.AstNodeValue %}
 
-    var {{ type.name }}: cte.{{ type.name }} {
+    var as{% if type.parentName|contains:"Checker" %}Checked{% endif %}{{ type.localName }}: {{ type.name }} {
         get {
-            assert(node.kind == cte.{{ type.name }}.astKind)
-            return node.value.assumingMemoryBound(to: cte.{{ type.name }}.self).pointee
+            assert(kind == {{ type.name }}.astKind)
+            return value.baseAddress!.assumingMemoryBound(to: {{ type.name }}.self).pointee
         }
         set {
-            node.kind = cte.{{ type.name }}.astKind
-            node.value.assumingMemoryBound(to: cte.{{ type.name }}.self).initialize(to: newValue) // TODO(vdka): Deallocate the previous value
+            kind = {{ type.name }}.astKind
+            value.deallocate()
+            value = UnsafeMutableRawBufferPointer.allocate(count: MemoryLayout<{{ type.name }}>.size)
+            value.baseAddress!.assumingMemoryBound(to: {{ type.name }}.self).initialize(to: newValue)
         }
     }
 {% endfor %}
 }
 
-let maxBytesForNodeValue = max(
-{% for type in types.implementing.AstNodeValue %}
-    MemoryLayout<{{ type.name }}>.size,
+extension Type {
+{% for type in types.implementing.TypeValue %}
+
+    var as{{ type.localName }}: Type.{{ type.localName }} {
+        get {
+            assert(kind == {{ type.localName }}.typeKind)
+            return value.baseAddress!.assumingMemoryBound(to: {{ type.localName }}.self).pointee
+        }
+        set {
+            kind = {{ type.localName }}.typeKind
+            value.deallocate()
+            value = UnsafeMutableRawBufferPointer.allocate(count: MemoryLayout<{{ type.localName }}>.size)
+            value.baseAddress!.assumingMemoryBound(to: {{ type.localName }}.self).initialize(to: newValue)
+        }
+    }
 {% endfor %}
-)
+}

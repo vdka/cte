@@ -11,7 +11,11 @@ class Scope {
     }
 
     func lookup(_ name: String) -> Entity? {
-        return members.first(where: { $0.name == name })
+        if let found = members.first(where: { $0.name == name }) {
+            return found
+        }
+
+        return parent?.lookup(name)
     }
 
     func insert(_ entity: Entity) {

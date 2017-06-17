@@ -10,27 +10,18 @@ extension AstNode: CustomStringConvertible {
         case .empty:
             return ""
 
-        case .list:
-
-            return val.List.exprs
-                .map({ $0.description })
-                .joined(separator: ", ")
-
         case .identifier:
-            return val.Identifier.name
+            return asIdentifier.name
 
         case .litString:
-            return "\"" + val.StringLiteral.value + "\""
+            return "\"" + asStringLiteral.value + "\""
 
         case .litNumber:
-            return val.NumberLiteral.value.description
-
-        case .compiletime:
-            return "$" + val.CompileTime.stmt.description
+            return asNumberLiteral.value.description
 
         case .function:
 
-            let fn = val.Function
+            let fn = asFunction
             let parameterList = fn.parameters
                 .map({ $0.description })
                 .joined(separator: ", ")
@@ -42,7 +33,7 @@ extension AstNode: CustomStringConvertible {
             return "fn" + "(" + parameterList + ") -> " + returnType + " " + body
 
         case .declaration:
-            let d = val.Declaration
+            let d = asDeclaration
             let ident = d.identifier.description
 
             var value = ""
@@ -55,37 +46,37 @@ extension AstNode: CustomStringConvertible {
             }
             return ident + " := " + d.value.description
 
-        case .exprParen:
-            return "(" + val.ExprParen.expr.description + ")"
+        case .paren:
+            return "(" + asParen.expr.description + ")"
 
-        case .exprUnary:
-            let u = val.ExprUnary
+        case .prefix:
+            let u = asPrefix
             let op = u.kind.description
             let expr = u.expr.description
             return op + expr
 
-        case .exprBinary:
-            let b = val.ExprBinary
+        case .infix:
+            let b = asInfix
             let op = b.kind.description
             let lhs = b.lhs.description
             let rhs = b.rhs.description
             return lhs + " " + op + " " + rhs
 
-        case .exprCall:
-            let call = val.ExprCall
+        case .call:
+            let call = asCall
             let callee = call.callee.description
             let arguments = call.arguments.map({ $0.description }).joined(separator: ", ")
 
             return callee + "(" + arguments + ")"
 
-        case .stmtBlock:
-            let block = val.StmtBlock
+        case .block:
+            let block = asBlock
             let stmts = block.stmts.map({ "    " + $0.description }).joined(separator: "\n")
 
             return "{\n" + stmts + "\n}"
 
-        case .stmtIf:
-            let iff = val.StmtIf
+        case .if:
+            let iff = asIf
             let cond = iff.condition.description
             let then = iff.thenStmt.description
             var elsé = ""
@@ -94,8 +85,8 @@ extension AstNode: CustomStringConvertible {
             }
             return "if " + cond + " " + then + elsé
 
-        case .stmtReturn:
-            let ret = val.StmtReturn
+        case .return:
+            let ret = asReturn
             return "return " + ret.value.description
         }
     }

@@ -13,7 +13,7 @@ struct PrefixOperator {
 
             let expr = parser.expression(70)
 
-            let val = ExprUnary(kind: symbol, expr: expr)
+            let val = AstNode.Prefix(kind: symbol, expr: expr)
             return AstNode(val, tokens: [token])
         }
 
@@ -55,7 +55,7 @@ struct InfixOperator {
 
             let rhs = parser.expression(bp)
 
-            let val = ExprBinary(kind: symbol, lhs: lhs, rhs: rhs)
+            let val = AstNode.Infix(kind: symbol, lhs: lhs, rhs: rhs)
 
             return AstNode(val, tokens: [token])
         }

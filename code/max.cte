@@ -1,5 +1,10 @@
 
-min := fn (type: $T, a: T, b: T) -> T {
+min := fn (a: number, b: number) -> number {
   if a < b return a
   else return b
 }
+
+x : number = 5.0
+y : number = 3.0
+s : string = ""
+z := min(x, x)

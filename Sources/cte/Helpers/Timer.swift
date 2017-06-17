@@ -32,7 +32,7 @@ func endTiming() {
     let currTime = gettime()
 
     guard let lastTiming = currentTiming else {
-        panic() // You called endTiming without any activing timing.
+        fatalError()
     }
 
     let duration = currTime - lastTiming.start

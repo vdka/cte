@@ -12,19 +12,20 @@ class Entity {
         return ident
     }
 
-    init(ident: Token) {
+    init(ident: Token, type: Type? = nil) {
         guard case .ident = ident.kind else {
             fatalError()
         }
         self.ident = ident
-        self.type = nil
+        self.type = type
     }
 
     struct Flag: OptionSet {
         let rawValue: UInt8
         static let none = Flag(rawValue: 0b0000_0000)
         static let used = Flag(rawValue: 0b0000_0001)
-        static let core = Flag(rawValue: 0b1000_0000)
+        static let ct   = Flag(rawValue: 0b0000_0010)
+        static let type = Flag(rawValue: 0b1000_0000)
     }
 }
 

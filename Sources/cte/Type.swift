@@ -1,33 +1,74 @@
 
-class Type: CustomStringConvertible {
+class Type: Equatable, CustomStringConvertible {
 
-    var token: Token
+    unowned var entity: Entity
+    var kind: TypeKind
     var width: Int?
 
-    init(token: Token) {
-        guard case .ident = token.kind else {
-            fatalError()
-        }
-        self.token = token
+    var value: UnsafeMutableRawBufferPointer
+
+    init<T: TypeValue>(value: T, entity: Entity) {
+        self.kind = T.typeKind
+        self.entity = entity
         self.width = nil
+
+        let buffer = UnsafeMutableRawBufferPointer.allocate(count: MemoryLayout<T>.size)
+        buffer.baseAddress!.assumingMemoryBound(to: T.self).initialize(to: value)
+
+        self.value = buffer
+
     }
 
     var description: String {
-        guard case .ident(let name) = token.kind else {
+
+        switch kind {
+        case .builtin:
+            return name
+
+        case .function:
             fatalError()
         }
-        return name
+    }
+
+    var name: String {
+        return entity.name
+    }
+}
+
+enum TypeKind {
+    case function
+    case builtin
+}
+
+protocol TypeValue {
+    static var typeKind: TypeKind { get }
+}
+
+extension Type {
+    struct Function: TypeValue {
+        static var typeKind = TypeKind.function
+
+        var paramTypes: [Type]
+        var returnType: Type
+    }
+
+    struct Builtin: TypeValue {
+        static var typeKind = TypeKind.builtin
     }
 }
 
 extension Type {
 
-    static func makeBuiltin(_ name: String, width: Int) -> Type {
-        let tok = Token(kind: .ident(name), location: .unknown)
-        let type = Type(token: tok)
+    static func makeBuiltin(_ entity: Entity, width: Int) -> Type {
+        let type = Type(value: Builtin(), entity: entity)
         type.width = width
         return type
     }
+}
 
-    static let invalid = Type.makeBuiltin("<invalid>", width: 0)
+extension Type {
+
+    static func == (lhs: Type, rhs: Type) -> Bool {
+        return lhs.entity === rhs.entity
+    }
 }
