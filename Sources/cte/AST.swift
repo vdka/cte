@@ -1,5 +1,5 @@
 
-struct AstNode {
+struct AstNode: Hashable {
 
     var kind: AstKind
     var value: UnsafeMutableRawPointer
@@ -13,6 +13,18 @@ struct AstNode {
         pointer.assumingMemoryBound(to: T.self).initialize(to: value)
 
         self.value = pointer
+    }
+
+    struct Value {
+        var node: AstNode
+    }
+
+    var hashValue: Int {
+        return Int(bitPattern: value)
+    }
+
+    static func == (lhs: AstNode, rhs: AstNode) -> Bool {
+        return lhs.tokens == rhs.tokens
     }
 }
 
@@ -41,10 +53,6 @@ extension AstNode {
 }
 
 extension AstNode {
-
-    struct Value {
-        var node: AstNode
-    }
 
     var val: Value {
         get {
@@ -105,6 +113,7 @@ struct Function: AstNodeValue {
 
     let parameters: [AstNode]
     let returnType: AstNode
+    let body: AstNode
 }
 
 struct Declaration: AstNodeValue {

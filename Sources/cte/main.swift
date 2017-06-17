@@ -12,4 +12,6 @@ var parser = Parser(lexer: lexer, state: [])
 
 let nodes = parser.parse()
 
-print(nodes)
+print(nodes.map({ $0.description }).joined(separator: "\n"))
+
+var checker = Checker(nodes: nodes)

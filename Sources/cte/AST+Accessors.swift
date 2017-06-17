@@ -2,7 +2,7 @@
 // DO NOT EDIT (by hand)
 
 
-extension AstNode.Value {
+extension cte.AstNode.Value {
 
     var CompileTime: cte.CompileTime {
         get {

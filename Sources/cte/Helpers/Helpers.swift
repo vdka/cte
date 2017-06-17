@@ -203,24 +203,6 @@ extension Sequence {
     }
 }
 
-func longZip<S1: Sequence, S2: Sequence>(_ seq1: S1, _ seq2: S2) -> AnySequence<(S1.Iterator.Element?, S2.Iterator.Element?)> {
-
-    var (iter1, iter2) = (seq1.makeIterator(), seq2.makeIterator())
-
-    return AnySequence {
-        return AnyIterator { () -> (S1.Iterator.Element?, S2.Iterator.Element?)? in
-            let (l, r) = (iter1.next(), iter2.next())
-            switch (l, r) {
-            case (nil, nil):
-                return nil
-
-            default:
-                return (l, r)
-            }
-        }
-    }
-}
-
 import Darwin
 
 func panic(_ val: Any? = nil, file: StaticString = #file, line: UInt = #line) -> Never {

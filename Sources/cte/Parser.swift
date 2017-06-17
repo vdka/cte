@@ -181,7 +181,13 @@ struct Parser {
 
             let returnType = expression()
 
-            let function = Function(parameters: parameters, returnType: returnType)
+            let body = expression()
+
+            if body.kind != .stmtBlock {
+                reportError("Body of a function should be a block statement", at: body)
+            }
+
+            let function = Function(parameters: parameters, returnType: returnType, body: body)
 
             return AstNode(function, tokens: [fnToken, lparen, rparen, returnArrow])
 

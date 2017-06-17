@@ -1,11 +1,15 @@
 
 var errors: [String] = []
 
-//func reportError(_ message: String, at node: AstNode, file: StaticString = #file, line: UInt = #line) {
-//    let formatted = formatMessage(message, node.startLocation.description, file, line)
-//
-//    errors.append(formatted)
-//}
+func reportError(_ message: String, at node: AstNode, file: StaticString = #file, line: UInt = #line) {
+
+    guard let firstToken = node.tokens.first, let lastToken = node.tokens.last else {
+        fatalError()
+    }
+    let formatted = formatMessage(message, (firstToken.start ..< lastToken.end).description, file, line)
+
+    errors.append(formatted)
+}
 
 func reportError(_ message: String, at location: SourceLocation, file: StaticString = #file, line: UInt = #line) {
     let formatted = formatMessage(message, location.description, file, line)
