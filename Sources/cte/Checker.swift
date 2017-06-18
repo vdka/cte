@@ -301,16 +301,6 @@ extension Checker {
             params.append(entity)
         }
 
-        for (arg, expected) in zip(call.arguments, params) {
-
-            let argType = checkExpr(node: arg)
-
-            guard argType == expected.type! else {
-                reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expected.type!)'", at: arg)
-                continue
-            }
-        }
-
         var returnType = checkExpr(node: fn.returnType)
         returnType = lowerFromMetatype(returnType, atNode: fn.returnType)
 
@@ -320,12 +310,30 @@ extension Checker {
             currentExpectedReturnType = prevExpectedReturnType
         }
 
+        // Return to the calling scope to check the validity of the argument expressions
+        // Once done return to the function scope to check the body
+        let fnScope = currentScope
+        currentScope = prevScope
+        for (arg, expected) in zip(call.arguments, params) {
+
+            let argType = checkExpr(node: arg)
+
+            guard argType == expected.type! else {
+                reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expected.type!)'", at: arg)
+                continue
+            }
+        }
+        currentScope = fnScope
+
         check(node: fn.body)
 
         let stripped = Type.Function(node: fnNode, params: params.filter({ !$0.flags.contains(.ct) }), returnType: returnType, needsSpecialization: false)
         let strippedType = Type(value: stripped, entity: Entity.anonymous)
 
-        fnNode.asCheckedPolymorphicFunction.specializations.append((specializations, strippedType: strippedType))
+        // If there is already a matching specialization no need to duplicate it
+        if !fn.specializations.contains(where: { $0.specializedTypes == specializations }) {
+            fnNode.asCheckedPolymorphicFunction.specializations.append((specializations, strippedType: strippedType))
+        }
 
         callNode.asCheckedCall = Call(callee: call.callee, arguments: call.arguments, isSpecialized: true, type: returnType)
 

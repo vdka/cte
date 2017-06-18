@@ -20,7 +20,7 @@ class Scope {
 
     func insert(_ entity: Entity) {
 
-        if let existing = lookup(entity.name) {
+        if let existing = members.first(where: { $0.name == entity.name }) {
             reportError("Invalid redeclaration of '\(existing.name)'", at: entity.ident.location)
         }
 

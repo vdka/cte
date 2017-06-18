@@ -250,10 +250,10 @@ struct IRGenerator {
 
         for (param, var irParam) in zip(fn.parameters, function.parameters) {
 
-            emit(node: param)
-
             let entity = param.asCheckedDeclaration.entity
             irParam.name = entity.name
+
+            emit(node: param)
 
             builder.buildStore(irParam, to: entity.value!)
         }
@@ -282,10 +282,10 @@ struct IRGenerator {
 
             for (param, var irParam) in zip(runtimeParameters, function.parameters) {
 
-                emit(node: param)
-
                 let entity = param.asCheckedDeclaration.entity
                 irParam.name = entity.name
+
+                emit(node: param)
 
                 builder.buildStore(irParam, to: entity.value!)
             }
