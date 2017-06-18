@@ -220,23 +220,20 @@ struct IRGenerator {
         let calleeType = calleeEntity.type!
 
         var args: [IRValue] = []
-        var nameSuffix = ""
+        var specializedTypes: [Type] = []
         for (arg, param) in zip(call.arguments, calleeType.asFunction.params) {
 
             if param.flags.contains(.ct) {
-                // FIXME: HACK find way to determine type without emitting anything
+                // FIXME: HACK find way to determine type without emitting anything and without depending on the arg type being an identifier
                 let type = arg.asCheckedIdentifier.entity.type!
-                nameSuffix.append(type.description)
+                specializedTypes.append(type)
             } else {
                 let irArg = emitExpr(node: arg)
                 args.append(irArg)
             }
         }
 
-        let fnName = calleeEntity.entity.name + nameSuffix // TODO(vdka): Turn specializations into anon entities.
-        let function = calleeEntity.specializations!.first(where: { $0.name == fnName })!
-
-        let function = module.function(named: fnName)!
+        let function = calleeEntity.specializations!.first(where: { $0.0 == specializedTypes })!.1
 
         return builder.buildCall(function, args: args)
     }
@@ -266,12 +263,12 @@ struct IRGenerator {
         return function
     }
 
-    func emitPolymorphicFunction(named name: String, fn: Checker.PolymorphicFunction) -> [Function] {
+    func emitPolymorphicFunction(named name: String, fn: Checker.PolymorphicFunction) -> [([Type], Function)] {
 
-        var specializations: [Function] = []
+        var specializations: [([Type], Function)] = []
         for specialization in fn.specializations {
 
-            let nameSuffix = specialization.specializedTypes.reduce("", { $0.0 + "$" + $0.1.description })
+            let nameSuffix = specialization.specializedTypes.reduce("", { $0 + "$" + $1.asMetatype.instanceType.description })
 
             let function = builder.addFunction(name + nameSuffix, type: specialization.strippedType.canonicalize() as! FunctionType)
 
@@ -295,7 +292,7 @@ struct IRGenerator {
 
             emit(node: fn.body)
 
-            specializations.append(function)
+            specializations.append((specialization.specializedTypes, function))
         }
 
         return specializations

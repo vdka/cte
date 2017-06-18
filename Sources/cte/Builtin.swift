@@ -13,6 +13,8 @@ func declareBuiltins() {
     Entity.string.type = Type.makeMetatype(Type.string)
     Entity.number.type = Type.makeMetatype(Type.number)
 
+    Entity.print.type = Type(value: Type.Function, entity: <#T##Entity#>)
+
     Scope.global.insert(Entity.void)
     Scope.global.insert(Entity.bool)
     Scope.global.insert(Entity.type)
@@ -27,6 +29,8 @@ extension Entity {
     static let type = Entity.makeBuiltin("type")
     static let string = Entity.makeBuiltin("string")
     static let number = Entity.makeBuiltin("number")
+
+    static let print = Entity.makeBuiltin("print")
 
     static let anonymous = Entity.makeBuiltin("_")
 }

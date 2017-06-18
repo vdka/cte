@@ -9,7 +9,7 @@ class Entity: CustomStringConvertible {
 
     var value: IRValue?
 
-    var specializations: [Function]?
+    var specializations: [([Type], Function)]?
 
     var name: String {
         guard case .ident(let ident) = ident.kind else {

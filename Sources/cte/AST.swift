@@ -52,8 +52,6 @@ extension AstNode {
 
 protocol AstNodeValue {
     static var astKind: AstKind { get }
-
-    var isChecked: Bool { get }
 }
 
 

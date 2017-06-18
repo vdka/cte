@@ -8,6 +8,8 @@ guard let file = File(path: filepath) else {
     fatalError("Needs file.")
 }
 
+var options = CommandLine.arguments[2...]
+
 var lexer = Lexer(file)
 
 var parser = Parser(lexer: lexer, state: [])
@@ -33,6 +35,10 @@ do {
 
     let clangPath = getClangPath()
     shell(path: clangPath, args: ["-o", "main", "main.o"])
+
+    if options.contains("-emit-ir") {
+        irgen.module.dump()
+    }
 
 } catch {
     print(error)

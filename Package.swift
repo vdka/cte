@@ -9,5 +9,6 @@ let package = Package(
     ],
     targets: [
         .target(name: "cte", dependencies: ["LLVM"]),
-    ]
+    ],
+    swiftLanguageVersions: [4]
 )

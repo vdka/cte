@@ -1,6 +1,0 @@
-sources:
-  - ../Sources/
-templates:
-  - ../tools/
-output:
-  - ../Sources/cte/generated

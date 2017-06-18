@@ -20,6 +20,9 @@ class Type: Equatable, CustomStringConvertible {
     }
 
     var description: String {
+        if self === Type.invalid {
+            return "<invalid>"
+        }
 
         switch kind {
         case .builtin:

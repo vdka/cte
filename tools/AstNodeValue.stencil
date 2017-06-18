@@ -17,15 +17,6 @@ extension AstNode {
 {% endfor %}
 }
 
-{% for type in types.implementing.AstNodeValue %}
-extension {{ type.name }} {
-    var isChecked: Bool {
-        return {% if type.parentName|contains:"Checker" %}true{% endif %}{% if type.parentName|contains:"AstNode" %}false{% endif %}
-    }
-}
-
-{% endfor %}
-
 extension Type {
 {% for type in types.implementing.TypeValue %}
 
