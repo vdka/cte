@@ -237,11 +237,20 @@ struct Parser {
             if lexer.peek()?.kind != .equals {
                 type = expression()
             }
-            let equals = advance(expecting: .equals)
+
+            guard let nextToken = lexer.peek(), nextToken.kind == .equals || nextToken.kind == .colon else {
+                // catches `x: foo`
+                reportError("Expected '=' or ':' followed by an inital value", at: lexer.location)
+                attachNote("If your aim is to create an uninitialized value, you cannot. At least for now.")
+                return AstNode.invalid
+            }
+
+            let token = advance()
+
             let value = expression()
 
-            let decl = AstNode.Declaration(identifier: lvalue, type: type, value: value, isCompileTime: false)
-            return AstNode(decl, tokens: [colon, equals])
+            let decl = AstNode.Declaration(identifier: lvalue, type: type, value: value, isCompileTime: token.kind == .colon)
+            return AstNode(decl, tokens: [colon, token])
 
         default:
             fatalError()

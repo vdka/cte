@@ -2,6 +2,18 @@
 import func Darwin.C.stdlib.exit
 
 var errors: [String] = []
+var notes: [Int: [String]] = [:]
+
+func attachNote(_ message: String) {
+    assert(!errors.isEmpty)
+
+    guard var existingNotes = notes[errors.lastIndex] else {
+        notes[errors.lastIndex] = [message]
+        return
+    }
+    existingNotes.append(message)
+    notes[errors.lastIndex] = existingNotes
+}
 
 func reportError(_ message: String, at node: AstNode, file: StaticString = #file, line: UInt = #line) {
 
@@ -26,16 +38,21 @@ func reportError(_ message: String, at location: SourceRange, file: StaticString
 }
 
 func emitErrors(for stage: String) {
-    guard !errors.isEmpty else {
+    guard !cte.errors.isEmpty else {
         return
     }
 
-    errors = errors.filter { !$0.contains("<invalid>") }
+    let errors = cte.errors.enumerated().filter { !$0.element.contains("<invalid>") }
 
     print("There were \(errors.count) errors during \(stage)\nexiting")
 
     for error in errors {
-        print(error)
+        print(error.element)
+        if let notes = notes[error.offset] {
+            for note in notes {
+                print("  " + note)
+            }
+        }
         print()
     }
     exit(1)

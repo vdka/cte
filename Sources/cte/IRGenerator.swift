@@ -224,7 +224,7 @@ struct IRGenerator {
         for (arg, param) in zip(call.arguments, calleeType.asFunction.params) {
 
             if param.flags.contains(.ct) {
-                // FIXME: HACK find way to determine type without emitting anything and without depending on the arg type being an identifier
+                // FIXME: @HACK do not depend on the arg type being an identifier
                 let type = arg.asCheckedIdentifier.entity.type!
                 specializedTypes.append(type)
             } else {

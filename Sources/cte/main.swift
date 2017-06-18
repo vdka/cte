@@ -13,8 +13,8 @@ var options = CommandLine.arguments[2...]
 startTiming("Parsing")
 var lexer = Lexer(file)
 var parser = Parser(lexer: lexer, state: [])
-emitErrors(for: "Parsing")
 let nodes = parser.parse()
+emitErrors(for: "Parsing")
 endTiming()
 
 startTiming("Checking")
