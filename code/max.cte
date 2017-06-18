@@ -1,5 +1,10 @@
 
-min := fn (a: number, b: number) -> number {
+min := fn ($T: type, a: T, b: T) -> T {
+  if a < b return a
+  else return b
+}
+
+max := fn (a: number, b: number) -> number {
   if a < b return a
   else return b
 }
@@ -7,4 +12,6 @@ min := fn (a: number, b: number) -> number {
 x : number = 5.0
 y : number = 3.0
 s : string = ""
-z := min(x, x)
+z := max(x, x)
+k := min(number, x, x)
+

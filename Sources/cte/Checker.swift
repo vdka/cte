@@ -5,12 +5,6 @@ struct Checker {
     var currentScope: Scope = Scope(parent: Scope.global)
     var currentExpectedReturnType: Type? = nil
 
-    var info = Info()
-
-    struct Info {
-        var scopes: [AstNode: Scope] = [:]
-    }
-
     init(nodes: [AstNode]) {
         self.nodes = nodes
     }
@@ -19,13 +13,11 @@ struct Checker {
 
 extension Checker {
 
-    mutating func check() -> Info {
+    mutating func check() {
 
         for node in nodes {
             check(node: node)
         }
-
-        return info
     }
 
     mutating func check(node: AstNode) {
@@ -41,8 +33,14 @@ extension Checker {
         case .declaration:
             let decl = node.asDeclaration
             var expectedType: Type?
+
             if let dType = decl.type {
                 expectedType = checkExpr(node: dType)
+
+                // Really long way to check if the decl is something like `$T: type`
+                if !(decl.isCompileTime && expectedType!.kind == .metatype && expectedType!.asMetatype.instanceType == Type.type) {
+                    expectedType = lowerFromMetatype(expectedType!, atNode: dType)
+                }
             }
 
             var type = (decl.value == .empty) ? expectedType! : checkExpr(node: decl.value)
@@ -66,10 +64,23 @@ extension Checker {
 
             currentScope.insert(entity)
 
+            node.asCheckedDeclaration = Declaration(identifier: decl.identifier, type: decl.type,
+                                                    value: decl.value, isCompileTime: decl.isCompileTime,
+                                                    entity: entity)
+
         case .block:
-            for node in node.asBlock.stmts {
+            let block = node.asBlock
+
+            let prevScope = currentScope
+            currentScope = Scope(parent: currentScope)
+            defer {
+                currentScope = prevScope
+            }
+            for node in block.stmts {
                 check(node: node)
             }
+
+            node.asCheckedBlock = Block(stmts: block.stmts, scope: currentScope)
 
         case .if:
             let iff = node.asIf
@@ -90,7 +101,7 @@ extension Checker {
             let type = checkExpr(node: ret.value)
 
             if type != currentExpectedReturnType! {
-                reportError("Cannot convert type '\(type)' to expected type '\(ret)'", at: ret.value)
+                reportError("Cannot convert type '\(type)' to expected type '\(currentExpectedReturnType!)'", at: ret.value)
             }
 
         default:
@@ -125,9 +136,8 @@ extension Checker {
                 currentScope = prevScope
             }
 
-            info.scopes[node] = currentScope
-
-            var paramTypes: [Type] = []
+            var needsSpecialization = false
+            var params: [Entity] = []
             for param in fn.parameters {
                 assert(param.kind == .declaration)
 
@@ -135,10 +145,15 @@ extension Checker {
 
                 let entity = currentScope.members.last!
 
-                paramTypes.append(entity.type!)
+                if entity.flags.contains(.ct) {
+                    needsSpecialization = true
+                }
+
+                params.append(entity)
             }
 
-            let returnType = checkExpr(node: fn.returnType)
+            var returnType = checkExpr(node: fn.returnType)
+            returnType = lowerFromMetatype(returnType, atNode: fn.returnType)
 
             let prevExpectedReturnType = currentExpectedReturnType
             currentExpectedReturnType = returnType
@@ -146,23 +161,43 @@ extension Checker {
                 currentExpectedReturnType = prevExpectedReturnType
             }
 
-            check(node: fn.body)
+            if !needsSpecialization { // polymorphic functions are checked when called
+                check(node: fn.body)
+            }
 
-            let functionType = Type.Function(paramTypes: paramTypes, returnType: returnType)
+            let functionType = Type.Function(node: node, params: params, returnType: returnType, needsSpecialization: needsSpecialization)
 
-            return Type(value: functionType, entity: Entity.anonymous)
+            let type = Type(value: functionType, entity: Entity.anonymous)
+
+            if needsSpecialization {
+
+                node.asCheckedPolymorphicFunction = PolymorphicFunction(
+                    parameters: fn.parameters, returnType: fn.returnType, body: fn.body,
+                    type: type, specializations: [])
+            } else {
+
+                node.asCheckedFunction = Function(
+                    parameters: fn.parameters, returnType: fn.returnType, body: fn.body,
+                    scope: currentScope, type: type)
+            }
+
+            return type
 
         case .paren:
-            return checkExpr(node: node.asParen.expr)
+            let paren = node.asParen
+            let type = checkExpr(node: paren.expr)
+            node.asCheckedParen = Paren(expr: paren.expr, type: type)
+            return type
 
         case .prefix:
             let prefix = node.asPrefix
-            let exprType = checkExpr(node: prefix.expr)
-            guard exprType == Type.number else {
-                reportError("Prefix operator '\(prefix.kind)', is invalid on type '\(exprType)'", at: prefix.expr)
+            let type = checkExpr(node: prefix.expr)
+            guard type == Type.number else {
+                reportError("Prefix operator '\(prefix.kind)', is invalid on type '\(type)'", at: prefix.expr)
                 return Type.invalid
             }
-            return exprType
+            node.asCheckedPrefix = Prefix(kind: prefix.kind, expr: prefix.expr, type: type)
+            return type
 
         case .infix:
             let infix = node.asInfix
@@ -173,16 +208,20 @@ extension Checker {
                 return Type.invalid
             }
 
+            var type: Type
             switch infix.kind {
             case .lt, .lte, .gt, .gte:
-                return Type.bool
+                type = Type.bool
 
             case .plus, .minus:
-                return Type.number
+                type = Type.number
 
             default:
                 fatalError()
             }
+
+            node.asCheckedInfix = Infix(kind: infix.kind, lhs: infix.lhs, rhs: infix.rhs, type: type)
+            return type
 
         case .call:
             let call = node.asCall
@@ -192,30 +231,121 @@ extension Checker {
                 return Type.invalid
             }
 
-            for (arg, expected) in zip(call.arguments, calleeType.asFunction.paramTypes) {
+            if calleeType.asFunction.needsSpecialization {
 
-                let argType = checkExpr(node: arg)
+                return checkPolymorphicCall(callNode: node, calleeType: calleeType)
+            } else {
 
-                guard argType == expected else {
-                    reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expected)'", at: arg)
-                    continue
+                for (arg, expected) in zip(call.arguments, calleeType.asFunction.params) {
+                    assert(!expected.flags.contains(.ct), "functions with ct params should be marked as needing specialization")
+
+                    let argType = checkExpr(node: arg)
+
+                    guard argType == expected.type! else {
+                        reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expected)'", at: arg)
+                        continue
+                    }
                 }
-            }
 
-            return calleeType.asFunction.returnType
+                let resultType = calleeType.asFunction.returnType
+                node.asCheckedCall = Call(callee: call.callee, arguments: call.arguments, isSpecialized: false, type: resultType)
+
+                return resultType
+            }
 
         default:
             fatalError()
         }
     }
+
+    mutating func checkPolymorphicCall(callNode: AstNode, calleeType: Type) -> Type {
+        let call = callNode.asCall
+        let fnNode = calleeType.asFunction.node
+        let fn = fnNode.asCheckedPolymorphicFunction
+
+        var specializations: [Type] = []
+        for (arg, expected) in zip(call.arguments, calleeType.asFunction.params).filter({ $0.1.flags.contains(.ct) }) {
+
+            let argType = checkExpr(node: arg)
+
+            guard argType == expected.type! else {
+                reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expected)'", at: arg)
+                return Type.invalid // Don't even bother trying to recover from specialized function checking
+            }
+
+            specializations.append(argType)
+        }
+
+        let prevScope = currentScope
+        currentScope = Scope(parent: currentScope)
+        defer {
+            currentScope = prevScope
+        }
+
+        var specializedTypeIterator = specializations.makeIterator()
+        var params: [Entity] = []
+        for param in fn.parameters {
+            assert(param.kind == .declaration)
+
+            // check the declaration as usual.
+            check(node: param)
+
+            let entity = currentScope.members.last!
+
+            if entity.flags.contains(.ct) {
+
+                // Inject the type we are specializing to.
+                entity.type = specializedTypeIterator.next()!
+            }
+
+            params.append(entity)
+        }
+
+        for (arg, expected) in zip(call.arguments, params) {
+
+            let argType = checkExpr(node: arg)
+
+            guard argType == expected.type! else {
+                reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expected.type!)'", at: arg)
+                continue
+            }
+        }
+
+        var returnType = checkExpr(node: fn.returnType)
+        returnType = lowerFromMetatype(returnType, atNode: fn.returnType)
+
+        let prevExpectedReturnType = currentExpectedReturnType
+        currentExpectedReturnType = returnType
+        defer {
+            currentExpectedReturnType = prevExpectedReturnType
+        }
+
+        check(node: fn.body)
+
+        let stripped = Type.Function(node: fnNode, params: params.filter({ !$0.flags.contains(.ct) }), returnType: returnType, needsSpecialization: false)
+        let strippedType = Type(value: stripped, entity: Entity.anonymous)
+
+        fnNode.asCheckedPolymorphicFunction.specializations.append((specializations, strippedType: strippedType))
+
+        callNode.asCheckedCall = Call(callee: call.callee, arguments: call.arguments, isSpecialized: true, type: returnType)
+
+        return returnType
+    }
+
+    func lowerFromMetatype(_ type: Type, atNode node: AstNode) -> Type {
+
+        if type.kind == .metatype {
+            return type.asMetatype.instanceType
+        }
+
+        reportError("'\(type)' cannot be used as a type", at: node)
+        return Type.invalid
+    }
 }
 
 
+// The memory layout must be an ordered superset of Unchecked for all of these.
 extension Checker {
-
-    struct Empty: AstNodeValue {
-        static let astKind = AstKind.empty
-    }
 
     struct Identifier: AstNodeValue {
         static let astKind = AstKind.identifier
@@ -223,7 +353,7 @@ extension Checker {
         let name: String
         let entity: Entity
     }
-    
+
     struct Function: AstNodeValue {
         static let astKind = AstKind.function
 
@@ -231,7 +361,21 @@ extension Checker {
         let returnType: AstNode
         let body: AstNode
 
+        /// The scope the parameters occur within
+        let scope: Scope
         let type: Type
+    }
+
+    struct PolymorphicFunction: AstNodeValue {
+        static let astKind = AstKind.polymorphicFunction
+
+        let parameters: [AstNode]
+        let returnType: AstNode
+        let body: AstNode
+
+        let type: Type
+
+        var specializations: [(specializedTypes: [Type], strippedType: Type)]
     }
 
     struct Declaration: AstNodeValue {
@@ -275,6 +419,8 @@ extension Checker {
 
         let callee: AstNode
         let arguments: [AstNode]
+
+        let isSpecialized: Bool
         let type: Type
     }
 
@@ -284,35 +430,4 @@ extension Checker {
         let stmts: [AstNode]
         let scope: Scope
     }
-
-    struct If: AstNodeValue {
-        static let astKind = AstKind.if
-
-        let condition: AstNode
-        let thenStmt: AstNode
-        let elseStmt: AstNode?
-    }
-
-    struct Return: AstNodeValue {
-        static let astKind = AstKind.return
-
-        let value: AstNode
-    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -25,6 +25,9 @@ class Type: Equatable, CustomStringConvertible {
         case .builtin:
             return name
 
+        case .metatype:
+            return "Metatype(" + asMetatype.instanceType.description + ")"
+
         case .function:
             fatalError()
         }
@@ -38,6 +41,7 @@ class Type: Equatable, CustomStringConvertible {
 enum TypeKind {
     case function
     case builtin
+    case metatype
 }
 
 protocol TypeValue {
@@ -48,12 +52,20 @@ extension Type {
     struct Function: TypeValue {
         static var typeKind = TypeKind.function
 
-        var paramTypes: [Type]
+        var node: AstNode
+        var params: [Entity]
         var returnType: Type
+        var needsSpecialization: Bool
     }
 
     struct Builtin: TypeValue {
         static var typeKind = TypeKind.builtin
+    }
+
+    struct Metatype: TypeValue {
+        static var typeKind = TypeKind.metatype
+
+        var instanceType: Type
     }
 }
 
@@ -62,6 +74,12 @@ extension Type {
     static func makeBuiltin(_ entity: Entity, width: Int) -> Type {
         let type = Type(value: Builtin(), entity: entity)
         type.width = width
+        return type
+    }
+
+    static func makeMetatype(_ type: Type) -> Type {
+        let metatype = Metatype(instanceType: type)
+        let type = Type(value: metatype, entity: .anonymous)
         return type
     }
 }

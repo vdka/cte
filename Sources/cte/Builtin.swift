@@ -7,11 +7,11 @@ func declareBuiltins() {
     Entity.string.flags.insert(.type)
     Entity.number.flags.insert(.type)
 
-    Entity.void.type = Type.void
-    Entity.bool.type = Type.bool
-    Entity.type.type = Type.type
-    Entity.string.type = Type.string
-    Entity.number.type = Type.number
+    Entity.void.type = Type.makeMetatype(Type.void)
+    Entity.bool.type = Type.makeMetatype(Type.bool)
+    Entity.type.type = Type.makeMetatype(Type.type)
+    Entity.string.type = Type.makeMetatype(Type.string)
+    Entity.number.type = Type.makeMetatype(Type.number)
 
     Scope.global.insert(Entity.void)
     Scope.global.insert(Entity.bool)

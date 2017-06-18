@@ -225,19 +225,6 @@ extension AstNode {
         }
     }
 
-    var asCheckedEmpty: Checker.Empty {
-        get {
-            assert(kind == Checker.Empty.astKind)
-            return value.baseAddress!.assumingMemoryBound(to: Checker.Empty.self).pointee
-        }
-        set {
-            kind = Checker.Empty.astKind
-            value.deallocate()
-            value = UnsafeMutableRawBufferPointer.allocate(count: MemoryLayout<Checker.Empty>.size)
-            value.baseAddress!.assumingMemoryBound(to: Checker.Empty.self).initialize(to: newValue)
-        }
-    }
-
     var asCheckedFunction: Checker.Function {
         get {
             assert(kind == Checker.Function.astKind)
@@ -261,19 +248,6 @@ extension AstNode {
             value.deallocate()
             value = UnsafeMutableRawBufferPointer.allocate(count: MemoryLayout<Checker.Identifier>.size)
             value.baseAddress!.assumingMemoryBound(to: Checker.Identifier.self).initialize(to: newValue)
-        }
-    }
-
-    var asCheckedIf: Checker.If {
-        get {
-            assert(kind == Checker.If.astKind)
-            return value.baseAddress!.assumingMemoryBound(to: Checker.If.self).pointee
-        }
-        set {
-            kind = Checker.If.astKind
-            value.deallocate()
-            value = UnsafeMutableRawBufferPointer.allocate(count: MemoryLayout<Checker.If>.size)
-            value.baseAddress!.assumingMemoryBound(to: Checker.If.self).initialize(to: newValue)
         }
     }
 
@@ -313,19 +287,6 @@ extension AstNode {
             value.deallocate()
             value = UnsafeMutableRawBufferPointer.allocate(count: MemoryLayout<Checker.Prefix>.size)
             value.baseAddress!.assumingMemoryBound(to: Checker.Prefix.self).initialize(to: newValue)
-        }
-    }
-
-    var asCheckedReturn: Checker.Return {
-        get {
-            assert(kind == Checker.Return.astKind)
-            return value.baseAddress!.assumingMemoryBound(to: Checker.Return.self).pointee
-        }
-        set {
-            kind = Checker.Return.astKind
-            value.deallocate()
-            value = UnsafeMutableRawBufferPointer.allocate(count: MemoryLayout<Checker.Return>.size)
-            value.baseAddress!.assumingMemoryBound(to: Checker.Return.self).initialize(to: newValue)
         }
     }
 }

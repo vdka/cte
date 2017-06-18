@@ -19,7 +19,7 @@ extension AstNode: CustomStringConvertible {
         case .litNumber:
             return asNumberLiteral.value.description
 
-        case .function:
+        case .function, .polymorphicFunction:
 
             let fn = asFunction
             let parameterList = fn.parameters
@@ -42,9 +42,9 @@ extension AstNode: CustomStringConvertible {
             }
 
             if let type = d.type {
-                return ident + ": " + type.description + value
+                return (d.isCompileTime ? "$" : "") + ident + ": " + type.description + value
             }
-            return ident + " := " + d.value.description
+            return ident + (d.isCompileTime ? " :: " : " := ") + d.value.description
 
         case .paren:
             return "(" + asParen.expr.description + ")"

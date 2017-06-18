@@ -2,6 +2,7 @@
 // DO NOT EDIT
 
 
+
 extension AstNode {
 
     var asBlock: AstNode.Block {
@@ -225,19 +226,6 @@ extension AstNode {
         }
     }
 
-    var asCheckedEmpty: Checker.Empty {
-        get {
-            assert(kind == Checker.Empty.astKind)
-            return value.baseAddress!.assumingMemoryBound(to: Checker.Empty.self).pointee
-        }
-        set {
-            kind = Checker.Empty.astKind
-            value.deallocate()
-            value = UnsafeMutableRawBufferPointer.allocate(count: MemoryLayout<Checker.Empty>.size)
-            value.baseAddress!.assumingMemoryBound(to: Checker.Empty.self).initialize(to: newValue)
-        }
-    }
-
     var asCheckedFunction: Checker.Function {
         get {
             assert(kind == Checker.Function.astKind)
@@ -261,19 +249,6 @@ extension AstNode {
             value.deallocate()
             value = UnsafeMutableRawBufferPointer.allocate(count: MemoryLayout<Checker.Identifier>.size)
             value.baseAddress!.assumingMemoryBound(to: Checker.Identifier.self).initialize(to: newValue)
-        }
-    }
-
-    var asCheckedIf: Checker.If {
-        get {
-            assert(kind == Checker.If.astKind)
-            return value.baseAddress!.assumingMemoryBound(to: Checker.If.self).pointee
-        }
-        set {
-            kind = Checker.If.astKind
-            value.deallocate()
-            value = UnsafeMutableRawBufferPointer.allocate(count: MemoryLayout<Checker.If>.size)
-            value.baseAddress!.assumingMemoryBound(to: Checker.If.self).initialize(to: newValue)
         }
     }
 
@@ -303,6 +278,19 @@ extension AstNode {
         }
     }
 
+    var asCheckedPolymorphicFunction: Checker.PolymorphicFunction {
+        get {
+            assert(kind == Checker.PolymorphicFunction.astKind)
+            return value.baseAddress!.assumingMemoryBound(to: Checker.PolymorphicFunction.self).pointee
+        }
+        set {
+            kind = Checker.PolymorphicFunction.astKind
+            value.deallocate()
+            value = UnsafeMutableRawBufferPointer.allocate(count: MemoryLayout<Checker.PolymorphicFunction>.size)
+            value.baseAddress!.assumingMemoryBound(to: Checker.PolymorphicFunction.self).initialize(to: newValue)
+        }
+    }
+
     var asCheckedPrefix: Checker.Prefix {
         get {
             assert(kind == Checker.Prefix.astKind)
@@ -315,20 +303,146 @@ extension AstNode {
             value.baseAddress!.assumingMemoryBound(to: Checker.Prefix.self).initialize(to: newValue)
         }
     }
+}
 
-    var asCheckedReturn: Checker.Return {
-        get {
-            assert(kind == Checker.Return.astKind)
-            return value.baseAddress!.assumingMemoryBound(to: Checker.Return.self).pointee
-        }
-        set {
-            kind = Checker.Return.astKind
-            value.deallocate()
-            value = UnsafeMutableRawBufferPointer.allocate(count: MemoryLayout<Checker.Return>.size)
-            value.baseAddress!.assumingMemoryBound(to: Checker.Return.self).initialize(to: newValue)
-        }
+extension AstNode.Block {
+    var isChecked: Bool {
+        return false
     }
 }
+
+extension AstNode.Call {
+    var isChecked: Bool {
+        return false
+    }
+}
+
+extension AstNode.Declaration {
+    var isChecked: Bool {
+        return false
+    }
+}
+
+extension AstNode.Empty {
+    var isChecked: Bool {
+        return false
+    }
+}
+
+extension AstNode.Function {
+    var isChecked: Bool {
+        return false
+    }
+}
+
+extension AstNode.Identifier {
+    var isChecked: Bool {
+        return false
+    }
+}
+
+extension AstNode.If {
+    var isChecked: Bool {
+        return false
+    }
+}
+
+extension AstNode.Infix {
+    var isChecked: Bool {
+        return false
+    }
+}
+
+extension AstNode.Invalid {
+    var isChecked: Bool {
+        return false
+    }
+}
+
+extension AstNode.NumberLiteral {
+    var isChecked: Bool {
+        return false
+    }
+}
+
+extension AstNode.Paren {
+    var isChecked: Bool {
+        return false
+    }
+}
+
+extension AstNode.Prefix {
+    var isChecked: Bool {
+        return false
+    }
+}
+
+extension AstNode.Return {
+    var isChecked: Bool {
+        return false
+    }
+}
+
+extension AstNode.StringLiteral {
+    var isChecked: Bool {
+        return false
+    }
+}
+
+extension Checker.Block {
+    var isChecked: Bool {
+        return true
+    }
+}
+
+extension Checker.Call {
+    var isChecked: Bool {
+        return true
+    }
+}
+
+extension Checker.Declaration {
+    var isChecked: Bool {
+        return true
+    }
+}
+
+extension Checker.Function {
+    var isChecked: Bool {
+        return true
+    }
+}
+
+extension Checker.Identifier {
+    var isChecked: Bool {
+        return true
+    }
+}
+
+extension Checker.Infix {
+    var isChecked: Bool {
+        return true
+    }
+}
+
+extension Checker.Paren {
+    var isChecked: Bool {
+        return true
+    }
+}
+
+extension Checker.PolymorphicFunction {
+    var isChecked: Bool {
+        return true
+    }
+}
+
+extension Checker.Prefix {
+    var isChecked: Bool {
+        return true
+    }
+}
+
 
 extension Type {
 
@@ -357,5 +471,17 @@ extension Type {
             value.baseAddress!.assumingMemoryBound(to: Function.self).initialize(to: newValue)
         }
     }
-}
 
+    var asMetatype: Type.Metatype {
+        get {
+            assert(kind == Metatype.typeKind)
+            return value.baseAddress!.assumingMemoryBound(to: Metatype.self).pointee
+        }
+        set {
+            kind = Metatype.typeKind
+            value.deallocate()
+            value = UnsafeMutableRawBufferPointer.allocate(count: MemoryLayout<Metatype>.size)
+            value.baseAddress!.assumingMemoryBound(to: Metatype.self).initialize(to: newValue)
+        }
+    }
+}

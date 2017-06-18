@@ -1,9 +1,15 @@
 
-class Entity {
+import LLVM
+
+class Entity: CustomStringConvertible {
 
     var ident: Token
     var type: Type?
     var flags: Flag = .none
+
+    var value: IRValue?
+
+    var specializations: [Function]?
 
     var name: String {
         guard case .ident(let ident) = ident.kind else {
@@ -26,6 +32,10 @@ class Entity {
         static let used = Flag(rawValue: 0b0000_0001)
         static let ct   = Flag(rawValue: 0b0000_0010)
         static let type = Flag(rawValue: 0b1000_0000)
+    }
+
+    var description: String {
+        return name
     }
 }
 

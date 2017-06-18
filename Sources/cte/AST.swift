@@ -31,6 +31,7 @@ enum AstKind {
     case litString
     case litNumber
     case function
+    case polymorphicFunction
     case declaration
     case paren
     case prefix
@@ -51,6 +52,8 @@ extension AstNode {
 
 protocol AstNodeValue {
     static var astKind: AstKind { get }
+
+    var isChecked: Bool { get }
 }
 
 

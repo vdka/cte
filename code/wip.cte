@@ -1,0 +1,10 @@
+
+min := fn ($T: type, a: T, b: T) -> T {
+  if a < b return a
+  else return b
+}
+
+x : number = 5.0
+y : number = 3.0
+z := min(number, x, y)
+

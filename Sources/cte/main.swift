@@ -1,4 +1,7 @@
 
+import Foundation
+import LLVM
+
 assert(CommandLine.arguments.count > 1)
 let filepath = CommandLine.arguments[1]
 guard let file = File(path: filepath) else {
@@ -18,7 +21,26 @@ declareBuiltins()
 
 var checker = Checker(nodes: nodes)
 
-let info = checker.check()
+checker.check() // Changes nodes to Checked variants where appropriate
 emitErrors(for: "Checking")
 
-print(info)
+let irgen = IRGenerator(forModuleNamed: "main", nodes: nodes)
+irgen.generate()
+
+do {
+    try irgen.module.verify()
+    try TargetMachine().emitToFile(module: irgen.module, type: .object, path: FileManager.default.currentDirectoryPath + "/main.o")
+
+    let clangPath = getClangPath()
+    shell(path: clangPath, args: ["-o", "main", "main.o"])
+
+} catch {
+    print(error)
+
+    irgen.module.dump()
+}
+
+
+
+//print(checker.nodes)
+
