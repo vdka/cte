@@ -2,12 +2,39 @@
 extension AstNode {
 {% for type in types.implementing.AstValue|!protocol %}
 
-    var as{% if type.parentName|contains:"Checker" %}Checked{% endif %}{{ type.localName }}: {{ type.name }} {
+    {% if type.parentName|contains:"AstNode" %}
+    var as{{ type.localName }}: Common{{ type.localName }} {
+        assert(kind == {{ type.name }}.astKind)
+        return value as! Common{{ type.localName }}
+    }
+    {% endif %}
+    {% if type.parentName|contains:"Checker" %}
+    var asChecked{{ type.localName }}: {{ type.name }} {
         assert(kind == {{ type.name }}.astKind)
         return value as! {{ type.name }}
     }
+    {% endif %}
 {% endfor %}
 }
+
+{% for type in types.implementing.AstValue|!protocol %}
+{% if type.parentName|contains:"AstNode" %}
+
+protocol Common{{ type.localName }} {
+
+    {% for variable in type.instanceVariables %}
+    var {{ variable.name }}: {{ variable.typeName }} { get }
+    {% endfor %}
+}
+{% endif %}
+{% endfor %}
+
+{% for type in types.implementing.AstValue|!protocol %}
+{% if type.name|!contains:"Polymorphic" %}
+
+extension {{ type.name }}: Common{{ type.localName }} {}
+{% endif %}
+{% endfor %}
 
 extension Type {
 {% for type in types.implementing.TypeValue %}

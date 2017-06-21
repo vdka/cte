@@ -1,78 +1,78 @@
-// Generated using Sourcery 0.7.2 — https://github.com/krzysztofzablocki/Sourcery
+// Generated using Sourcery 0.7.1 — https://github.com/krzysztofzablocki/Sourcery
 // DO NOT EDIT
 
 
 
 extension AstNode {
 
-    var asBlock: AstNode.Block {
+    var asBlock: CommonBlock {
         assert(kind == AstNode.Block.astKind)
-        return value as! AstNode.Block
+        return value as! CommonBlock
     }
 
-    var asCall: AstNode.Call {
+    var asCall: CommonCall {
         assert(kind == AstNode.Call.astKind)
-        return value as! AstNode.Call
+        return value as! CommonCall
     }
 
-    var asDeclaration: AstNode.Declaration {
+    var asDeclaration: CommonDeclaration {
         assert(kind == AstNode.Declaration.astKind)
-        return value as! AstNode.Declaration
+        return value as! CommonDeclaration
     }
 
-    var asEmpty: AstNode.Empty {
+    var asEmpty: CommonEmpty {
         assert(kind == AstNode.Empty.astKind)
-        return value as! AstNode.Empty
+        return value as! CommonEmpty
     }
 
-    var asFunction: AstNode.Function {
+    var asFunction: CommonFunction {
         assert(kind == AstNode.Function.astKind)
-        return value as! AstNode.Function
+        return value as! CommonFunction
     }
 
-    var asIdentifier: AstNode.Identifier {
+    var asIdentifier: CommonIdentifier {
         assert(kind == AstNode.Identifier.astKind)
-        return value as! AstNode.Identifier
+        return value as! CommonIdentifier
     }
 
-    var asIf: AstNode.If {
+    var asIf: CommonIf {
         assert(kind == AstNode.If.astKind)
-        return value as! AstNode.If
+        return value as! CommonIf
     }
 
-    var asInfix: AstNode.Infix {
+    var asInfix: CommonInfix {
         assert(kind == AstNode.Infix.astKind)
-        return value as! AstNode.Infix
+        return value as! CommonInfix
     }
 
-    var asInvalid: AstNode.Invalid {
+    var asInvalid: CommonInvalid {
         assert(kind == AstNode.Invalid.astKind)
-        return value as! AstNode.Invalid
+        return value as! CommonInvalid
     }
 
-    var asNumberLiteral: AstNode.NumberLiteral {
+    var asNumberLiteral: CommonNumberLiteral {
         assert(kind == AstNode.NumberLiteral.astKind)
-        return value as! AstNode.NumberLiteral
+        return value as! CommonNumberLiteral
     }
 
-    var asParen: AstNode.Paren {
+    var asParen: CommonParen {
         assert(kind == AstNode.Paren.astKind)
-        return value as! AstNode.Paren
+        return value as! CommonParen
     }
 
-    var asPrefix: AstNode.Prefix {
+    var asPrefix: CommonPrefix {
         assert(kind == AstNode.Prefix.astKind)
-        return value as! AstNode.Prefix
+        return value as! CommonPrefix
     }
 
-    var asReturn: AstNode.Return {
+    var asReturn: CommonReturn {
         assert(kind == AstNode.Return.astKind)
-        return value as! AstNode.Return
+        return value as! CommonReturn
     }
 
-    var asStringLiteral: AstNode.StringLiteral {
+    var asStringLiteral: CommonStringLiteral {
         assert(kind == AstNode.StringLiteral.astKind)
-        return value as! AstNode.StringLiteral
+        return value as! CommonStringLiteral
     }
 
     var asCheckedBlock: Checker.Block {
@@ -120,6 +120,131 @@ extension AstNode {
         return value as! Checker.Prefix
     }
 }
+
+
+protocol CommonBlock {
+
+    var stmts: [AstNode] { get }
+}
+
+protocol CommonCall {
+
+    var callee: AstNode { get }
+    var arguments: [AstNode] { get }
+}
+
+protocol CommonDeclaration {
+
+    var identifier: AstNode { get }
+    var type: AstNode? { get }
+    var value: AstNode { get }
+    var isCompileTime: Bool { get }
+}
+
+protocol CommonEmpty {
+
+}
+
+protocol CommonFunction {
+
+    var parameters: [AstNode] { get }
+    var returnType: AstNode { get }
+    var body: AstNode { get }
+}
+
+protocol CommonIdentifier {
+
+    var name: String { get }
+}
+
+protocol CommonIf {
+
+    var condition: AstNode { get }
+    var thenStmt: AstNode { get }
+    var elseStmt: AstNode? { get }
+}
+
+protocol CommonInfix {
+
+    var kind: Token.Kind { get }
+    var lhs: AstNode { get }
+    var rhs: AstNode { get }
+}
+
+protocol CommonInvalid {
+
+}
+
+protocol CommonNumberLiteral {
+
+    var value: Double { get }
+}
+
+protocol CommonParen {
+
+    var expr: AstNode { get }
+}
+
+protocol CommonPrefix {
+
+    var kind: Token.Kind { get }
+    var expr: AstNode { get }
+}
+
+protocol CommonReturn {
+
+    var value: AstNode { get }
+}
+
+protocol CommonStringLiteral {
+
+    var value: String { get }
+}
+
+
+extension AstNode.Block: CommonBlock {}
+
+extension AstNode.Call: CommonCall {}
+
+extension AstNode.Declaration: CommonDeclaration {}
+
+extension AstNode.Empty: CommonEmpty {}
+
+extension AstNode.Function: CommonFunction {}
+
+extension AstNode.Identifier: CommonIdentifier {}
+
+extension AstNode.If: CommonIf {}
+
+extension AstNode.Infix: CommonInfix {}
+
+extension AstNode.Invalid: CommonInvalid {}
+
+extension AstNode.NumberLiteral: CommonNumberLiteral {}
+
+extension AstNode.Paren: CommonParen {}
+
+extension AstNode.Prefix: CommonPrefix {}
+
+extension AstNode.Return: CommonReturn {}
+
+extension AstNode.StringLiteral: CommonStringLiteral {}
+
+extension Checker.Block: CommonBlock {}
+
+extension Checker.Call: CommonCall {}
+
+extension Checker.Declaration: CommonDeclaration {}
+
+extension Checker.Function: CommonFunction {}
+
+extension Checker.Identifier: CommonIdentifier {}
+
+extension Checker.Infix: CommonInfix {}
+
+extension Checker.Paren: CommonParen {}
+
+extension Checker.Prefix: CommonPrefix {}
 
 extension Type {
 
