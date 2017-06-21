@@ -45,6 +45,7 @@ extension Entity {
         let tok = Token(kind: .ident(name), location: .unknown)
         let entity = Entity(ident: tok)
         entity.type = type
+        entity.flags.insert(.ct)
         return entity
     }
 }

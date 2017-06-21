@@ -1,22 +1,19 @@
 
 class AstNode: Hashable {
 
-    var kind: AstKind
-    var value: UnsafeMutableRawBufferPointer
+    var kind: AstKind {
+        return type(of: value).astKind
+    }
+    var value: AstValue
     var tokens: [Token]
 
-    init<T: AstNodeValue>(_ value: T, tokens: [Token]) {
-        self.kind = T.astKind
+    init<T: AstValue>(_ value: T, tokens: [Token]) {
+        self.value = value
         self.tokens = tokens
-
-        let buffer = UnsafeMutableRawBufferPointer.allocate(count: MemoryLayout<T>.size)
-        buffer.baseAddress!.assumingMemoryBound(to: T.self).initialize(to: value)
-
-        self.value = buffer
     }
 
     var hashValue: Int {
-        return Int(bitPattern: value.baseAddress!)
+        return unsafeBitCast(self, to: Int.self) // classes are just pointers after all
     }
 
     static func == (lhs: AstNode, rhs: AstNode) -> Bool {
@@ -50,39 +47,39 @@ extension AstNode {
 
 // MARK: AstValues
 
-protocol AstNodeValue {
+protocol AstValue {
     static var astKind: AstKind { get }
 }
 
 
 extension AstNode {
-    struct Invalid: AstNodeValue {
+    struct Invalid: AstValue {
         static let astKind = AstKind.invalid
     }
 
-    struct Empty: AstNodeValue {
+    struct Empty: AstValue {
         static let astKind = AstKind.empty
     }
 
-    struct Identifier: AstNodeValue {
+    struct Identifier: AstValue {
         static let astKind = AstKind.identifier
 
         let name: String
     }
 
-    struct StringLiteral: AstNodeValue {
+    struct StringLiteral: AstValue {
         static let astKind = AstKind.litString
 
         let value: String
     }
 
-    struct NumberLiteral: AstNodeValue {
+    struct NumberLiteral: AstValue {
         static let astKind = AstKind.litNumber
 
         let value: Double
     }
 
-    struct Function: AstNodeValue {
+    struct Function: AstValue {
         static let astKind = AstKind.function
 
         let parameters: [AstNode]
@@ -90,7 +87,7 @@ extension AstNode {
         let body: AstNode
     }
 
-    struct Declaration: AstNodeValue {
+    struct Declaration: AstValue {
         static let astKind = AstKind.declaration
 
         let identifier: AstNode
@@ -99,20 +96,20 @@ extension AstNode {
         let isCompileTime: Bool
     }
 
-    struct Paren: AstNodeValue {
+    struct Paren: AstValue {
         static let astKind = AstKind.paren
 
         let expr: AstNode
     }
 
-    struct Prefix: AstNodeValue {
+    struct Prefix: AstValue {
         static let astKind = AstKind.prefix
 
         let kind: Token.Kind
         let expr: AstNode
     }
 
-    struct Infix: AstNodeValue {
+    struct Infix: AstValue {
         static let astKind = AstKind.infix
 
         let kind: Token.Kind
@@ -120,20 +117,20 @@ extension AstNode {
         let rhs: AstNode
     }
 
-    struct Call: AstNodeValue {
+    struct Call: AstValue {
         static let astKind = AstKind.call
 
         let callee: AstNode
         let arguments: [AstNode]
     }
 
-    struct Block: AstNodeValue {
+    struct Block: AstValue {
         static let astKind = AstKind.block
 
         let stmts: [AstNode]
     }
 
-    struct If: AstNodeValue {
+    struct If: AstValue {
         static let astKind = AstKind.if
 
         let condition: AstNode
@@ -141,7 +138,7 @@ extension AstNode {
         let elseStmt: AstNode?
     }
 
-    struct Return: AstNodeValue {
+    struct Return: AstValue {
         static let astKind = AstKind.return
 
         let value: AstNode

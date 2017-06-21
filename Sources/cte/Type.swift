@@ -2,20 +2,18 @@
 class Type: Equatable, CustomStringConvertible {
 
     unowned var entity: Entity
-    var kind: TypeKind
     var width: Int?
 
-    var value: UnsafeMutableRawBufferPointer
+    var kind: TypeKind {
+        return Swift.type(of: value).typeKind
+    }
+    var value: TypeValue
 
     init<T: TypeValue>(value: T, entity: Entity) {
-        self.kind = T.typeKind
         self.entity = entity
         self.width = nil
 
-        let buffer = UnsafeMutableRawBufferPointer.allocate(count: MemoryLayout<T>.size)
-        buffer.baseAddress!.assumingMemoryBound(to: T.self).initialize(to: value)
-
-        self.value = buffer
+        self.value = value
 
     }
 
@@ -29,7 +27,7 @@ class Type: Equatable, CustomStringConvertible {
             return name
 
         case .metatype:
-            return "Metatype(" + asMetatype.instanceType.description + ")"
+            return "Metatype(" + (self.value as! Metatype).instanceType.description + ")"
 
         case .function:
             fatalError()

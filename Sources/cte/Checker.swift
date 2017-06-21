@@ -64,7 +64,7 @@ extension Checker {
 
             currentScope.insert(entity)
 
-            node.asCheckedDeclaration = Declaration(identifier: decl.identifier, type: decl.type,
+            node.value = Declaration(identifier: decl.identifier, type: decl.type,
                                                     value: decl.value, isCompileTime: decl.isCompileTime,
                                                     entity: entity)
 
@@ -80,7 +80,7 @@ extension Checker {
                 check(node: node)
             }
 
-            node.asCheckedBlock = Block(stmts: block.stmts, scope: currentScope)
+            node.value = Block(stmts: block.stmts, scope: currentScope)
 
         case .if:
             let iff = node.asIf
@@ -118,7 +118,7 @@ extension Checker {
                 reportError("Use of undefined identifier '\(ident)'", at: node)
                 return Type.invalid
             }
-            node.asCheckedIdentifier = Identifier(name: ident, entity: entity)
+            node.value = Identifier(name: ident, entity: entity)
             return entity.type!
 
         case .litString:
@@ -171,12 +171,10 @@ extension Checker {
 
             if needsSpecialization {
 
-                node.asCheckedPolymorphicFunction = PolymorphicFunction(
-                    parameters: fn.parameters, returnType: fn.returnType, body: fn.body,
-                    type: type, specializations: [])
+                node.value = PolymorphicFunction(parameters: fn.parameters, returnType: fn.returnType, body: fn.body, type: type, specializations: [])
             } else {
 
-                node.asCheckedFunction = Function(
+                node.value = Function(
                     parameters: fn.parameters, returnType: fn.returnType, body: fn.body,
                     scope: currentScope, type: type)
             }
@@ -186,7 +184,7 @@ extension Checker {
         case .paren:
             let paren = node.asParen
             let type = checkExpr(node: paren.expr)
-            node.asCheckedParen = Paren(expr: paren.expr, type: type)
+            node.value = Paren(expr: paren.expr, type: type)
             return type
 
         case .prefix:
@@ -196,7 +194,7 @@ extension Checker {
                 reportError("Prefix operator '\(prefix.kind)', is invalid on type '\(type)'", at: prefix.expr)
                 return Type.invalid
             }
-            node.asCheckedPrefix = Prefix(kind: prefix.kind, expr: prefix.expr, type: type)
+            node.value = Prefix(kind: prefix.kind, expr: prefix.expr, type: type)
             return type
 
         case .infix:
@@ -220,7 +218,7 @@ extension Checker {
                 fatalError()
             }
 
-            node.asCheckedInfix = Infix(kind: infix.kind, lhs: infix.lhs, rhs: infix.rhs, type: type)
+            node.value = Infix(kind: infix.kind, lhs: infix.lhs, rhs: infix.rhs, type: type)
             return type
 
         case .call:
@@ -248,7 +246,7 @@ extension Checker {
                 }
 
                 let resultType = calleeType.asFunction.returnType
-                node.asCheckedCall = Call(callee: call.callee, arguments: call.arguments, isSpecialized: false, type: resultType)
+                node.value = Call(callee: call.callee, arguments: call.arguments, isSpecialized: false, type: resultType)
 
                 return resultType
             }
@@ -286,6 +284,10 @@ extension Checker {
         var params: [Entity] = []
         for param in fn.parameters {
             assert(param.kind == .declaration)
+
+            let decl = param.asCheckedDeclaration
+            // Changed the param node value back to being unchecked
+            param.value = AstNode.Declaration(identifier: decl.identifier, type: decl.type, value: decl.value, isCompileTime: decl.isCompileTime)
 
             // check the declaration as usual.
             check(node: param)
@@ -332,10 +334,13 @@ extension Checker {
 
         // If there is already a matching specialization no need to duplicate it
         if !fn.specializations.contains(where: { $0.specializedTypes == specializations }) {
-            fnNode.asCheckedPolymorphicFunction.specializations.append((specializations, strippedType: strippedType))
+
+            var pmFn = fnNode.asCheckedPolymorphicFunction
+            pmFn.specializations.append((specializations, strippedType: strippedType))
+            fnNode.value = pmFn
         }
 
-        callNode.asCheckedCall = Call(callee: call.callee, arguments: call.arguments, isSpecialized: true, type: returnType)
+        callNode.value = Call(callee: call.callee, arguments: call.arguments, isSpecialized: true, type: returnType)
 
         return returnType
     }
@@ -351,19 +356,48 @@ extension Checker {
     }
 }
 
+protocol CheckedAstValue: AstValue {
+    associatedtype UncheckedValue: AstValue
+
+    func downcast() -> UncheckedValue
+}
+
+protocol CheckedExpressionAstValue: CheckedAstValue {
+    var type: Type { get }
+}
+
+extension CheckedAstValue {
+    static var astKind: AstKind {
+        return UncheckedValue.astKind
+    }
+
+    func downcast() -> UncheckedValue {
+
+        var copy = self
+        return withUnsafePointer(to: &copy) {
+            return $0.withMemoryRebound(to: UncheckedValue.self, capacity: 1, { $0 }).pointee
+        }
+    }
+}
 
 // The memory layout must be an ordered superset of Unchecked for all of these.
 extension Checker {
 
-    struct Identifier: AstNodeValue {
+    struct Identifier: CheckedExpressionAstValue {
         static let astKind = AstKind.identifier
+
+        typealias UncheckedValue = AstNode.Identifier
 
         let name: String
         let entity: Entity
+
+        var type: Type {
+            return entity.type!
+        }
     }
 
-    struct Function: AstNodeValue {
-        static let astKind = AstKind.function
+    struct Function: CheckedExpressionAstValue {
+        typealias UncheckedValue = AstNode.Function
 
         let parameters: [AstNode]
         let returnType: AstNode
@@ -374,8 +408,10 @@ extension Checker {
         let type: Type
     }
 
-    struct PolymorphicFunction: AstNodeValue {
+    struct PolymorphicFunction: CheckedExpressionAstValue {
         static let astKind = AstKind.polymorphicFunction
+
+        typealias UncheckedValue = AstNode.Function
 
         let parameters: [AstNode]
         let returnType: AstNode
@@ -383,11 +419,11 @@ extension Checker {
 
         let type: Type
 
-        var specializations: [(specializedTypes: [Type], strippedType: Type)]
+        var specializations: [(specializedTypes: [Type], strippedType: Type)] = []
     }
 
-    struct Declaration: AstNodeValue {
-        static let astKind = AstKind.declaration
+    struct Declaration: CheckedAstValue {
+        typealias UncheckedValue = AstNode.Declaration
 
         let identifier: AstNode
         let type: AstNode?
@@ -397,15 +433,15 @@ extension Checker {
         let entity: Entity
     }
 
-    struct Paren: AstNodeValue {
-        static let astKind = AstKind.paren
+    struct Paren: CheckedExpressionAstValue {
+        typealias UncheckedValue = AstNode.Paren
 
         let expr: AstNode
         let type: Type
     }
 
-    struct Prefix: AstNodeValue {
-        static let astKind = AstKind.prefix
+    struct Prefix: CheckedExpressionAstValue {
+        typealias UncheckedValue = AstNode.Prefix
 
         let kind: Token.Kind
         let expr: AstNode
@@ -413,8 +449,8 @@ extension Checker {
         let type: Type
     }
 
-    struct Infix: AstNodeValue {
-        static let astKind = AstKind.infix
+    struct Infix: CheckedExpressionAstValue {
+        typealias UncheckedValue = AstNode.Infix
 
         let kind: Token.Kind
         let lhs: AstNode
@@ -422,8 +458,8 @@ extension Checker {
         let type: Type
     }
 
-    struct Call: AstNodeValue {
-        static let astKind = AstKind.call
+    struct Call: CheckedExpressionAstValue {
+        typealias UncheckedValue = AstNode.Call
 
         let callee: AstNode
         let arguments: [AstNode]
@@ -432,8 +468,8 @@ extension Checker {
         let type: Type
     }
 
-    struct Block: AstNodeValue {
-        static let astKind = AstKind.block
+    struct Block: CheckedAstValue {
+        typealias UncheckedValue = AstNode.Block
 
         let stmts: [AstNode]
         let scope: Scope
