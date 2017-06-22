@@ -4,7 +4,7 @@ set -e
 
 case "$1" in
 xcode)
-    swift package generate-xcodeproj $FLAGS
+    swift package generate-xcodeproj 
 ;;
 *)
     swift build
