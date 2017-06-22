@@ -6,10 +6,12 @@ class Type: Equatable, CustomStringConvertible {
     weak var entity: Entity?
     var width: Int?
 
+    var flags: Flag = .none
+
+    var value: TypeValue
     var kind: TypeKind {
         return Swift.type(of: value).typeKind
     }
-    var value: TypeValue
 
     init<T: TypeValue>(value: T, entity: Entity? = nil) {
         self.entity = entity
@@ -17,6 +19,16 @@ class Type: Equatable, CustomStringConvertible {
 
         self.value = value
 
+    }
+
+    struct Flag: OptionSet {
+        let rawValue: UInt8
+        static let none    = Flag(rawValue: 0b0000_0000)
+        static let used    = Flag(rawValue: 0b0000_0001)
+        static let number  = Flag(rawValue: 0b1000_0000)
+        static let integer = Flag(rawValue: 0b1100_0000)
+        static let signed  = Flag(rawValue: 0b1110_0010)
+        static let float   = Flag(rawValue: 0b1001_0100)
     }
 
     var description: String {

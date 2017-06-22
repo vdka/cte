@@ -27,6 +27,7 @@ enum AstKind {
     case identifier
     case litString
     case litFloat
+    case litInteger
     case function
     case polymorphicFunction
     case declaration
@@ -78,6 +79,13 @@ extension AstNode {
         static let astKind = AstKind.litFloat
 
         let value: Double
+    }
+
+    struct IntegerLiteral: AstValue {
+        static let astKind = AstKind.litInteger
+
+        // NOTE(vdka): Negation is handle through a prefix op
+        let value: UInt64
     }
 
     struct Function: AstValue {

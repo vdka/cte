@@ -19,6 +19,9 @@ extension AstNode: CustomStringConvertible {
         case .litFloat:
             return asFloatLiteral.value.description
 
+        case .litInteger:
+            return asIntegerLiteral.value.description
+
         case .function, .polymorphicFunction:
 
             let fn = asFunction

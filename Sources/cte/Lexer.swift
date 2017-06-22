@@ -147,14 +147,20 @@ struct Lexer {
                 }
             } else if digits.contains(char) {
 
+                var isFloat = false
                 var string = ""
                 while let char = scanner.peek(), (identChars + digits + [".", "-"]).contains(char) {
+                    if [".", "e", "E"].contains(char) {
+                        isFloat = true
+                    }
                     string.append(char)
                     scanner.pop()
                 }
 
-                if let val = Double(string) {
-                    kind = .number(val)
+                if !isFloat, let val = UInt64(string) {
+                    kind = .integer(val)
+                } else if let val = Double(string) {
+                    kind = .float(val)
                 } else {
                     kind = .invalid(string)
                 }
@@ -230,7 +236,8 @@ extension Token {
         case invalid(String)
 
         case ident(String)
-        case number(Double)
+        case integer(UInt64)
+        case float(Double)
         case string(String)
 
         // Structure
@@ -307,7 +314,10 @@ extension Token.Kind: CustomStringConvertible {
         case .ident(let string):
             return string
 
-        case .number(let val):
+        case .float(let val):
+            return val.description
+
+        case .integer(let val):
             return val.description
 
         case .string(let val):

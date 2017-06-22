@@ -94,11 +94,17 @@ struct Parser {
             let litString = AstNode.StringLiteral(value: string)
             return AstNode(litString, tokens: [token])
 
-        case .number(let number):
+        case .float(let val):
             advance()
 
-            let litNumber = AstNode.FloatLiteral(value: number)
-            return AstNode(litNumber, tokens: [token])
+            let floatLit = AstNode.FloatLiteral(value: val)
+            return AstNode(floatLit, tokens: [token])
+
+        case .integer(let val):
+            advance()
+
+            let integerLit = AstNode.IntegerLiteral(value: val)
+            return AstNode(integerLit, tokens: [token])
 
         case .lbrace:
             let lbrace = advance()

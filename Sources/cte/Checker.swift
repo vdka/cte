@@ -125,7 +125,10 @@ extension Checker {
             return Type.string
 
         case .litFloat:
-            return Type.number
+            return Type.f64
+
+        case .litInteger:
+            return Type.i64
 
         case .function:
             let fn = node.asFunction
@@ -196,13 +199,14 @@ extension Checker {
             node.value = Paren(expr: paren.expr, type: type)
             return type
 
+        // FIXME:
         case .prefix:
             let prefix = node.asPrefix
             var type = checkExpr(node: prefix.expr)
 
             switch prefix.kind {
             case .plus, .minus:
-                guard type == Type.number else {
+                guard type == Type.f64 else {
                     reportError("Prefix operator '\(prefix.kind)' is only valid on signed numeric types", at: prefix.expr)
                     return Type.invalid
                 }
@@ -229,11 +233,12 @@ extension Checker {
             node.value = Prefix(kind: prefix.kind, expr: prefix.expr, type: type)
             return type
 
+        // FIXME:
         case .infix:
             let infix = node.asInfix
             let lhsType = checkExpr(node: infix.lhs)
             let rhsType = checkExpr(node: infix.rhs)
-            guard lhsType == Type.number, lhsType == rhsType else {
+            guard lhsType == Type.f64 || rhsType == Type.f32, lhsType == rhsType else {
                 reportError("Infix operator '\(infix.kind)', is only valid on 'number' types", at: node)
                 return Type.invalid
             }
@@ -244,7 +249,7 @@ extension Checker {
                 type = Type.bool
 
             case .plus, .minus:
-                type = Type.number
+                type = Type.f64
 
             default:
                 fatalError()
@@ -467,8 +472,6 @@ extension CheckedAstValue {
 extension Checker {
 
     struct Identifier: CheckedExpression, CheckedAstValue {
-        static let astKind = AstKind.identifier
-
         typealias UncheckedValue = AstNode.Identifier
 
         let name: String
@@ -477,6 +480,30 @@ extension Checker {
         var type: Type {
             return entity.type!
         }
+    }
+
+    struct StringLiteral: CheckedExpression, CheckedAstValue {
+        typealias UncheckedValue = AstNode.StringLiteral
+
+        let value: String
+
+        let type: Type
+    }
+
+    struct FloatLiteral: CheckedExpression, CheckedAstValue {
+        typealias UncheckedValue = AstNode.FloatLiteral
+
+        let value: Double
+
+        let type: Type
+    }
+
+    struct IntegerLiteral: CheckedExpression, CheckedAstValue {
+        typealias UncheckedValue = AstNode.IntegerLiteral
+
+        let value: UInt64
+
+        let type: Type
     }
 
     struct Function: CheckedExpression, CheckedAstValue {

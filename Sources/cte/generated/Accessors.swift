@@ -50,6 +50,11 @@ extension AstNode {
         return value as! CommonInfix
     }
 
+    var asIntegerLiteral: CommonIntegerLiteral {
+        assert(kind == AstNode.IntegerLiteral.astKind)
+        return value as! CommonIntegerLiteral
+    }
+
     var asInvalid: CommonInvalid {
         assert(kind == AstNode.Invalid.astKind)
         return value as! CommonInvalid
@@ -95,6 +100,11 @@ extension AstNode {
         return value as! Checker.Declaration
     }
 
+    var asCheckedFloatLiteral: Checker.FloatLiteral {
+        assert(kind == Checker.FloatLiteral.astKind)
+        return value as! Checker.FloatLiteral
+    }
+
     var asCheckedFunction: Checker.Function {
         assert(kind == Checker.Function.astKind)
         return value as! Checker.Function
@@ -108,6 +118,11 @@ extension AstNode {
     var asCheckedInfix: Checker.Infix {
         assert(kind == Checker.Infix.astKind)
         return value as! Checker.Infix
+    }
+
+    var asCheckedIntegerLiteral: Checker.IntegerLiteral {
+        assert(kind == Checker.IntegerLiteral.astKind)
+        return value as! Checker.IntegerLiteral
     }
 
     var asCheckedParen: Checker.Paren {
@@ -128,6 +143,11 @@ extension AstNode {
     var asCheckedPrefix: Checker.Prefix {
         assert(kind == Checker.Prefix.astKind)
         return value as! Checker.Prefix
+    }
+
+    var asCheckedStringLiteral: Checker.StringLiteral {
+        assert(kind == Checker.StringLiteral.astKind)
+        return value as! Checker.StringLiteral
     }
 }
 
@@ -186,6 +206,11 @@ protocol CommonInfix {
     var rhs: AstNode { get }
 }
 
+protocol CommonIntegerLiteral {
+
+    var value: UInt64 { get }
+}
+
 protocol CommonInvalid {
 
 }
@@ -235,6 +260,8 @@ extension AstNode.If: CommonIf {}
 
 extension AstNode.Infix: CommonInfix {}
 
+extension AstNode.IntegerLiteral: CommonIntegerLiteral {}
+
 extension AstNode.Invalid: CommonInvalid {}
 
 extension AstNode.Paren: CommonParen {}
@@ -253,17 +280,23 @@ extension Checker.Call: CommonCall {}
 
 extension Checker.Declaration: CommonDeclaration {}
 
+extension Checker.FloatLiteral: CommonFloatLiteral {}
+
 extension Checker.Function: CommonFunction {}
 
 extension Checker.Identifier: CommonIdentifier {}
 
 extension Checker.Infix: CommonInfix {}
 
+extension Checker.IntegerLiteral: CommonIntegerLiteral {}
+
 extension Checker.Paren: CommonParen {}
 
 extension Checker.PointerType: CommonPointerType {}
 
 extension Checker.Prefix: CommonPrefix {}
+
+extension Checker.StringLiteral: CommonStringLiteral {}
 
 extension Type {
 
