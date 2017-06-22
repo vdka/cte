@@ -97,7 +97,7 @@ struct Parser {
         case .number(let number):
             advance()
 
-            let litNumber = AstNode.NumberLiteral(value: number)
+            let litNumber = AstNode.FloatLiteral(value: number)
             return AstNode(litNumber, tokens: [token])
 
         case .lbrace:

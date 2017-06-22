@@ -124,7 +124,7 @@ extension Checker {
         case .litString:
             return Type.string
 
-        case .litNumber:
+        case .litFloat:
             return Type.number
 
         case .function:
@@ -217,7 +217,7 @@ extension Checker {
 
             case .ampersand:
                 guard prefix.expr.isLvalue else {
-                    reportError("Cannot take the address of a literal value", at: node)
+                    reportError("Cannot take the address of a non lvalue", at: node)
                     return Type.invalid
                 }
                 type = Type.makePointer(to: type)
@@ -407,7 +407,7 @@ extension AstNode {
         case _ where isStmt:
             return false
 
-        case  .prefix, .infix, .litNumber, .litString, .call, .function, .polymorphicFunction, .pointerType:
+        case  .prefix, .infix, .litFloat, .litString, .call, .function, .polymorphicFunction, .pointerType:
             return false
 
         case .paren:
@@ -427,7 +427,7 @@ extension AstNode {
         case _ where isStmt:
             return false
 
-        case .identifier, .call, .function, .polymorphicFunction, .prefix, .infix, .paren, .litNumber, .litString, .pointerType:
+        case .identifier, .call, .function, .polymorphicFunction, .prefix, .infix, .paren, .litFloat, .litString, .pointerType:
             return true
 
         default:
@@ -445,7 +445,7 @@ protocol CheckedAstValue: AstValue {
     func downcast() -> UncheckedValue
 }
 
-protocol CheckedExpressionAstValue: CheckedAstValue {
+protocol CheckedExpression {
     var type: Type { get }
 }
 
@@ -466,7 +466,7 @@ extension CheckedAstValue {
 // The memory layout must be an ordered superset of Unchecked for all of these.
 extension Checker {
 
-    struct Identifier: CheckedExpressionAstValue {
+    struct Identifier: CheckedExpression, CheckedAstValue {
         static let astKind = AstKind.identifier
 
         typealias UncheckedValue = AstNode.Identifier
@@ -479,7 +479,7 @@ extension Checker {
         }
     }
 
-    struct Function: CheckedExpressionAstValue {
+    struct Function: CheckedExpression, CheckedAstValue {
         typealias UncheckedValue = AstNode.Function
 
         let parameters: [AstNode]
@@ -491,7 +491,7 @@ extension Checker {
         let type: Type
     }
 
-    struct PolymorphicFunction: CheckedExpressionAstValue {
+    struct PolymorphicFunction: CheckedExpression, CheckedAstValue {
         static let astKind = AstKind.polymorphicFunction
 
         typealias UncheckedValue = AstNode.Function
@@ -523,14 +523,14 @@ extension Checker {
         let entity: Entity
     }
 
-    struct Paren: CheckedExpressionAstValue {
+    struct Paren: CheckedExpression, CheckedAstValue {
         typealias UncheckedValue = AstNode.Paren
 
         let expr: AstNode
         let type: Type
     }
 
-    struct Prefix: CheckedExpressionAstValue {
+    struct Prefix: CheckedExpression, CheckedAstValue {
         typealias UncheckedValue = AstNode.Prefix
 
         let kind: Token.Kind
@@ -539,7 +539,7 @@ extension Checker {
         let type: Type
     }
 
-    struct Infix: CheckedExpressionAstValue {
+    struct Infix: CheckedExpression, CheckedAstValue {
         typealias UncheckedValue = AstNode.Infix
 
         let kind: Token.Kind
@@ -548,7 +548,7 @@ extension Checker {
         let type: Type
     }
 
-    struct Call: CheckedExpressionAstValue {
+    struct Call: CheckedExpression, CheckedAstValue {
         typealias UncheckedValue = AstNode.Call
 
         let callee: AstNode

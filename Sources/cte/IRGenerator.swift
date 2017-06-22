@@ -127,8 +127,8 @@ struct IRGenerator {
         }
 
         switch node.kind {
-        case .litNumber:
-            return FloatType.double.constant(node.asNumberLiteral.value)
+        case .litFloat:
+            return FloatType.double.constant(node.asFloatLiteral.value)
 
         case .litString:
             return builder.buildGlobalStringPtr(node.asStringLiteral.value)
@@ -232,8 +232,7 @@ struct IRGenerator {
         for (arg, param) in zip(call.arguments, calleeType.asFunction.params) {
 
             if param.flags.contains(.ct) {
-                // FIXME: @HACK do not depend on the arg type being an identifier
-                let type = arg.asCheckedIdentifier.entity.type!
+                let type = (arg.value as! CheckedExpression).type
                 specializedTypes.append(type)
             } else {
                 let irArg = emitExpr(node: arg)
