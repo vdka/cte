@@ -160,6 +160,10 @@ struct IRGenerator {
 
     func emitPrefix(_ prefix: Checker.Prefix) -> IRValue {
 
+        if prefix.kind == .ampersand {
+            return emitExpr(node: prefix.expr, returnAddress: true)
+        }
+
         let expr = emitExpr(node: prefix.expr)
 
         switch prefix.kind {
@@ -168,6 +172,9 @@ struct IRGenerator {
 
         case .minus:
             return builder.buildNeg(expr)
+
+        case .lt:
+            return builder.buildLoad(expr)
 
         default:
             fatalError()

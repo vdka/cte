@@ -185,8 +185,7 @@ extension Checker {
             let pointerType = node.asPointerType
             let pointeeType = checkExpr(node: pointerType.pointee)
 
-            let pointer = Type.Pointer(pointeeType: pointeeType)
-            let instanceType = Type(value: pointer)
+            let instanceType = Type.makePointer(to: pointeeType)
             let type = Type.makeMetatype(instanceType)
             node.value = PointerType(pointee: pointerType.pointee, type: type)
             return type
@@ -199,8 +198,31 @@ extension Checker {
 
         case .prefix:
             let prefix = node.asPrefix
-            let type = checkExpr(node: prefix.expr)
-            guard type == Type.number else {
+            var type = checkExpr(node: prefix.expr)
+
+            switch prefix.kind {
+            case .plus, .minus:
+                guard type == Type.number else {
+                    reportError("Prefix operator '\(prefix.kind)' is only valid on signed numeric types", at: prefix.expr)
+                    return Type.invalid
+                }
+
+            case .lt:
+                guard type.kind == .pointer else {
+                    reportError("Cannot dereference '\(prefix.expr)'", at: node)
+                    return Type.invalid
+                }
+
+                type = type.asPointer.pointeeType
+
+            case .ampersand:
+                guard prefix.expr.isLvalue else {
+                    reportError("Cannot take the address of a literal value", at: node)
+                    return Type.invalid
+                }
+                type = Type.makePointer(to: type)
+
+            default:
                 reportError("Prefix operator '\(prefix.kind)', is invalid on type '\(type)'", at: prefix.expr)
                 return Type.invalid
             }
@@ -262,7 +284,8 @@ extension Checker {
             }
 
         default:
-            fatalError()
+            reportError("Cannot convert '\(node)' to an Expression", at: node)
+            return Type.invalid
         }
     }
 
@@ -365,6 +388,56 @@ extension Checker {
         return Type.invalid
     }
 }
+
+extension AstNode {
+
+    var isStmt: Bool {
+        switch self.kind {
+        case .if, .return, .block, .declaration, .empty:
+            return true
+
+        default:
+            return false
+        }
+    }
+
+    var isLvalue: Bool {
+
+        switch self.kind {
+        case _ where isStmt:
+            return false
+
+        case  .prefix, .infix, .litNumber, .litString, .call, .function, .polymorphicFunction, .pointerType:
+            return false
+
+        case .paren:
+            return asParen.expr.isLvalue
+
+        case .identifier:
+            return true
+
+        default:
+            return false
+        }
+    }
+
+    var isRvalue: Bool {
+
+        switch self.kind {
+        case _ where isStmt:
+            return false
+
+        case .identifier, .call, .function, .polymorphicFunction, .prefix, .infix, .paren, .litNumber, .litString, .pointerType:
+            return true
+
+        default:
+            return false
+        }
+    }
+}
+
+
+// MARK: Checked AstValue's
 
 protocol CheckedAstValue: AstValue {
     associatedtype UncheckedValue: AstValue

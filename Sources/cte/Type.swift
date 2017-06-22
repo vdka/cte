@@ -86,6 +86,11 @@ extension Type {
 
 extension Type {
 
+    static func makePointer(to pointeeType: Type) -> Type {
+        let pointer = Pointer(pointeeType: pointeeType)
+        return Type(value: pointer)
+    }
+
     static func makeBuiltin(_ entity: Entity, width: Int, irType: IRType) -> Type {
         let type = Type(value: Builtin(canonicalRepresentation: irType), entity: entity)
         type.width = width
