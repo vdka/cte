@@ -181,6 +181,16 @@ extension Checker {
 
             return type
 
+        case .pointerType:
+            let pointerType = node.asPointerType
+            let pointeeType = checkExpr(node: pointerType.pointee)
+
+            let pointer = Type.Pointer(pointeeType: pointeeType)
+            let instanceType = Type(value: pointer)
+            let type = Type.makeMetatype(instanceType)
+            node.value = PointerType(pointee: pointerType.pointee, type: type)
+            return type
+
         case .paren:
             let paren = node.asParen
             let type = checkExpr(node: paren.expr)
@@ -420,6 +430,13 @@ extension Checker {
         let type: Type
 
         var specializations: [(specializedTypes: [Type], strippedType: Type)] = []
+    }
+
+    struct PointerType: CheckedAstValue {
+        typealias UncheckedValue = AstNode.PointerType
+
+        let pointee: AstNode
+        let type: Type
     }
 
     struct Declaration: CheckedAstValue {

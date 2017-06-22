@@ -1,7 +1,9 @@
 
+import LLVM
+
 class Type: Equatable, CustomStringConvertible {
 
-    unowned var entity: Entity
+    weak var entity: Entity?
     var width: Int?
 
     var kind: TypeKind {
@@ -9,7 +11,7 @@ class Type: Equatable, CustomStringConvertible {
     }
     var value: TypeValue
 
-    init<T: TypeValue>(value: T, entity: Entity) {
+    init<T: TypeValue>(value: T, entity: Entity? = nil) {
         self.entity = entity
         self.width = nil
 
@@ -24,7 +26,10 @@ class Type: Equatable, CustomStringConvertible {
 
         switch kind {
         case .builtin:
-            return name
+            return entity!.name
+
+        case .pointer:
+            return "*" + (self.value as! Pointer).pointeeType.description
 
         case .metatype:
             return "Metatype(" + (self.value as! Metatype).instanceType.description + ")"
@@ -35,12 +40,13 @@ class Type: Equatable, CustomStringConvertible {
     }
 
     var name: String {
-        return entity.name
+        return description
     }
 }
 
 enum TypeKind {
     case function
+    case pointer
     case builtin
     case metatype
 }
@@ -51,7 +57,7 @@ protocol TypeValue {
 
 extension Type {
     struct Function: TypeValue {
-        static var typeKind = TypeKind.function
+        static let typeKind = TypeKind.function
 
         var node: AstNode
         var params: [Entity]
@@ -59,21 +65,29 @@ extension Type {
         var needsSpecialization: Bool
     }
 
+    struct Pointer: TypeValue {
+        static let typeKind = TypeKind.pointer
+
+        let pointeeType: Type
+    }
+
     struct Builtin: TypeValue {
-        static var typeKind = TypeKind.builtin
+        static let typeKind = TypeKind.builtin
+
+        let canonicalRepresentation: IRType
     }
 
     struct Metatype: TypeValue {
-        static var typeKind = TypeKind.metatype
+        static let typeKind = TypeKind.metatype
 
-        var instanceType: Type
+        let instanceType: Type
     }
 }
 
 extension Type {
 
-    static func makeBuiltin(_ entity: Entity, width: Int) -> Type {
-        let type = Type(value: Builtin(), entity: entity)
+    static func makeBuiltin(_ entity: Entity, width: Int, irType: IRType) -> Type {
+        let type = Type(value: Builtin(canonicalRepresentation: irType), entity: entity)
         type.width = width
         return type
     }

@@ -1,4 +1,4 @@
-// Generated using Sourcery 0.7.1 — https://github.com/krzysztofzablocki/Sourcery
+// Generated using Sourcery 0.7.2 — https://github.com/krzysztofzablocki/Sourcery
 // DO NOT EDIT
 
 
@@ -60,6 +60,11 @@ extension AstNode {
         return value as! CommonParen
     }
 
+    var asPointerType: CommonPointerType {
+        assert(kind == AstNode.PointerType.astKind)
+        return value as! CommonPointerType
+    }
+
     var asPrefix: CommonPrefix {
         assert(kind == AstNode.Prefix.astKind)
         return value as! CommonPrefix
@@ -108,6 +113,11 @@ extension AstNode {
     var asCheckedParen: Checker.Paren {
         assert(kind == Checker.Paren.astKind)
         return value as! Checker.Paren
+    }
+
+    var asCheckedPointerType: Checker.PointerType {
+        assert(kind == Checker.PointerType.astKind)
+        return value as! Checker.PointerType
     }
 
     var asCheckedPolymorphicFunction: Checker.PolymorphicFunction {
@@ -185,6 +195,11 @@ protocol CommonParen {
     var expr: AstNode { get }
 }
 
+protocol CommonPointerType {
+
+    var pointee: AstNode { get }
+}
+
 protocol CommonPrefix {
 
     var kind: Token.Kind { get }
@@ -224,6 +239,8 @@ extension AstNode.NumberLiteral: CommonNumberLiteral {}
 
 extension AstNode.Paren: CommonParen {}
 
+extension AstNode.PointerType: CommonPointerType {}
+
 extension AstNode.Prefix: CommonPrefix {}
 
 extension AstNode.Return: CommonReturn {}
@@ -244,6 +261,8 @@ extension Checker.Infix: CommonInfix {}
 
 extension Checker.Paren: CommonParen {}
 
+extension Checker.PointerType: CommonPointerType {}
+
 extension Checker.Prefix: CommonPrefix {}
 
 extension Type {
@@ -258,5 +277,9 @@ extension Type {
 
     var asMetatype: Type.Metatype {
         return value as! Type.Metatype
+    }
+
+    var asPointer: Type.Pointer {
+        return value as! Type.Pointer
     }
 }

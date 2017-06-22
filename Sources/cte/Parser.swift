@@ -234,7 +234,11 @@ struct Parser {
             let colon = advance()
 
             var type: AstNode?
-            if lexer.peek()?.kind != .equals {
+            switch lexer.peek()?.kind {
+            case .equals?, .colon?:
+                break
+
+            default:
                 type = expression()
             }
 

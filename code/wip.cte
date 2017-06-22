@@ -1,5 +1,5 @@
 
-min := fn ($T: type, a: T, b: T) -> T {
+min :: fn ($T: type, a: T, b: T) -> T {
   if a < b return a
   else return b
 }

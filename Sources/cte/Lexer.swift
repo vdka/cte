@@ -81,6 +81,8 @@ struct Lexer {
         case ",": kind = .comma
         case "$": kind = .dollar
         case "+": kind = .plus
+        case "*": kind = .asterix
+        case "&": kind = .ampersand
         case "=": kind = .equals
         case "<":
             guard !scanner.hasPrefix("<=") else {
@@ -140,6 +142,7 @@ struct Lexer {
                 case "if": kind = .keywordIf
                 case "else": kind = .keywordElse
                 case "return": kind = .keywordReturn
+                case "struct": kind = .keywordStruct
                 default: kind = .ident(string)
                 }
             } else if digits.contains(char) {
@@ -194,52 +197,6 @@ struct Lexer {
         }
     }
 
-    @discardableResult
-    private mutating func consume(with chars: [UnicodeScalar]) -> String {
-
-        var str: String = ""
-        while let char = scanner.peek(), chars.contains(char) {
-            scanner.pop()
-            str.append(char)
-        }
-
-        return str
-    }
-
-    @discardableResult
-    private mutating func consume(with chars: String) -> String {
-
-        var str: String = ""
-        while let char = scanner.peek(), chars.unicodeScalars.contains(char) {
-            scanner.pop()
-            str.append(char)
-        }
-
-        return str
-    }
-
-    @discardableResult
-    private mutating func consume(upTo predicate: (UnicodeScalar) -> Bool) -> String {
-
-        var str: String = ""
-        while let char = scanner.peek(), predicate(char) {
-            scanner.pop()
-            str.append(char)
-        }
-        return str
-    }
-
-    @discardableResult
-    private mutating func consume(upTo target: UnicodeScalar) -> String {
-
-        var str: String = ""
-        while let char = scanner.peek(), char != target {
-            scanner.pop()
-            str.append(char)
-        }
-        return str
-    }
-
     private mutating func skipWhitespace() {
 
         while let char = scanner.peek() {
@@ -288,6 +245,8 @@ extension Token {
         case equals
         case plus
         case minus
+        case asterix
+        case ampersand
 
         // Punctuation
         case comma
@@ -304,6 +263,8 @@ extension Token {
         case keywordIf
         case keywordElse
         case keywordReturn
+
+        case keywordStruct
     }
 }
 
@@ -361,6 +322,8 @@ extension Token.Kind: CustomStringConvertible {
         case .equals: return "="
         case .plus: return "+"
         case .minus: return "-"
+        case .asterix: return "*"
+        case .ampersand: return "&"
         case .comma: return ","
         case .lt: return "<"
         case .gt: return ">"
@@ -371,6 +334,7 @@ extension Token.Kind: CustomStringConvertible {
         case .keywordIf: return "if"
         case .keywordElse: return "else"
         case .keywordReturn: return "return"
+        case .keywordStruct: return "struct"
         }
     }
 }

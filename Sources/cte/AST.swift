@@ -37,6 +37,7 @@ enum AstKind {
     case block
     case `if`
     case `return`
+    case pointerType
 }
 
 extension AstNode {
@@ -85,6 +86,12 @@ extension AstNode {
         let parameters: [AstNode]
         let returnType: AstNode
         let body: AstNode
+    }
+
+    struct PointerType: AstValue {
+        static let astKind = AstKind.pointerType
+
+        let pointee: AstNode
     }
 
     struct Declaration: AstValue {

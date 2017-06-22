@@ -27,6 +27,14 @@ extension PrefixOperator {
     static var table: [PrefixOperator] = [
         PrefixOperator(.plus),
         PrefixOperator(.minus),
+        PrefixOperator(.asterix, nud: { parser in
+            let asterixToken = parser.advance()
+            let pointee = parser.expression()
+            let pointer = AstNode.PointerType(pointee: pointee)
+            return AstNode(pointer, tokens: [asterixToken])
+        }),
+        PrefixOperator(.lt),
+        PrefixOperator(.ampersand),
     ]
 
     static func lookup(_ symbol: Token.Kind) -> PrefixOperator? {

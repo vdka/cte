@@ -1,4 +1,6 @@
 
+import LLVM
+
 func declareBuiltins() {
 
     Entity.void.flags.insert(.type)
@@ -33,12 +35,12 @@ extension Entity {
 
 extension Type {
 
-    static let void = Type.makeBuiltin(Entity.void, width: 0)
-    static let bool = Type.makeBuiltin(Entity.bool, width: 1)
-    static let type = Type.makeBuiltin(Entity.type, width: 64)
-    static let string = Type.makeBuiltin(Entity.string, width: 64)
-    static let number = Type.makeBuiltin(Entity.number, width: 64)
+    static let void = Type.makeBuiltin(Entity.void, width: 0, irType: VoidType())
+    static let bool = Type.makeBuiltin(Entity.bool, width: 1, irType: IntType.int1)
+    static let type = Type.makeBuiltin(Entity.type, width: 64, irType: IntType.int64)
+    static let string = Type.makeBuiltin(Entity.string, width: 64, irType: PointerType(pointee: IntType.int8))
+    static let number = Type.makeBuiltin(Entity.number, width: 64, irType: FloatType.double)
 
-    static let invalid = Type.makeBuiltin(Entity.anonymous, width: 0)
+    static let invalid = Type.makeBuiltin(Entity.anonymous, width: 0, irType: VoidType())
 
 }

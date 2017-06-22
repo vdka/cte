@@ -45,19 +45,6 @@ struct IRGenerator {
             }
 
             switch decl.entity.type!.kind {
-            case .builtin:
-                let type = decl.entity.type!.canonicalize()
-                let stackValue = builder.buildAlloca(type: type, name: decl.entity.name)
-                decl.entity.value = stackValue
-
-                guard decl.value != .empty else {
-                    return
-                }
-
-                let value = emitExpr(node: decl.value)
-
-                builder.buildStore(value, to: stackValue)
-
             case .function:
                 if decl.entity.type!.asFunction.needsSpecialization {
 
@@ -69,6 +56,20 @@ struct IRGenerator {
 
             case .metatype:
                 return
+
+            default:
+                let type = canonicalize(decl.entity.type!)
+                let stackValue = builder.buildAlloca(type: type, name: decl.entity.name)
+                decl.entity.value = stackValue
+
+                guard decl.value != .empty else {
+                    return
+                }
+
+                let value = emitExpr(node: decl.value)
+
+                builder.buildStore(value, to: stackValue)
+
             }
 
         case .block:
@@ -240,7 +241,7 @@ struct IRGenerator {
 
     func emitFunction(named name: String, _ fn: Checker.Function) -> Function {
 
-        let function = builder.addFunction(name, type: fn.type.canonicalize() as! FunctionType)
+        let function = builder.addFunction(name, type: canonicalize(fn.type) as! FunctionType)
 
         let entryBlock = function.appendBasicBlock(named: "entry")
         builder.positionAtEnd(of: entryBlock)
@@ -270,7 +271,7 @@ struct IRGenerator {
 
             let nameSuffix = specialization.specializedTypes.reduce("", { $0 + "$" + $1.asMetatype.instanceType.description })
 
-            let function = builder.addFunction(name + nameSuffix, type: specialization.strippedType.canonicalize() as! FunctionType)
+            let function = builder.addFunction(name + nameSuffix, type: canonicalize(specialization.strippedType) as! FunctionType)
 
             let entryBlock = function.appendBasicBlock(named: "entry")
             builder.positionAtEnd(of: entryBlock)
@@ -299,50 +300,33 @@ struct IRGenerator {
     }
 }
 
-extension Type {
+func canonicalize(_ type: Type) -> IRType {
 
-    func canonicalize() -> IRType {
+    switch type.kind {
+    case .builtin:
+        let builtin = type.asBuiltin
+        return builtin.canonicalRepresentation
 
-        switch self.kind {
-        case .builtin:
-            if self == Type.void {
-                return VoidType()
-            }
+    case .function:
+        let fn = type.asFunction
 
-            if self == Type.bool {
-                return IntType.int1
-            }
+        var paramTypes: [IRType] = []
+        // strip specialized paramters.
+        for param in fn.params.filter({ !$0.flags.contains(.ct) }) {
 
-            if self == Type.type {
-                fatalError()
-            }
-
-            if self == Type.string {
-                return PointerType.toVoid
-            }
-
-            if self == Type.number {
-                return FloatType.double
-            }
-
-            fatalError()
-
-        case .function:
-            let fn = self.asFunction
-
-            var paramTypes: [IRType] = []
-            // strip specialized paramters.
-            for param in fn.params.filter({ !$0.flags.contains(.ct) }) {
-
-                paramTypes.append(param.type!.canonicalize())
-            }
-
-            let retType = fn.returnType.canonicalize()
-
-            return FunctionType(argTypes: paramTypes, returnType: retType)
-
-        case .metatype:
-            fatalError() // these should not make it into IRGen (alternatively use these to gen typeinfo)
+            paramTypes.append(canonicalize(param.type!))
         }
+
+        let retType = canonicalize(fn.returnType)
+
+        return FunctionType(argTypes: paramTypes, returnType: retType)
+
+    case .pointer:
+        let pointer = type.asPointer
+
+        return PointerType(pointee: canonicalize(pointer.pointeeType))
+
+    case .metatype:
+        fatalError() // these should not make it into IRGen (alternatively use these to gen typeinfo)
     }
 }
