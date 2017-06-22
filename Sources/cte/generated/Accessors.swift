@@ -25,6 +25,11 @@ extension AstNode {
         return value as! CommonEmpty
     }
 
+    var asFloatLiteral: CommonFloatLiteral {
+        assert(kind == AstNode.FloatLiteral.astKind)
+        return value as! CommonFloatLiteral
+    }
+
     var asFunction: CommonFunction {
         assert(kind == AstNode.Function.astKind)
         return value as! CommonFunction
@@ -48,11 +53,6 @@ extension AstNode {
     var asInvalid: CommonInvalid {
         assert(kind == AstNode.Invalid.astKind)
         return value as! CommonInvalid
-    }
-
-    var asNumberLiteral: CommonNumberLiteral {
-        assert(kind == AstNode.NumberLiteral.astKind)
-        return value as! CommonNumberLiteral
     }
 
     var asParen: CommonParen {
@@ -155,6 +155,11 @@ protocol CommonEmpty {
 
 }
 
+protocol CommonFloatLiteral {
+
+    var value: Double { get }
+}
+
 protocol CommonFunction {
 
     var parameters: [AstNode] { get }
@@ -183,11 +188,6 @@ protocol CommonInfix {
 
 protocol CommonInvalid {
 
-}
-
-protocol CommonNumberLiteral {
-
-    var value: Double { get }
 }
 
 protocol CommonParen {
@@ -225,6 +225,8 @@ extension AstNode.Declaration: CommonDeclaration {}
 
 extension AstNode.Empty: CommonEmpty {}
 
+extension AstNode.FloatLiteral: CommonFloatLiteral {}
+
 extension AstNode.Function: CommonFunction {}
 
 extension AstNode.Identifier: CommonIdentifier {}
@@ -234,8 +236,6 @@ extension AstNode.If: CommonIf {}
 extension AstNode.Infix: CommonInfix {}
 
 extension AstNode.Invalid: CommonInvalid {}
-
-extension AstNode.NumberLiteral: CommonNumberLiteral {}
 
 extension AstNode.Paren: CommonParen {}
 

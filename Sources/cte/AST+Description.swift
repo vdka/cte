@@ -16,8 +16,8 @@ extension AstNode: CustomStringConvertible {
         case .litString:
             return "\"" + asStringLiteral.value + "\""
 
-        case .litNumber:
-            return asNumberLiteral.value.description
+        case .litFloat:
+            return asFloatLiteral.value.description
 
         case .function, .polymorphicFunction:
 

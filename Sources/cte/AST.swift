@@ -26,7 +26,7 @@ enum AstKind {
     case empty
     case identifier
     case litString
-    case litNumber
+    case litFloat
     case function
     case polymorphicFunction
     case declaration
@@ -74,8 +74,8 @@ extension AstNode {
         let value: String
     }
 
-    struct NumberLiteral: AstValue {
-        static let astKind = AstKind.litNumber
+    struct FloatLiteral: AstValue {
+        static let astKind = AstKind.litFloat
 
         let value: Double
     }
