@@ -4,10 +4,10 @@ min :: fn ($T: type, a: T, b: T) -> T {
   else return b
 }
 
-a : number = 5.0
-b : number = 3.0
-c := min(number, a, b)
-d := min(number, b, 3)
+a : f64 = 5.0
+b : f64 = 3.0
+c := min(f64, a, b)
+d := min(f64, b, 3.0)
 
 addrA := &a
 valA := <addrA

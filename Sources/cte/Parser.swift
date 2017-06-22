@@ -61,6 +61,9 @@ struct Parser {
     }
 
     mutating func nud(for token: Token) -> AstNode {
+        defer {
+            consumeNewlines()
+        }
 
         if let prefixOperator = PrefixOperator.lookup(token.kind) {
             return prefixOperator.nud(&self)
@@ -142,6 +145,7 @@ struct Parser {
             let fnToken = advance()
 
             let lparen = advance(expecting: .lparen)
+            consumeNewlines()
 
             var parameters: [AstNode] = []
             if let nextToken = lexer.peek(), nextToken.kind != .rparen {
@@ -174,9 +178,11 @@ struct Parser {
                         break
                     }
                     advance(expecting: .comma)
+                    consumeNewlines()
                 }
             }
 
+            consumeNewlines()
             let rparen = advance(expecting: .rparen)
 
             let returnArrow = advance(expecting: .returnArrow)
@@ -208,6 +214,9 @@ struct Parser {
     }
 
     mutating func led(for token: Token, with lvalue: AstNode) -> AstNode {
+        defer {
+            consumeNewlines()
+        }
 
         if let infixOperator = InfixOperator.lookup(token.kind) {
             return infixOperator.led(&self, lvalue)
@@ -267,6 +276,11 @@ struct Parser {
         }
     }
 
+    mutating func consumeNewlines() {
+        while lexer.peek()?.kind == .newline {
+            advance()
+        }
+    }
 
     @discardableResult
     mutating func advance(expecting expected: Token.Kind? = nil) -> Token {

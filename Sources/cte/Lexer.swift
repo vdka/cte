@@ -73,6 +73,7 @@ struct Lexer {
         let location = scanner.position
         var kind: Token.Kind
         switch char {
+        case "\n": kind = .newline
         case "(": kind = .lparen
         case ")": kind = .rparen
         case "{": kind = .lbrace
@@ -240,6 +241,8 @@ extension Token {
         case float(Double)
         case string(String)
 
+        case newline
+
         // Structure
         case lparen
         case rparen
@@ -323,6 +326,7 @@ extension Token.Kind: CustomStringConvertible {
         case .string(let val):
             return "\"" + val + "\""
 
+        case .newline: return "\\n"
         case .lparen: return "("
         case .rparen: return ")"
         case .lbrace: return "{"
