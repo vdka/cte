@@ -18,7 +18,6 @@ emitErrors(for: "Parsing")
 endTiming()
 
 startTiming("Checking")
-declareBuiltins()
 var checker = Checker(nodes: nodes)
 checker.check() // Changes nodes to Checked variants where appropriate
 emitErrors(for: "Checking")

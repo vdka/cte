@@ -7,6 +7,14 @@ struct Checker {
 
     init(nodes: [AstNode]) {
         self.nodes = nodes
+
+        // Ensure builtins are declared
+        _ = BuiltinType.void
+        _ = BuiltinType.type
+        _ = BuiltinType.bool
+        _ = BuiltinType.string
+        _ = BuiltinType.f64
+        _ = BuiltinType.u8
     }
 }
 
