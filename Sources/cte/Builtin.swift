@@ -6,27 +6,26 @@ struct BuiltinType {
     var entity: Entity
     var type: Type
 
-    init(name: String, width: Int, irType: IRType) {
+    init(name: String, width: Int, flags: Type.Flag, irType: IRType) {
 
         entity = Entity.makeBuiltin(name)
         type = Type.makeBuiltin(entity, width: width, irType: irType)
+        type.flags = flags
 
         entity.flags.insert(.type)
         entity.type = Type.makeMetatype(type)
-
-        Scope.global.insert(entity)
     }
 
-    static let void = BuiltinType(name: "void", width: 0, irType: VoidType())
-    static let type = BuiltinType(name: "type", width: 64, irType: PointerType.toVoid)
-    static let bool = BuiltinType(name: "bool", width: 1, irType: IntType.int1)
+    static let void = BuiltinType(name: "void", width: 0,  flags: .none, irType: VoidType())
+    static let type = BuiltinType(name: "type", width: 64, flags: .none, irType: PointerType.toVoid)
+    static let bool = BuiltinType(name: "bool", width: 1,  flags: .none, irType: IntType.int1)
 
-    static let string = BuiltinType(name: "string", width: 64, irType: PointerType.toVoid)
-    static let f32 = BuiltinType(name: "f32", width: 32, irType: FloatType.double)
-    static let f64 = BuiltinType(name: "f64", width: 64, irType: FloatType.double)
+    static let string = BuiltinType(name: "string", width: 64, flags: .none, irType: PointerType.toVoid)
 
-    static let u8 = BuiltinType(name: "u8", width: 8, irType: IntType.int8)
-    static let i64 = BuiltinType(name: "i64", width: 64, irType: IntType.int64)
+    static let f32 = BuiltinType(name: "f32", width: 32, flags: .float,   irType: FloatType.double)
+    static let f64 = BuiltinType(name: "f64", width: 64, flags: .float,   irType: FloatType.double)
+    static let u8 = BuiltinType(name: "u8",   width: 8,  flags: .integer, irType: IntType.int8)
+    static let i64 = BuiltinType(name: "i64", width: 64, flags: .signed,  irType: IntType.int64)
 }
 
 extension Entity {

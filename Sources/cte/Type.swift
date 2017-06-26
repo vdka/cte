@@ -1,7 +1,7 @@
 
 import LLVM
 
-class Type: Equatable, CustomStringConvertible {
+class Type: Hashable, CustomStringConvertible {
 
     weak var entity: Entity?
     var width: Int?
@@ -27,8 +27,8 @@ class Type: Equatable, CustomStringConvertible {
         static let used    = Flag(rawValue: 0b0000_0001)
         static let number  = Flag(rawValue: 0b1000_0000)
         static let integer = Flag(rawValue: 0b1100_0000)
-        static let signed  = Flag(rawValue: 0b1110_0010)
-        static let float   = Flag(rawValue: 0b1001_0100)
+        static let signed  = Flag(rawValue: 0b1110_0000)
+        static let float   = Flag(rawValue: 0b1001_0000)
     }
 
     var description: String {
@@ -53,6 +53,42 @@ class Type: Equatable, CustomStringConvertible {
 
     var name: String {
         return description
+    }
+
+    var isNumber: Bool {
+        return flags.contains(.number)
+    }
+
+    var isInteger: Bool {
+        return flags.contains(.integer)
+    }
+
+    var isSignedInteger: Bool {
+        return flags.contains(.signed)
+    }
+
+    var isUnsignedInteger: Bool {
+        return flags.contains(.integer) && !flags.contains(.signed)
+    }
+
+    var isFloatingPoint: Bool {
+        return flags.contains(.float)
+    }
+
+    func compatibleWithoutExtOrTrunc(_ type: Type) -> Bool {
+        return type == self
+    }
+
+    func compatibleWithExtOrTrunc(_ type: Type) -> Bool {
+        if type.flags.contains(.integer) && self.flags.contains(.integer) {
+            return true
+        }
+
+        if type.flags.contains(.float) && self.flags.contains(.float) {
+            return true
+        }
+
+        return false
     }
 }
 
@@ -117,6 +153,10 @@ extension Type {
 }
 
 extension Type {
+
+    var hashValue: Int {
+        return unsafeBitCast(self, to: Int.self) // classes are just pointers after all
+    }
 
     static func == (lhs: Type, rhs: Type) -> Bool {
         return lhs.entity === rhs.entity

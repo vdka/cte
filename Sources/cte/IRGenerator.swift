@@ -127,8 +127,15 @@ struct IRGenerator {
         }
 
         switch node.kind {
+        case .litInteger:
+            let lit = node.asCheckedIntegerLiteral
+            let type = canonicalize(lit.type) as! IntType
+            return type.constant(lit.value)
+
         case .litFloat:
-            return FloatType.double.constant(node.asFloatLiteral.value)
+            let lit = node.asCheckedFloatLiteral
+            let type = canonicalize(lit.type) as! FloatType
+            return type.constant(lit.value)
 
         case .litString:
             return builder.buildGlobalStringPtr(node.asStringLiteral.value)
@@ -183,31 +190,15 @@ struct IRGenerator {
 
     func emitInfix(_ infix: Checker.Infix) -> IRValue {
 
-        let lhs = emitExpr(node: infix.lhs)
-        let rhs = emitExpr(node: infix.rhs)
-
-        switch infix.kind {
-        case .plus:
-            return builder.buildAdd(lhs, rhs)
-
-        case .minus:
-            return builder.buildSub(lhs, rhs)
-
-        case .lt:
-            return builder.buildFCmp(lhs, rhs, .orderedLessThan)
-
-        case .lte:
-            return builder.buildFCmp(lhs, rhs, .orderedLessThanOrEqual)
-
-        case .gt:
-            return builder.buildFCmp(lhs, rhs, .orderedGreaterThan)
-
-        case .gte:
-            return builder.buildFCmp(lhs, rhs, .orderedGreaterThanOrEqual)
-
-        default:
-            fatalError()
+        var lhs = emitExpr(node: infix.lhs)
+        var rhs = emitExpr(node: infix.rhs)
+        if let castOp = infix.lhsCast {
+            lhs = builder.buildCast(castOp, value: lhs, type: canonicalize(infix.rhs.exprType))
+        } else if let castOp = infix.rhsCast {
+            rhs = builder.buildCast(castOp, value: rhs, type: canonicalize(infix.lhs.exprType))
         }
+
+        return builder.buildBinaryOperation(infix.op, lhs, rhs)
     }
 
     func emitCall(_ call: Checker.Call) -> IRValue {

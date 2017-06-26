@@ -1,4 +1,6 @@
 
+import LLVM
+
 struct Checker {
     var nodes: [AstNode]
 
@@ -7,14 +9,6 @@ struct Checker {
 
     init(nodes: [AstNode]) {
         self.nodes = nodes
-
-        // Ensure builtins are declared
-        _ = BuiltinType.void
-        _ = BuiltinType.type
-        _ = BuiltinType.bool
-        _ = BuiltinType.string
-        _ = BuiltinType.f64
-        _ = BuiltinType.u8
     }
 }
 
@@ -133,10 +127,16 @@ extension Checker {
             return Type.string
 
         case .litFloat:
-            return Type.f64
+            let lit = node.asFloatLiteral
+            let type = Type.f64
+            node.value = FloatLiteral(value: lit.value, type: type)
+            return type
 
         case .litInteger:
-            return Type.i64
+            let lit = node.asIntegerLiteral
+            let type = Type.i64
+            node.value = IntegerLiteral(value: lit.value, type: type)
+            return type
 
         case .function:
             let fn = node.asFunction
@@ -246,24 +246,84 @@ extension Checker {
             let infix = node.asInfix
             let lhsType = checkExpr(node: infix.lhs)
             let rhsType = checkExpr(node: infix.rhs)
-            guard lhsType == Type.f64 || rhsType == Type.f32, lhsType == rhsType else {
-                reportError("Infix operator '\(infix.kind)', is only valid on 'number' types", at: node)
+
+            let resultType: Type
+            let op: OpCode.Binary
+
+            // Used to communicate any implicit casts to perform for this operation
+            var (lCast, rCast): (OpCode.Cast?, OpCode.Cast?) = (nil, nil)
+
+            if lhsType == rhsType {
+                resultType = lhsType
+            } else if lhsType.isInteger && rhsType.isFloatingPoint {
+                lCast = lhsType.isSignedInteger ? .siToFP : .uiToFP
+                resultType = rhsType
+            } else if rhsType.isInteger && lhsType.isFloatingPoint {
+                rCast = rhsType.isSignedInteger ? .siToFP : .uiToFP
+                resultType = rhsType
+            } else if (lhsType.isSignedInteger && rhsType.isUnsignedInteger) || (rhsType.isSignedInteger && lhsType.isUnsignedInteger) {
+                reportError("Implicit conversion between signed and unsigned integers in operator is disallowed", at: node)
+                return Type.invalid
+            } else if lhsType.isInteger && rhsType.isInteger { // select the largest
+                if lhsType.width! < rhsType.width! {
+                    resultType = rhsType
+                    lCast = lhsType.isSignedInteger ? OpCode.Cast.sext : OpCode.Cast.zext
+                } else {
+                    resultType = lhsType
+                    rCast = rhsType.isSignedInteger ? OpCode.Cast.sext : OpCode.Cast.zext
+                }
+            } else if lhsType.isFloatingPoint && rhsType.isFloatingPoint {
+                if lhsType.width! < rhsType.width! {
+                    resultType = rhsType
+                    lCast = .fpext
+                } else {
+                    resultType = lhsType
+                    rCast = .fpext
+                }
+            } else {
+                reportError("Operator '\(infix.kind) is not valid between '\(lhsType)' and '\(rhsType)' types", at: node)
                 return Type.invalid
             }
+
+            assert((lhsType == rhsType) || lCast != nil || rCast != nil, "We must have 2 same types or a way to acheive them by here")
 
             var type: Type
             switch infix.kind {
             case .lt, .lte, .gt, .gte:
+                guard lhsType.isNumber && rhsType.isNumber else {
+                    reportError("Cannot compare '\(lhsType)' and '\(rhsType)' comparison is only valid on 'number' types", at: node)
+                    return Type.invalid
+                }
+
+                if lhsType.isInteger || rhsType.isInteger {
+                    op = .icmp
+                } else {
+                    op = .fcmp
+                }
+
                 type = Type.bool
 
-            case .plus, .minus:
-                type = Type.f64
+            case .plus:
+                if lhsType.isInteger || rhsType.isInteger {
+                    op = .add
+                } else {
+                    op = .fadd
+                }
+                type = resultType
+
+            case .minus:
+                if lhsType.isInteger || rhsType.isInteger {
+                    op = .sub
+                } else {
+                    op = .fsub
+                }
+                type = resultType
 
             default:
                 fatalError()
             }
 
-            node.value = Infix(kind: infix.kind, lhs: infix.lhs, rhs: infix.rhs, type: type)
+            node.value = Infix(kind: infix.kind, lhs: infix.lhs, rhs: infix.rhs, type: type, op: op, lhsCast: lCast, rhsCast: rCast)
             return type
 
         case .call:
@@ -476,6 +536,16 @@ extension CheckedAstValue {
     }
 }
 
+extension AstNode {
+
+    /// - Warning: Will assert if the AstValue is not a Checked Expression
+    var exprType: Type {
+        assert(self.value is CheckedExpression)
+
+        return (self.value as! CheckedExpression).type
+    }
+}
+
 // The memory layout must be an ordered superset of Unchecked for all of these.
 extension Checker {
 
@@ -581,6 +651,10 @@ extension Checker {
         let lhs: AstNode
         let rhs: AstNode
         let type: Type
+
+        let op: OpCode.Binary
+        let lhsCast: OpCode.Cast?
+        let rhsCast: OpCode.Cast?
     }
 
     struct Call: CheckedExpression, CheckedAstValue {

@@ -5,9 +5,9 @@ class Scope {
 
     var members: [Entity] = []
 
-    init(parent: Scope? = nil) {
+    init(parent: Scope? = nil, members: [Entity] = []) {
         self.parent = parent
-        self.members = []
+        self.members = members
     }
 
     func lookup(_ name: String) -> Entity? {
@@ -27,5 +27,5 @@ class Scope {
         members.append(entity)
     }
 
-    static let global = Scope()
+    static let global = Scope(members: [BuiltinType.void, .type, .bool, .string, .f32, .f64, .u8, .i64].map({ $0.entity }))
 }
