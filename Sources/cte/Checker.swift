@@ -249,7 +249,6 @@ extension Checker {
 
             let resultType: Type
             let op: OpCode.Binary
-            
 
             // Used to communicate any implicit casts to perform for this operation
             var (lCast, rCast): (OpCode.Cast?, OpCode.Cast?) = (nil, nil)
@@ -289,6 +288,8 @@ extension Checker {
 
             assert((lhsType == rhsType) || lCast != nil || rCast != nil, "We must have 2 same types or a way to acheive them by here")
 
+            let isIntegerOp = lhsType.isInteger || rhsType.isInteger
+
             var type: Type
             switch infix.kind {
             case .lt, .lte, .gt, .gte:
@@ -296,28 +297,15 @@ extension Checker {
                     reportError("Cannot compare '\(lhsType)' and '\(rhsType)' comparison is only valid on 'number' types", at: node)
                     return Type.invalid
                 }
-
-                if lhsType.isInteger || rhsType.isInteger {
-                    op = .icmp
-                } else {
-                    op = .fcmp
-                }
+                op = isIntegerOp ? .icmp : .fcmp
                 type = Type.bool
 
             case .plus:
-                if lhsType.isInteger || rhsType.isInteger {
-                    op = .add
-                } else {
-                    op = .fadd
-                }
+                op = isIntegerOp ? .add : .fadd
                 type = resultType
 
             case .minus:
-                if lhsType.isInteger || rhsType.isInteger {
-                    op = .sub
-                } else {
-                    op = .fsub
-                }
+                op = isIntegerOp ? .sub : .fsub
                 type = resultType
 
             default:
