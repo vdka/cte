@@ -198,7 +198,35 @@ struct IRGenerator {
             rhs = builder.buildCast(castOp, value: rhs, type: canonicalize(infix.lhs.exprType))
         }
 
-        return builder.buildBinaryOperation(infix.op, lhs, rhs)
+        switch infix.op {
+        case .icmp:
+            let isSigned = infix.lhs.exprType.isSignedInteger
+            var pred: IntPredicate
+            switch infix.kind {
+            case .lt:  pred = isSigned ? .signedLessThan : .unsignedLessThan
+            case .gt:  pred = isSigned ? .signedGreaterThan : .unsignedGreaterThan
+            case .lte: pred = isSigned ? .signedLessThanOrEqual : .unsignedLessThanOrEqual
+            case .gte: pred = isSigned ? .signedGreaterThanOrEqual : .unsignedGreaterThanOrEqual
+            default:
+                fatalError()
+            }
+            return builder.buildICmp(lhs, rhs, pred)
+
+        case .fcmp:
+            var pred: RealPredicate
+            switch infix.kind {
+            case .lt:  pred = .orderedLessThan
+            case .gt:  pred = .orderedGreaterThan
+            case .lte: pred = .orderedLessThanOrEqual
+            case .gte: pred = .orderedGreaterThanOrEqual
+            default:
+                fatalError()
+            }
+            return builder.buildFCmp(lhs, rhs, pred)
+
+        default:
+            return builder.buildBinaryOperation(infix.op, lhs, rhs)
+        }
     }
 
     func emitCall(_ call: Checker.Call) -> IRValue {
@@ -327,3 +355,4 @@ func canonicalize(_ type: Type) -> IRType {
         fatalError() // these should not make it into IRGen (alternatively use these to gen typeinfo)
     }
 }
+

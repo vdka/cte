@@ -249,10 +249,12 @@ extension Checker {
 
             let resultType: Type
             let op: OpCode.Binary
+            
 
             // Used to communicate any implicit casts to perform for this operation
             var (lCast, rCast): (OpCode.Cast?, OpCode.Cast?) = (nil, nil)
 
+            // Handle Extending or Truncating
             if lhsType == rhsType {
                 resultType = lhsType
             } else if lhsType.isInteger && rhsType.isFloatingPoint {
@@ -300,7 +302,6 @@ extension Checker {
                 } else {
                     op = .fcmp
                 }
-
                 type = Type.bool
 
             case .plus:
