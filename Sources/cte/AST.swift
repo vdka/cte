@@ -12,6 +12,11 @@ class AstNode: Hashable {
         self.tokens = tokens
     }
 
+    init(value: AstValue, tokens: [Token]) {
+        self.value = value
+        self.tokens = tokens
+    }
+
     var hashValue: Int {
         return unsafeBitCast(self, to: Int.self) // classes are just pointers after all
     }

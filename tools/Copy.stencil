@@ -1,0 +1,40 @@
+
+extension AstValue {
+
+    func copy() -> AstValue {
+        switch self {
+        {% for type in types.implementing.AstValue|!protocol %}
+
+        {% if not type.storedVariables %}
+        case is {{ type.name }}:
+            return {{ type.name }}()
+        {% else %}
+        case let value as {{ type.name }}:
+            return {{ type.name }}(
+            {% for var in type.storedVariables %}
+                {{ var.name }}: value.{% if var.isArray and var.name != "specializations" %}{{ var.name }}.map({ $0.copy() }){% elif var.type.kind == "class" or var.type.name == "AstValue" %}{{ var.name }}{% if var.isOptional %}?{% endif %}.copy(){% else %}{{ var.name }}{% endif %}{% if not forloop.last %},{% endif %}
+            {% empty %}
+            {% endfor %}
+        )
+        {% endif %}
+        {% endfor %}
+
+        default:
+            fatalError()
+        }
+    }
+}
+
+{% for type in types.classes %}
+extension {{ type.name }} {
+
+    func copy() -> {{ type.name }} {
+        return {{ type.name }}(
+        {% for var in type.storedVariables %}
+            {{ var.name }}: {% if var.type.kind == "class" or var.type.name == "AstValue" %}{{ var.name }}{% if var.isOptional %}?{% endif %}.copy(){% elif var.isArray and var.type.elementType.kind == "class" %}{{ var.name }}.map({ $0.copy() }){% else %}{{ var.name }}{% endif %}{% if not forloop.last %},{% endif %}
+        {% endfor %}
+        )
+    }
+}
+{% endfor %}
+

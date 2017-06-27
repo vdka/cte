@@ -2,7 +2,6 @@
 // DO NOT EDIT
 
 
-
 extension AstNode {
 
     var asBlock: CommonBlock {

@@ -18,7 +18,13 @@ class Type: Hashable, CustomStringConvertible {
         self.width = nil
 
         self.value = value
+    }
 
+    init(entity: Entity?, width: Int?, flags: Flag, value: TypeValue) {
+        self.entity = entity
+        self.width = width
+        self.flags = flags
+        self.value = value
     }
 
     struct Flag: OptionSet {

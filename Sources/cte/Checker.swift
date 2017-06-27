@@ -353,8 +353,10 @@ extension Checker {
 
     mutating func checkPolymorphicCall(callNode: AstNode, calleeType: Type) -> Type {
         let call = callNode.asCall
-        let fnNode = calleeType.asFunction.node
+        let fnNode = calleeType.asFunction.node.copy() // NOTE(vdka): We copy so we have distinct nodes
         let fn = fnNode.asCheckedPolymorphicFunction
+
+        // TODO(vdka): Check for existing specialization and don't reperform that work.
 
         var specializations: [Type] = []
         for (arg, expected) in zip(call.arguments, calleeType.asFunction.params).filter({ $0.1.flags.contains(.ct) }) {
@@ -431,7 +433,7 @@ extension Checker {
         if !fn.specializations.contains(where: { $0.specializedTypes == specializations }) {
 
             var pmFn = fnNode.asCheckedPolymorphicFunction
-            pmFn.specializations.append((specializations, strippedType: strippedType))
+            pmFn.specializations.append((specializations, strippedType: strippedType, fnNode))
             fnNode.value = pmFn
         }
 
@@ -596,7 +598,7 @@ extension Checker {
 
         let type: Type
 
-        var specializations: [(specializedTypes: [Type], strippedType: Type)] = []
+        var specializations: [(specializedTypes: [Type], strippedType: Type, node: AstNode)] = []
     }
 
     struct PointerType: CheckedAstValue {

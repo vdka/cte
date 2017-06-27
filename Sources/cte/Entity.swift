@@ -26,6 +26,14 @@ class Entity: CustomStringConvertible {
         self.type = type
     }
 
+    init(ident: Token, type: Type?, flags: Flag, value: IRValue?, specializations: [([Type], LLVM.Function)]?) {
+        self.ident = ident
+        self.type = type
+        self.flags = flags
+        self.value = value
+        self.specializations = specializations
+    }
+
     struct Flag: OptionSet {
         let rawValue: UInt8
         static let none = Flag(rawValue: 0b0000_0000)
