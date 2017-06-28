@@ -6,7 +6,7 @@ min :: fn ($T: type, a: T, b: T) -> T {
 
 a : f64 = 5.0
 b : i64 = 3
-c := min(f64, a, 4.0)
+c := min(f64, a, 4)
 d := min(i64, b, 4)
 e := min(i64, b, d)
 

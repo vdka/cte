@@ -129,8 +129,17 @@ struct IRGenerator {
         switch node.kind {
         case .litInteger:
             let lit = node.asCheckedIntegerLiteral
-            let type = canonicalize(lit.type) as! IntType
-            return type.constant(lit.value)
+            let type = canonicalize(lit.type)
+            switch type {
+            case let type as IntType:
+                return type.constant(lit.value)
+
+            case let type as FloatType:
+                return type.constant(Double(lit.value))
+
+            default:
+                fatalError()
+            }
 
         case .litFloat:
             let lit = node.asCheckedFloatLiteral

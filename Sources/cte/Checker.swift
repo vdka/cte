@@ -39,15 +39,13 @@ extension Checker {
             if let dType = decl.type {
                 expectedType = checkExpr(node: dType)
 
-                // Really long way to check if the decl is something like `$T: type`
+                // Check if the declaration is a polymorphic type declaration
                 if !(decl.isCompileTime && expectedType == Type.type) {
-//                if !(decl.isCompileTime && expectedType!.kind == .metatype && expectedType!.asMetatype.instanceType == Type.type) {
                     expectedType = lowerFromMetatype(expectedType!, atNode: dType)
-//                }
                 }
             }
 
-            var type = (decl.value == .empty) ? expectedType! : checkExpr(node: decl.value)
+            var type = (decl.value == .empty) ? expectedType! : checkExpr(node: decl.value, desiredType: expectedType)
 
             if let expectedType = expectedType, type != expectedType {
                 reportError("Cannot convert value of type '\(type)' to specified type '\(expectedType)'", at: node)
@@ -89,7 +87,7 @@ extension Checker {
         case .if:
             let iff = node.asIf
 
-            let condType = checkExpr(node: iff.condition)
+            let condType = checkExpr(node: iff.condition, desiredType: Type.bool)
             if condType != Type.bool {
                 reportError("Cannot convert type '\(iff.condition)' to expected type 'bool'", at: iff.condition)
             }
@@ -102,7 +100,7 @@ extension Checker {
 
         case .return:
             let ret = node.asReturn
-            let type = checkExpr(node: ret.value)
+            let type = checkExpr(node: ret.value, desiredType: currentExpectedReturnType!)
 
             if type != currentExpectedReturnType! {
                 reportError("Cannot convert type '\(type)' to expected type '\(currentExpectedReturnType!)'", at: ret.value)
@@ -113,7 +111,7 @@ extension Checker {
         }
     }
 
-    mutating func checkExpr(node: AstNode) -> Type {
+    mutating func checkExpr(node: AstNode, desiredType: Type? = nil) -> Type {
 
         switch node.kind {
         case .identifier:
@@ -130,13 +128,27 @@ extension Checker {
 
         case .litFloat:
             let lit = node.asFloatLiteral
-            let type = Type.f64
+            let type: Type
+            if let desiredType = desiredType, desiredType.isNumber {
+                guard desiredType.isFloatingPoint else {
+                    reportError("Implicit conversion to integer may result in loss of information", at: node)
+                    return Type.invalid
+                }
+                type = desiredType
+            } else {
+                type = FloatLiteral.defaultType
+            }
             node.value = FloatLiteral(value: lit.value, type: type)
             return type
 
         case .litInteger:
             let lit = node.asIntegerLiteral
-            let type = Type.i64
+            let type: Type
+            if let desiredType = desiredType, desiredType.isNumber {
+                type = desiredType
+            } else {
+                type = IntegerLiteral.defaultType
+            }
             node.value = IntegerLiteral(value: lit.value, type: type)
             return type
 
@@ -209,7 +221,6 @@ extension Checker {
             node.value = Paren(expr: paren.expr, type: type)
             return type
 
-        // FIXME:
         case .prefix:
             let prefix = node.asPrefix
             var type = checkExpr(node: prefix.expr)
@@ -243,7 +254,6 @@ extension Checker {
             node.value = Prefix(kind: prefix.kind, expr: prefix.expr, type: type)
             return type
 
-        // FIXME:
         case .infix:
             let infix = node.asInfix
             let lhsType = checkExpr(node: infix.lhs)
@@ -333,7 +343,7 @@ extension Checker {
                 for (arg, expected) in zip(call.arguments, calleeType.asFunction.params) {
                     assert(!expected.flags.contains(.ct), "functions with ct params should be marked as needing specialization")
 
-                    let argType = checkExpr(node: arg)
+                    let argType = checkExpr(node: arg, desiredType: expected.type!)
 
                     guard argType == expected.type! else {
                         reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expected)'", at: arg)
@@ -379,8 +389,8 @@ extension Checker {
                 .map({ $0.0 })
             // check runtime arguments
             for (arg, expected) in zip(runtimeArguments, specialization.strippedType.asFunction.params) {
-                let argType = checkExpr(node: arg)
 
+                let argType = checkExpr(node: arg, desiredType: expected.type!)
                 guard argType == expected.type! else {
                     reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expected.type!)'", at: arg)
                     continue
@@ -449,8 +459,7 @@ extension Checker {
         currentScope = prevScope
         for (arg, expected) in zip(call.arguments, params) {
 
-            let argType = checkExpr(node: arg)
-
+            let argType = checkExpr(node: arg, desiredType: expected.type!)
             guard argType == expected.type! else {
                 reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expected.type!)'", at: arg)
                 continue
@@ -612,6 +621,8 @@ extension Checker {
     struct FloatLiteral: CheckedExpression, CheckedAstValue {
         typealias UncheckedValue = AstNode.FloatLiteral
 
+        static let defaultType: Type = Type.f64
+
         let value: Double
 
         let type: Type
@@ -619,6 +630,8 @@ extension Checker {
 
     struct IntegerLiteral: CheckedExpression, CheckedAstValue {
         typealias UncheckedValue = AstNode.IntegerLiteral
+
+        static let defaultType: Type = Type.i64
 
         let value: UInt64
 
