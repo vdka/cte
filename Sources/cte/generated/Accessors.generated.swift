@@ -299,12 +299,20 @@ extension Checker.StringLiteral: CommonStringLiteral {}
 
 extension Type {
 
-    var asBuiltin: Type.Builtin {
-        return value as! Type.Builtin
+    var asBoolean: Type.Boolean {
+        return value as! Type.Boolean
+    }
+
+    var asFloatingPoint: Type.FloatingPoint {
+        return value as! Type.FloatingPoint
     }
 
     var asFunction: Type.Function {
         return value as! Type.Function
+    }
+
+    var asInteger: Type.Integer {
+        return value as! Type.Integer
     }
 
     var asMetatype: Type.Metatype {
@@ -313,5 +321,9 @@ extension Type {
 
     var asPointer: Type.Pointer {
         return value as! Type.Pointer
+    }
+
+    var asVoid: Type.Void {
+        return value as! Type.Void
     }
 }

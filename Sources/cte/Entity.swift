@@ -7,9 +7,8 @@ class Entity: CustomStringConvertible {
     var type: Type?
     var flags: Flag = .none
 
+    /// - Note: If the entity is a polymorphic function this will never be set.
     var value: IRValue?
-
-    var specializations: [([Type], Function)]?
 
     var name: String {
         guard case .ident(let ident) = ident.kind else {
@@ -26,12 +25,11 @@ class Entity: CustomStringConvertible {
         self.type = type
     }
 
-    init(ident: Token, type: Type?, flags: Flag, value: IRValue?, specializations: [([Type], LLVM.Function)]?) {
+    init(ident: Token, type: Type?, flags: Flag, value: IRValue?) {
         self.ident = ident
         self.type = type
         self.flags = flags
         self.value = value
-        self.specializations = specializations
     }
 
     struct Flag: OptionSet {

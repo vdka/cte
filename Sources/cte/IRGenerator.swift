@@ -48,7 +48,7 @@ struct IRGenerator {
             case .function:
                 if decl.entity.type!.asFunction.needsSpecialization {
 
-                    decl.entity.specializations = emitPolymorphicFunction(named: decl.entity.name, fn: decl.value.asCheckedPolymorphicFunction)
+                    emitPolymorphicFunction(named: decl.entity.name, fn: decl.value.asCheckedPolymorphicFunction)
                 } else {
 
                     decl.entity.value = emitFunction(named: decl.entity.name, decl.value.asCheckedFunction)
@@ -231,37 +231,16 @@ struct IRGenerator {
 
     func emitCall(_ call: Checker.Call) -> IRValue {
 
-        if call.isSpecialized {
-            return emitPolymorphicCall(call)
+        var callee: IRValue
+        if let specialization = call.specialization {
+            callee = specialization.llvm!
+        } else {
+            callee = emitExpr(node: call.callee, returnAddress: true)
         }
 
-        let callee = emitExpr(node: call.callee, returnAddress: true)
         let args = call.arguments.map({ emitExpr(node: $0) })
         
         return builder.buildCall(callee, args: args)
-    }
-
-    func emitPolymorphicCall(_ call: Checker.Call) -> IRValue {
-
-        let calleeEntity = call.callee.asCheckedIdentifier.entity
-        let calleeType = calleeEntity.type!
-
-        var args: [IRValue] = []
-        var specializedTypes: [Type] = []
-        for (arg, param) in zip(call.arguments, calleeType.asFunction.params) {
-
-            if param.flags.contains(.ct) {
-                let type = (arg.value as! CheckedExpression).type
-                specializedTypes.append(type)
-            } else {
-                let irArg = emitExpr(node: arg)
-                args.append(irArg)
-            }
-        }
-
-        let function = calleeEntity.specializations!.first(where: { $0.0 == specializedTypes })!.1
-
-        return builder.buildCall(function, args: args)
     }
 
     func emitFunction(named name: String, _ fn: Checker.Function) -> Function {
@@ -289,10 +268,11 @@ struct IRGenerator {
         return function
     }
 
-    func emitPolymorphicFunction(named name: String, fn: Checker.PolymorphicFunction) -> [([Type], Function)] {
+    func emitPolymorphicFunction(named name: String, fn: Checker.PolymorphicFunction) {
 
-        var specializations: [([Type], Function)] = []
         for specialization in fn.specializations {
+
+            let fn = specialization.fnNode.asCheckedFunction
 
             let nameSuffix = specialization.specializedTypes.reduce("", { $0 + "$" + $1.asMetatype.instanceType.description })
 
@@ -304,9 +284,7 @@ struct IRGenerator {
                 builder.positionAtEnd(of: mainFunction.entryBlock!)
             }
 
-            let runtimeParameters = zip(fn.type.asFunction.params, fn.parameters).filter({ !$0.0.flags.contains(.ct) }).map({ $0.1 })
-
-            for (param, var irParam) in zip(runtimeParameters, function.parameters) {
+            for (param, var irParam) in zip(fn.parameters, function.parameters) {
 
                 let entity = param.asCheckedDeclaration.entity
                 irParam.name = entity.name
@@ -318,19 +296,40 @@ struct IRGenerator {
 
             emit(node: fn.body)
 
-            specializations.append((specialization.specializedTypes, function))
+            specialization.llvm = function
         }
-
-        return specializations
     }
 }
 
 func canonicalize(_ type: Type) -> IRType {
 
     switch type.kind {
-    case .builtin:
-        let builtin = type.asBuiltin
-        return builtin.canonicalRepresentation
+    case .void:
+        return VoidType()
+
+    case .integer:
+        return IntType(width: type.width!)
+
+    case .floatingPoint where type.width == 16:
+        return FloatType.half
+
+    case .floatingPoint where type.width == 32:
+        return FloatType.float
+
+    case .floatingPoint where type.width == 64:
+        return FloatType.double
+
+    case .floatingPoint where type.width == 80:
+        return FloatType.x86FP80
+
+    case .floatingPoint where type.width == 128:
+        return FloatType.fp128
+
+    case .floatingPoint:
+        fatalError("Unsupported width for floating point type")
+
+    case .boolean:
+        return IntType.int1
 
     case .function:
         let fn = type.asFunction

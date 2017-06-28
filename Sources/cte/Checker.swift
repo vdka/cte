@@ -40,8 +40,10 @@ extension Checker {
                 expectedType = checkExpr(node: dType)
 
                 // Really long way to check if the decl is something like `$T: type`
-                if !(decl.isCompileTime && expectedType!.kind == .metatype && expectedType!.asMetatype.instanceType == Type.type) {
+                if !(decl.isCompileTime && expectedType == Type.type) {
+//                if !(decl.isCompileTime && expectedType!.kind == .metatype && expectedType!.asMetatype.instanceType == Type.type) {
                     expectedType = lowerFromMetatype(expectedType!, atNode: dType)
+//                }
                 }
             }
 
@@ -187,7 +189,7 @@ extension Checker {
 
                 node.value = Function(
                     parameters: fn.parameters, returnType: fn.returnType, body: fn.body,
-                    scope: currentScope, type: type)
+                    scope: currentScope, type: type, isSpecialization: false)
             }
 
             return type
@@ -340,7 +342,7 @@ extension Checker {
                 }
 
                 let resultType = calleeType.asFunction.returnType
-                node.value = Call(callee: call.callee, arguments: call.arguments, isSpecialized: false, type: resultType)
+                node.value = Call(callee: call.callee, arguments: call.arguments, specialization: nil, type: resultType)
 
                 return resultType
             }
@@ -353,23 +355,53 @@ extension Checker {
 
     mutating func checkPolymorphicCall(callNode: AstNode, calleeType: Type) -> Type {
         let call = callNode.asCall
-        let fnNode = calleeType.asFunction.node.copy() // NOTE(vdka): We copy so we have distinct nodes
-        let fn = fnNode.asCheckedPolymorphicFunction
-
-        // TODO(vdka): Check for existing specialization and don't reperform that work.
+        var fnNode = calleeType.asFunction.node
+        var fn = fnNode.asCheckedPolymorphicFunction
 
         var specializations: [Type] = []
         for (arg, expected) in zip(call.arguments, calleeType.asFunction.params).filter({ $0.1.flags.contains(.ct) }) {
 
             let argType = checkExpr(node: arg)
 
-            guard argType == expected.type! else {
-                reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expected)'", at: arg)
+            guard argType == expected.type! || argType.isMetatype && expected.type == Type.type else {
+                reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expected.type!)'", at: arg)
                 return Type.invalid // Don't even bother trying to recover from specialized function checking
             }
 
             specializations.append(argType)
         }
+
+        // If there is already a matching specialization no need to recheck
+        if let specialization = fn.specializations.firstMatching(specializations) {
+
+            let runtimeArguments = zip(call.arguments, calleeType.asFunction.params)
+                .filter({ !$0.1.flags.contains(.ct) })
+                .map({ $0.0 })
+            // check runtime arguments
+            for (arg, expected) in zip(runtimeArguments, specialization.strippedType.asFunction.params) {
+                let argType = checkExpr(node: arg)
+
+                guard argType == expected.type! else {
+                    reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expected.type!)'", at: arg)
+                    continue
+                }
+            }
+
+            let returnType = specialization.strippedType.asFunction.returnType
+
+            var strippedArguments = call.arguments
+            for index in specialization.specializationIndices.reversed() {
+                // remove arguments no longer needed at runtime
+                strippedArguments.remove(at: index)
+            }
+            callNode.value = Call(callee: call.callee, arguments: strippedArguments, specialization: specialization, type: returnType)
+            return returnType
+        }
+
+        let originalFnNode = fnNode
+
+        fnNode = fnNode.copy()
+        fn = fnNode.asCheckedPolymorphicFunction
 
         let prevScope = currentScope
         currentScope = Scope(parent: currentScope)
@@ -379,7 +411,8 @@ extension Checker {
 
         var specializedTypeIterator = specializations.makeIterator()
         var params: [Entity] = []
-        for param in fn.parameters {
+        var specializationIndices: [Int] = []
+        for (index, param) in fn.parameters.enumerated() {
             assert(param.kind == .declaration)
 
             let decl = param.asCheckedDeclaration
@@ -395,6 +428,7 @@ extension Checker {
 
                 // Inject the type we are specializing to.
                 entity.type = specializedTypeIterator.next()!
+                specializationIndices.append(index)
             }
 
             params.append(entity)
@@ -426,18 +460,34 @@ extension Checker {
 
         check(node: fn.body)
 
-        let stripped = Type.Function(node: fnNode, params: params.filter({ !$0.flags.contains(.ct) }), returnType: returnType, needsSpecialization: false)
-        let strippedType = Type(value: stripped, entity: Entity.anonymous)
+        let strippedFunction = Type.Function(node: fnNode, params: params.filter({ !$0.flags.contains(.ct) }),
+                                             returnType: returnType, needsSpecialization: false)
+        let strippedType = Type(value: strippedFunction, entity: Entity.anonymous)
 
-        // If there is already a matching specialization no need to duplicate it
-        if !fn.specializations.contains(where: { $0.specializedTypes == specializations }) {
-
-            var pmFn = fnNode.asCheckedPolymorphicFunction
-            pmFn.specializations.append((specializations, strippedType: strippedType, fnNode))
-            fnNode.value = pmFn
+        var strippedParameters = fn.parameters
+        for index in specializationIndices.reversed() {
+            strippedParameters.remove(at: index)
         }
 
-        callNode.value = Call(callee: call.callee, arguments: call.arguments, isSpecialized: true, type: returnType)
+        fnNode.value = Function(
+            parameters: strippedParameters, returnType: fn.returnType, body: fn.body,
+            scope: currentScope, type: strippedType, isSpecialization: true)
+
+        let specialization = FunctionSpecialization(specializationIndices: specializationIndices, specializedTypes: specializations,
+                                                    strippedType: strippedType, fnNode: fnNode)
+
+        // write the added specialization back to the original function declaration
+        var originalPolymorphicFunction = originalFnNode.asCheckedPolymorphicFunction
+        originalPolymorphicFunction.specializations.append(specialization)
+        originalFnNode.value = originalPolymorphicFunction
+
+        var strippedArguments = call.arguments
+        for index in specializationIndices.reversed() {
+            // remove arguments no longer needed at runtime
+            strippedArguments.remove(at: index)
+        }
+
+        callNode.value = Call(callee: call.callee, arguments: strippedArguments, specialization: specialization, type: returnType)
 
         return returnType
     }
@@ -445,7 +495,7 @@ extension Checker {
     func lowerFromMetatype(_ type: Type, atNode node: AstNode) -> Type {
 
         if type.kind == .metatype {
-            return type.asMetatype.instanceType
+            return Type.lowerFromMetatype(type)
         }
 
         reportError("'\(type)' cannot be used as a type", at: node)
@@ -585,6 +635,7 @@ extension Checker {
         /// The scope the parameters occur within
         let scope: Scope
         let type: Type
+        let isSpecialization: Bool
     }
 
     struct PolymorphicFunction: CheckedExpression, CheckedAstValue {
@@ -598,7 +649,7 @@ extension Checker {
 
         let type: Type
 
-        var specializations: [(specializedTypes: [Type], strippedType: Type, node: AstNode)] = []
+        var specializations: [FunctionSpecialization] = []
     }
 
     struct PointerType: CheckedAstValue {
@@ -654,7 +705,7 @@ extension Checker {
         let callee: AstNode
         let arguments: [AstNode]
 
-        let isSpecialized: Bool
+        let specialization: FunctionSpecialization?
         let type: Type
     }
 
@@ -663,5 +714,36 @@ extension Checker {
 
         let stmts: [AstNode]
         let scope: Scope
+    }
+}
+
+class FunctionSpecialization {
+    let specializationIndices: [Int]
+    let specializedTypes: [Type]
+    let strippedType: Type
+    let fnNode: AstNode
+    var llvm: Function?
+
+    init(specializationIndices: [Int], specializedTypes: [Type], strippedType: Type, fnNode: AstNode, llvm: Function? = nil) {
+        assert(fnNode.value is Checker.Function)
+        self.specializationIndices = specializationIndices
+        self.specializedTypes = specializedTypes
+        self.strippedType = strippedType
+        self.fnNode = fnNode
+        self.llvm = llvm
+    }
+}
+
+extension Array where Element == FunctionSpecialization {
+
+    func firstMatching(_ specializationTypes: [Type]) -> FunctionSpecialization? {
+
+        for specialization in self {
+
+            if zip(specialization.specializedTypes, specializationTypes).reduce(true, { $0 && $1.0 === $1.1 }) {
+                return specialization
+            }
+        }
+        return nil
     }
 }

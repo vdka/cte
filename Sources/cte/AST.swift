@@ -141,7 +141,7 @@ extension AstNode {
         static let astKind = AstKind.call
 
         let callee: AstNode
-        let arguments: [AstNode]
+        var arguments: [AstNode]
     }
 
     struct Block: AstValue {

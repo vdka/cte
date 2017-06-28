@@ -104,7 +104,7 @@ extension AstValue {
             return Checker.Call(
                 callee: value.callee.copy(),
                 arguments: value.arguments.map({ $0.copy() }),
-                isSpecialized: value.isSpecialized,
+                specialization: value.specialization?.copy(),
                 type: value.type.copy()
         )
 
@@ -129,7 +129,8 @@ extension AstValue {
                 returnType: value.returnType.copy(),
                 body: value.body.copy(),
                 scope: value.scope.copy(),
-                type: value.type.copy()
+                type: value.type.copy(),
+                isSpecialization: value.isSpecialization
         )
 
         case let value as Checker.Identifier:
@@ -211,8 +212,19 @@ extension Entity {
             ident: ident,
             type: type?.copy(),
             flags: flags,
-            value: value,
-            specializations: specializations
+            value: value
+        )
+    }
+}
+extension FunctionSpecialization {
+
+    func copy() -> FunctionSpecialization {
+        return FunctionSpecialization(
+            specializationIndices: specializationIndices,
+            specializedTypes: specializedTypes,
+            strippedType: strippedType.copy(),
+            fnNode: fnNode.copy(),
+            llvm: llvm
         )
     }
 }

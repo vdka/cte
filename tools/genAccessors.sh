@@ -5,5 +5,5 @@ if !(which sourcery); then
     exit 1
 fi
 
-sourcery --sources Sources/ --templates tools/ --output Sources/cte/generated/Accessors.swift
+sourcery --sources Sources/ --templates tools/ --output Sources/cte/generated/
 

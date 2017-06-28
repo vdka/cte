@@ -31,10 +31,6 @@ class Type: Hashable, CustomStringConvertible {
         let rawValue: UInt8
         static let none    = Flag(rawValue: 0b0000_0000)
         static let used    = Flag(rawValue: 0b0000_0001)
-        static let number  = Flag(rawValue: 0b1000_0000)
-        static let integer = Flag(rawValue: 0b1100_0000)
-        static let signed  = Flag(rawValue: 0b1110_0000)
-        static let float   = Flag(rawValue: 0b1001_0000)
     }
 
     var description: String {
@@ -43,7 +39,16 @@ class Type: Hashable, CustomStringConvertible {
         }
 
         switch kind {
-        case .builtin:
+        case .void:
+            return entity!.name
+
+        case .integer:
+            return entity!.name
+
+        case .floatingPoint:
+            return entity!.name
+
+        case .boolean: // TODO(vdka): it would be nice to alias bool to `i1`
             return entity!.name
 
         case .pointer:
@@ -53,7 +58,9 @@ class Type: Hashable, CustomStringConvertible {
             return "Metatype(" + (self.value as! Metatype).instanceType.description + ")"
 
         case .function:
-            fatalError()
+            // fn ($T: type, a: T, b: T) -> T
+            let fn = self.asFunction
+            return "fn(" + fn.params.map({ $0.name + ": " + $0.type!.description }).joined(separator: ", ") + ")" + " -> " + fn.returnType.description
         }
     }
 
@@ -61,24 +68,32 @@ class Type: Hashable, CustomStringConvertible {
         return description
     }
 
+    var isVoid: Bool {
+        return kind == .void
+    }
+
     var isNumber: Bool {
-        return flags.contains(.number)
+        return isInteger || isFloatingPoint
     }
 
     var isInteger: Bool {
-        return flags.contains(.integer)
+        return kind == .integer
     }
 
     var isSignedInteger: Bool {
-        return flags.contains(.signed)
+        return (value as? Integer)?.isSigned == true
     }
 
     var isUnsignedInteger: Bool {
-        return flags.contains(.integer) && !flags.contains(.signed)
+        return (value as? Integer)?.isSigned == false
     }
 
     var isFloatingPoint: Bool {
-        return flags.contains(.float)
+        return kind == .floatingPoint
+    }
+
+    var isMetatype: Bool {
+        return kind == .metatype
     }
 
     func compatibleWithoutExtOrTrunc(_ type: Type) -> Bool {
@@ -86,22 +101,31 @@ class Type: Hashable, CustomStringConvertible {
     }
 
     func compatibleWithExtOrTrunc(_ type: Type) -> Bool {
-        if type.flags.contains(.integer) && self.flags.contains(.integer) {
+        if type.isInteger && self.isInteger {
             return true
         }
 
-        if type.flags.contains(.float) && self.flags.contains(.float) {
+        if type.isFloatingPoint && self.isFloatingPoint {
             return true
         }
 
         return false
     }
+
+    static func lowerFromMetatype(_ type: Type) -> Type {
+        assert(type.kind == .metatype)
+
+        return type.asMetatype.instanceType
+    }
 }
 
 enum TypeKind {
+    case void
+    case integer
+    case floatingPoint
+    case boolean
     case function
     case pointer
-    case builtin
     case metatype
 }
 
@@ -110,8 +134,26 @@ protocol TypeValue {
 }
 
 extension Type {
+
+    struct Void: TypeValue {
+        static let typeKind: TypeKind = .void
+    }
+
+    struct Integer: TypeValue {
+        static let typeKind: TypeKind = .integer
+        var isSigned: Bool
+    }
+
+    struct FloatingPoint: TypeValue {
+        static let typeKind: TypeKind = .floatingPoint
+    }
+
+    struct Boolean: TypeValue {
+        static let typeKind: TypeKind = .boolean
+    }
+
     struct Function: TypeValue {
-        static let typeKind = TypeKind.function
+        static let typeKind: TypeKind = .function
 
         var node: AstNode
         var params: [Entity]
@@ -120,19 +162,13 @@ extension Type {
     }
 
     struct Pointer: TypeValue {
-        static let typeKind = TypeKind.pointer
+        static let typeKind: TypeKind = .pointer
 
         let pointeeType: Type
     }
 
-    struct Builtin: TypeValue {
-        static let typeKind = TypeKind.builtin
-
-        let canonicalRepresentation: IRType
-    }
-
     struct Metatype: TypeValue {
-        static let typeKind = TypeKind.metatype
+        static let typeKind: TypeKind = .metatype
 
         let instanceType: Type
     }
@@ -145,8 +181,8 @@ extension Type {
         return Type(value: pointer)
     }
 
-    static func makeBuiltin(_ entity: Entity, width: Int, irType: IRType) -> Type {
-        let type = Type(value: Builtin(canonicalRepresentation: irType), entity: entity)
+    static func makeBuiltin(_ entity: Entity, width: Int, value: TypeValue) -> Type {
+        let type = Type(entity: entity, width: width, flags: .none, value: value)
         type.width = width
         return type
     }
@@ -165,6 +201,12 @@ extension Type {
     }
 
     static func == (lhs: Type, rhs: Type) -> Bool {
+        if lhs === Type.type {
+            return rhs.isMetatype || rhs === Type.type
+        }
+        if rhs === Type.type {
+            return lhs.isMetatype || lhs === Type.type
+        }
         return lhs.entity === rhs.entity
     }
 }
