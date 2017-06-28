@@ -68,7 +68,7 @@ extension AstNode: CustomStringConvertible {
             let rhs = b.rhs.description
             return lhs + " " + op + " " + rhs
 
-        case .call:
+        case .call, .cast:
             let call = asCall
             let callee = call.callee.description
             let arguments = call.arguments.map({ $0.description }).joined(separator: ", ")

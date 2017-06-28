@@ -10,6 +10,8 @@ c := min(f64, a, 4)
 d := min(i64, b, 4)
 e := min(i64, b, d)
 
+f := f64(b)
+
 addrA := &a
 valA := <addrA
 

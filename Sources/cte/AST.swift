@@ -40,6 +40,7 @@ enum AstKind {
     case prefix
     case infix
     case call
+    case cast
     case block
     case `if`
     case `return`

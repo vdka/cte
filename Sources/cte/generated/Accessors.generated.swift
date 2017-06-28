@@ -94,6 +94,11 @@ extension AstNode {
         return value as! Checker.Call
     }
 
+    var asCheckedCast: Checker.Cast {
+        assert(kind == Checker.Cast.astKind)
+        return value as! Checker.Cast
+    }
+
     var asCheckedDeclaration: Checker.Declaration {
         assert(kind == Checker.Declaration.astKind)
         return value as! Checker.Declaration

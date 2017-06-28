@@ -169,6 +169,11 @@ struct IRGenerator {
         case .call:
             return emitCall(node.asCheckedCall)
 
+        case .cast:
+            let cast = node.asCheckedCast
+            let val = emitExpr(node: cast.arguments.first!)
+            return builder.buildCast(cast.cast, value: val, type: canonicalize(cast.type))
+
         default:
             fatalError()
         }

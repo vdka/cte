@@ -7,7 +7,7 @@ xcode)
     swift package generate-xcodeproj 
 ;;
 *)
-    swift build
+    swift build -Xswiftc -DDEBUG
     cp .build/debug/cte /usr/local/bin/
 esac
 

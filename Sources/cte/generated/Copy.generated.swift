@@ -108,6 +108,14 @@ extension AstValue {
                 type: value.type.copy()
         )
 
+        case let value as Checker.Cast:
+            return Checker.Cast(
+                callee: value.callee.copy(),
+                arguments: value.arguments.map({ $0.copy() }),
+                type: value.type.copy(),
+                cast: value.cast
+        )
+
         case let value as Checker.Declaration:
             return Checker.Declaration(
                 identifier: value.identifier.copy(),

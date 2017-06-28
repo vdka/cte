@@ -330,6 +330,11 @@ extension Checker {
         case .call:
             let call = node.asCall
             let calleeType = checkExpr(node: call.callee)
+
+            if calleeType.isMetatype {
+                return checkCast(callNode: node)
+            }
+
             guard case .function = calleeType.kind else {
                 reportError("Cannot call value of non-function type '\(calleeType)'", at: node)
                 return Type.invalid
@@ -361,6 +366,57 @@ extension Checker {
             reportError("Cannot convert '\(node)' to an Expression", at: node)
             return Type.invalid
         }
+    }
+
+    mutating func checkCast(callNode: AstNode) -> Type {
+        let call = callNode.asCall
+
+        var targetType = checkExpr(node: call.callee)
+        targetType = Type.lowerFromMetatype(targetType)
+
+        guard call.arguments.count == 1, let arg = call.arguments.first else {
+            if call.arguments.count == 0 {
+                reportError("Missing argument for cast to \(targetType)", at: callNode)
+            } else { // args.count > 1
+                reportError("Too many arguments for cast to \(targetType)", at: callNode)
+            }
+            return Type.invalid
+        }
+
+        let argType = checkExpr(node: arg, desiredType: targetType)
+
+        if argType == targetType {
+            reportError("Unnecissary cast to same type", at: callNode)
+            return targetType
+        }
+
+        let cast: OpCode.Cast
+        if argType.compatibleWithExtOrTrunc(targetType) {
+
+            if argType.isFloatingPoint {
+                cast = (argType.width! < targetType.width!) ? .fpTrunc : .fpext
+            } else if targetType.isSignedInteger {
+                cast = (argType.width! < targetType.width!) ? .trunc : .sext
+            } else if targetType.isUnsignedInteger {
+                cast = (argType.width! < targetType.width!) ? .trunc : .zext
+            } else {
+                fatalError("This is should cover all bases where compatibleWithExtOrTrunc returns true")
+            }
+        } else if argType.isSignedInteger && targetType.isFloatingPoint {
+            cast = .siToFP
+        } else if argType.isUnsignedInteger && targetType.isFloatingPoint {
+            cast = .uiToFP
+        } else if argType.isFloatingPoint && targetType.isSignedInteger {
+            cast = .fpToSI
+        } else if argType.isFloatingPoint && targetType.isUnsignedInteger {
+            cast = .fpToUI
+        } else {
+            reportError("Cannot cast between unrelated types '\(argType)' and '\(targetType)", at: callNode)
+            return Type.invalid
+        }
+
+        callNode.value = Cast(callee: call.callee, arguments: call.arguments, type: targetType, cast: cast)
+        return targetType
     }
 
     mutating func checkPolymorphicCall(callNode: AstNode, calleeType: Type) -> Type {
@@ -720,6 +776,18 @@ extension Checker {
 
         let specialization: FunctionSpecialization?
         let type: Type
+    }
+
+    struct Cast: CheckedExpression, CheckedAstValue {
+        static let astKind = AstKind.cast
+
+        typealias UncheckedValue = AstNode.Call
+
+        let callee: AstNode
+        let arguments: [AstNode]
+
+        let type: Type
+        let cast: OpCode.Cast
     }
 
     struct Block: CheckedAstValue {
