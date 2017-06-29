@@ -82,7 +82,7 @@ struct Parser {
 
             let expr = expression()
 
-            let rparen = advance(expecting: .lparen)
+            let rparen = advance(expecting: .rparen)
             return AstNode(AstNode.Paren(expr: expr), tokens: [lparen, rparen])
 
         case .ident(let symbol):
