@@ -25,15 +25,15 @@ func reportError(_ message: String, at node: AstNode, file: StaticString = #file
     errors.append(formatted)
 }
 
-func reportError(_ message: String, at location: SourceLocation, file: StaticString = #file, line: UInt = #line) {
-    let formatted = formatMessage(message, location.description, file, line)
+func reportError(_ message: String, at token: Token, file: StaticString = #file, line: UInt = #line) {
 
+    let formatted = formatMessage(message, token.start.description, file, line)
     errors.append(formatted)
 }
 
-func reportError(_ message: String, at location: SourceRange, file: StaticString = #file, line: UInt = #line) {
-    let formatted = formatMessage(message, location.lowerBound.description, file, line)
+func reportError(_ message: String, at lexer: Lexer, file: StaticString = #file, line: UInt = #line) {
 
+    let formatted = formatMessage(message, lexer.location.description, file, line)
     errors.append(formatted)
 }
 

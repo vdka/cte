@@ -6,6 +6,7 @@ struct Checker {
 
     var currentScope: Scope = Scope(parent: Scope.global)
     var currentExpectedReturnType: Type? = nil
+    var currentSpecializationCall: AstNode? = nil
 
     init(nodes: [AstNode]) {
         self.nodes = nodes
@@ -580,7 +581,9 @@ extension Checker {
         }
         currentScope = fnScope
 
+        currentSpecializationCall = callNode
         check(node: fn.body)
+        currentSpecializationCall = nil
 
         let strippedFunction = Type.Function(node: fnNode, params: params.filter({ !$0.flags.contains(.ct) }),
                                              returnType: returnType, needsSpecialization: false)
@@ -890,6 +893,25 @@ class FunctionSpecialization {
         self.strippedType = strippedType
         self.fnNode = fnNode
         self.llvm = llvm
+    }
+}
+
+extension Checker {
+
+    func reportError(_ message: String, at node: AstNode, file: StaticString = #file, line: UInt = #line) {
+
+        cte.reportError(message, at: node, file: file, line: line)
+        if let currentSpecializationCall = currentSpecializationCall {
+            attachNote("Called from: " + currentSpecializationCall.tokens.first!.start.description)
+        }
+    }
+
+    func reportError(_ message: String, at token: Token, file: StaticString = #file, line: UInt = #line) {
+
+        cte.reportError(message, at: token, file: file, line: line)
+        if let currentSpecializationCall = currentSpecializationCall {
+            attachNote("Called from: " + currentSpecializationCall.tokens.first!.start.description)
+        }
     }
 }
 

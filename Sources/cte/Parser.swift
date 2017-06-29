@@ -148,7 +148,7 @@ struct Parser {
                     }
 
                     guard let parameterName = lexer.peek(), case .ident(let symbol) = parameterName.kind else {
-                        reportError("Expected parameter name", at: lexer.location)
+                        reportError("Expected parameter name", at: lexer)
                         return AstNode.invalid
                     }
                     advance()
@@ -264,7 +264,7 @@ struct Parser {
 
             guard let nextToken = lexer.peek(), nextToken.kind == .equals || nextToken.kind == .colon else {
                 // catches `x: foo`
-                reportError("Expected '=' or ':' followed by an inital value", at: lexer.location)
+                reportError("Expected '=' or ':' followed by an inital value", at: lexer)
                 attachNote("If your aim is to create an uninitialized value, you cannot. At least for now.")
                 return AstNode.invalid
             }
@@ -291,7 +291,7 @@ struct Parser {
     mutating func advance(expecting expected: Token.Kind? = nil) -> Token {
 
         if let expected = expected, let token = lexer.peek(), token.kind != expected {
-            reportError("Expected '" + expected.description + "'", at: token.location)
+            reportError("Expected '" + expected.description + "'", at: token)
             return Token(kind: .invalid(""), location: token.location)
         }
 
