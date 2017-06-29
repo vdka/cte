@@ -39,12 +39,14 @@ enum AstKind {
     case paren
     case prefix
     case infix
+    case assign
     case call
     case cast
     case block
     case `if`
     case `return`
     case pointerType
+    case functionType
 }
 
 extension AstNode {
@@ -90,16 +92,23 @@ extension AstNode {
     struct IntegerLiteral: AstValue {
         static let astKind = AstKind.litInteger
 
-        // NOTE(vdka): Negation is handle through a prefix op
+        // NOTE(vdka): Negation is handled through a prefix op
         let value: UInt64
     }
 
     struct Function: AstValue {
         static let astKind = AstKind.function
 
+        var parameters: [AstNode]
+        var returnType: AstNode
+        let body: AstNode
+    }
+
+    struct FunctionType: AstValue {
+        static let astKind = AstKind.functionType
+
         let parameters: [AstNode]
         let returnType: AstNode
-        let body: AstNode
     }
 
     struct PointerType: AstValue {
@@ -115,6 +124,10 @@ extension AstNode {
         let type: AstNode?
         let value: AstNode
         let isCompileTime: Bool
+
+        var isFunction: Bool {
+            return value.kind == .function || value.kind == .polymorphicFunction
+        }
     }
 
     struct Paren: AstValue {
@@ -136,6 +149,13 @@ extension AstNode {
         let kind: Token.Kind
         let lhs: AstNode
         let rhs: AstNode
+    }
+
+    struct Assign: AstValue {
+        static let astKind = AstKind.assign
+
+        let lvalue: AstNode
+        let rvalue: AstNode
     }
 
     struct Call: AstValue {

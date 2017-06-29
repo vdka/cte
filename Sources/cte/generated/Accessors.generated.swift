@@ -4,6 +4,11 @@
 
 extension AstNode {
 
+    var asAssign: CommonAssign {
+        assert(kind == AstNode.Assign.astKind)
+        return value as! CommonAssign
+    }
+
     var asBlock: CommonBlock {
         assert(kind == AstNode.Block.astKind)
         return value as! CommonBlock
@@ -32,6 +37,11 @@ extension AstNode {
     var asFunction: CommonFunction {
         assert(kind == AstNode.Function.astKind)
         return value as! CommonFunction
+    }
+
+    var asFunctionType: CommonFunctionType {
+        assert(kind == AstNode.FunctionType.astKind)
+        return value as! CommonFunctionType
     }
 
     var asIdentifier: CommonIdentifier {
@@ -84,6 +94,11 @@ extension AstNode {
         return value as! CommonStringLiteral
     }
 
+    var asCheckedAssign: Checker.Assign {
+        assert(kind == Checker.Assign.astKind)
+        return value as! Checker.Assign
+    }
+
     var asCheckedBlock: Checker.Block {
         assert(kind == Checker.Block.astKind)
         return value as! Checker.Block
@@ -112,6 +127,11 @@ extension AstNode {
     var asCheckedFunction: Checker.Function {
         assert(kind == Checker.Function.astKind)
         return value as! Checker.Function
+    }
+
+    var asCheckedFunctionType: Checker.FunctionType {
+        assert(kind == Checker.FunctionType.astKind)
+        return value as! Checker.FunctionType
     }
 
     var asCheckedIdentifier: Checker.Identifier {
@@ -156,6 +176,12 @@ extension AstNode {
 }
 
 
+protocol CommonAssign {
+
+    var lvalue: AstNode { get }
+    var rvalue: AstNode { get }
+}
+
 protocol CommonBlock {
 
     var stmts: [AstNode] { get }
@@ -173,6 +199,7 @@ protocol CommonDeclaration {
     var type: AstNode? { get }
     var value: AstNode { get }
     var isCompileTime: Bool { get }
+    var isFunction: Bool { get }
 }
 
 protocol CommonEmpty {
@@ -189,6 +216,12 @@ protocol CommonFunction {
     var parameters: [AstNode] { get }
     var returnType: AstNode { get }
     var body: AstNode { get }
+}
+
+protocol CommonFunctionType {
+
+    var parameters: [AstNode] { get }
+    var returnType: AstNode { get }
 }
 
 protocol CommonIdentifier {
@@ -246,6 +279,8 @@ protocol CommonStringLiteral {
 }
 
 
+extension AstNode.Assign: CommonAssign {}
+
 extension AstNode.Block: CommonBlock {}
 
 extension AstNode.Call: CommonCall {}
@@ -257,6 +292,8 @@ extension AstNode.Empty: CommonEmpty {}
 extension AstNode.FloatLiteral: CommonFloatLiteral {}
 
 extension AstNode.Function: CommonFunction {}
+
+extension AstNode.FunctionType: CommonFunctionType {}
 
 extension AstNode.Identifier: CommonIdentifier {}
 
@@ -278,6 +315,8 @@ extension AstNode.Return: CommonReturn {}
 
 extension AstNode.StringLiteral: CommonStringLiteral {}
 
+extension Checker.Assign: CommonAssign {}
+
 extension Checker.Block: CommonBlock {}
 
 extension Checker.Call: CommonCall {}
@@ -287,6 +326,8 @@ extension Checker.Declaration: CommonDeclaration {}
 extension Checker.FloatLiteral: CommonFloatLiteral {}
 
 extension Checker.Function: CommonFunction {}
+
+extension Checker.FunctionType: CommonFunctionType {}
 
 extension Checker.Identifier: CommonIdentifier {}
 

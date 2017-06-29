@@ -31,9 +31,18 @@ extension AstNode: CustomStringConvertible {
 
             let returnType = fn.returnType.description
 
-            let body = fn.body.description
+            return "fn" + "(" + parameterList + ") -> " + returnType + " " + fn.body.description
 
-            return "fn" + "(" + parameterList + ") -> " + returnType + " " + body
+        case .functionType:
+
+            let fn = asFunctionType
+            let parameterList = fn.parameters
+                .map({ $0.description })
+                .joined(separator: ", ")
+
+            let returnType = fn.returnType.description
+
+            return "fn" + "(" + parameterList + ") -> " + returnType
 
         case .pointerType:
             return "*" + asPointerType.pointee.description
@@ -67,6 +76,10 @@ extension AstNode: CustomStringConvertible {
             let lhs = b.lhs.description
             let rhs = b.rhs.description
             return lhs + " " + op + " " + rhs
+
+        case .assign:
+            let a = asAssign
+            return a.lvalue.description + " = " + a.rvalue.description
 
         case .call, .cast:
             let call = asCall

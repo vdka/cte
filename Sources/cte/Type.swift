@@ -92,6 +92,14 @@ class Type: Hashable, CustomStringConvertible {
         return kind == .floatingPoint
     }
 
+    var isFunction: Bool {
+        return kind == .function
+    }
+
+    var isFunctionPointer: Bool {
+        return kind == .pointer && asPointer.pointeeType.isFunction
+    }
+
     var isMetatype: Bool {
         return kind == .metatype
     }

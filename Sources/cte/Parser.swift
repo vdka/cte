@@ -48,16 +48,7 @@ struct Parser {
             return infixOperator.lbp
         }
 
-        switch token.kind {
-        case .colon:
-            return 10
-
-        case .lparen:
-            return 80
-
-        default:
-            return 0
-        }
+        return token.kind.lbp
     }
 
     mutating func nud(for token: Token) -> AstNode {
@@ -187,7 +178,12 @@ struct Parser {
 
             let returnArrow = advance(expecting: .returnArrow)
 
-            let returnType = expression()
+            let returnType = expression(Token.Kind.equals.lbp)
+
+            if lexer.peek()?.kind != .lbrace {
+                let functionType = AstNode.FunctionType(parameters: parameters, returnType: returnType)
+                return AstNode(functionType, tokens: [fnToken, lparen, rparen, returnArrow])
+            }
 
             let body = expression()
 
@@ -209,7 +205,7 @@ struct Parser {
             return AstNode(stmtReturn, tokens: [returnToken])
 
         default:
-            fatalError()
+            fatalError("Parser has no nud for \(token)")
         }
     }
 
@@ -245,6 +241,15 @@ struct Parser {
             let exprCall = AstNode.Call(callee: lvalue, arguments: arguments)
             return AstNode(exprCall, tokens: [lparen, rparen])
 
+        case .equals:
+            let equals = advance()
+
+            let value = expression(Token.Kind.equals.lbp)
+
+            let assign = AstNode.Assign(lvalue: lvalue, rvalue: value)
+
+            return AstNode(value: assign, tokens: [equals])
+
         case .colon:
             let colon = advance()
 
@@ -254,7 +259,7 @@ struct Parser {
                 break
 
             default:
-                type = expression()
+                type = expression(Token.Kind.equals.lbp)
             }
 
             guard let nextToken = lexer.peek(), nextToken.kind == .equals || nextToken.kind == .colon else {
@@ -266,7 +271,7 @@ struct Parser {
 
             let token = advance()
 
-            let value = expression()
+            let value = expression(Token.Kind.equals.lbp)
 
             let decl = AstNode.Declaration(identifier: lvalue, type: type, value: value, isCompileTime: token.kind == .colon)
             return AstNode(decl, tokens: [colon, token])
@@ -291,5 +296,21 @@ struct Parser {
         }
 
         return lexer.pop()
+    }
+}
+
+extension Token.Kind {
+
+    var lbp: UInt8 {
+        switch self {
+        case .colon, .equals:
+            return 10
+
+        case .lparen:
+            return 80
+
+        default:
+            return 0
+        }
     }
 }

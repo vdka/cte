@@ -7,7 +7,6 @@ class Entity: CustomStringConvertible {
     var type: Type?
     var flags: Flag = .none
 
-    /// - Note: If the entity is a polymorphic function this will never be set.
     var value: IRValue?
 
     var name: String {

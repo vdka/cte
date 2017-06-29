@@ -44,33 +44,33 @@ struct IRGenerator {
                 return
             }
 
-            switch decl.entity.type!.kind {
-            case .function:
-                if decl.entity.type!.asFunction.needsSpecialization {
-
-                    emitPolymorphicFunction(named: decl.entity.name, fn: decl.value.asCheckedPolymorphicFunction)
-                } else {
-
-                    decl.entity.value = emitFunction(named: decl.entity.name, decl.value.asCheckedFunction)
-                }
-
-            case .metatype:
+            guard decl.entity.type!.kind != .metatype else {
                 return
-
-            default:
-                let type = canonicalize(decl.entity.type!)
-                let stackValue = builder.buildAlloca(type: type, name: decl.entity.name)
-                decl.entity.value = stackValue
-
-                guard decl.value != .empty else {
-                    return
-                }
-
-                let value = emitExpr(node: decl.value)
-
-                builder.buildStore(value, to: stackValue)
-
             }
+
+            guard decl.value.kind != .polymorphicFunction && decl.value.kind != .function else {
+                decl.entity.value = emitExpr(node: decl.value, name: decl.entity.name)
+                return
+            }
+
+            let type = canonicalize(decl.entity.type!)
+            let stackValue = builder.buildAlloca(type: type, name: decl.entity.name)
+            decl.entity.value = stackValue
+
+            guard decl.value != .empty else {
+                return
+            }
+
+            let value = emitExpr(node: decl.value, name: decl.entity.name)
+
+            builder.buildStore(value, to: stackValue)
+
+        case .assign:
+            let assign = node.asCheckedAssign
+
+            let lvalue = emitExpr(node: assign.lvalue, returnAddress: true)
+            let rvalue = emitExpr(node: assign.rvalue)
+            builder.buildStore(rvalue, to: lvalue)
 
         case .block:
             let block = node.asCheckedBlock
@@ -121,10 +121,7 @@ struct IRGenerator {
         }
     }
 
-    func emitExpr(node: AstNode, returnAddress: Bool = false) -> IRValue {
-        if returnAddress {
-            assert(node.kind == .identifier)
-        }
+    func emitExpr(node: AstNode, returnAddress: Bool = false, name: String = "") -> IRValue {
 
         switch node.kind {
         case .litInteger:
@@ -152,7 +149,7 @@ struct IRGenerator {
         case .identifier:
             let ident = node.asCheckedIdentifier
             let stackValue = ident.entity.value!
-            if returnAddress {
+            if returnAddress || ident.entity.type!.isFunction {
                 return stackValue
             }
             return builder.buildLoad(stackValue)
@@ -165,6 +162,13 @@ struct IRGenerator {
 
         case .infix:
             return emitInfix(node.asCheckedInfix)
+
+        case .polymorphicFunction:
+            emitPolymorphicFunction(named: name, fn: node.asCheckedPolymorphicFunction)
+            return VoidType().undef()
+
+        case .function:
+            return emitFunction(named: name, node.asCheckedFunction)
 
         case .call:
             return emitCall(node.asCheckedCall)
@@ -248,6 +252,8 @@ struct IRGenerator {
         var callee: IRValue
         if let specialization = call.specialization {
             callee = specialization.llvm!
+        } else if call.callee.exprType.isFunctionPointer {
+            callee = emitExpr(node: call.callee)
         } else {
             callee = emitExpr(node: call.callee, returnAddress: true)
         }

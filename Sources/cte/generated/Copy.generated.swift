@@ -7,6 +7,12 @@ extension AstValue {
     func copy() -> AstValue {
         switch self {
 
+        case let value as AstNode.Assign:
+            return AstNode.Assign(
+                lvalue: value.lvalue.copy(),
+                rvalue: value.rvalue.copy()
+        )
+
         case let value as AstNode.Block:
             return AstNode.Block(
                 stmts: value.stmts.map({ $0.copy() })
@@ -39,6 +45,12 @@ extension AstValue {
                 parameters: value.parameters.map({ $0.copy() }),
                 returnType: value.returnType.copy(),
                 body: value.body.copy()
+        )
+
+        case let value as AstNode.FunctionType:
+            return AstNode.FunctionType(
+                parameters: value.parameters.map({ $0.copy() }),
+                returnType: value.returnType.copy()
         )
 
         case let value as AstNode.Identifier:
@@ -94,6 +106,12 @@ extension AstValue {
                 value: value.value
         )
 
+        case let value as Checker.Assign:
+            return Checker.Assign(
+                lvalue: value.lvalue.copy(),
+                rvalue: value.rvalue.copy()
+        )
+
         case let value as Checker.Block:
             return Checker.Block(
                 stmts: value.stmts.map({ $0.copy() }),
@@ -137,8 +155,15 @@ extension AstValue {
                 returnType: value.returnType.copy(),
                 body: value.body.copy(),
                 scope: value.scope.copy(),
-                type: value.type.copy(),
-                isSpecialization: value.isSpecialization
+                isSpecialization: value.isSpecialization,
+                type: value.type.copy()
+        )
+
+        case let value as Checker.FunctionType:
+            return Checker.FunctionType(
+                parameters: value.parameters.map({ $0.copy() }),
+                returnType: value.returnType.copy(),
+                type: value.type.copy()
         )
 
         case let value as Checker.Identifier:

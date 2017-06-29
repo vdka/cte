@@ -47,7 +47,8 @@ extension Checker {
 
             var type = (decl.value == .empty) ? expectedType! : checkExpr(node: decl.value, desiredType: expectedType)
 
-            if let expectedType = expectedType, type != expectedType {
+            if let expectedType = expectedType, type != expectedType &&
+                (Type.makePointer(to: type) != expectedType && type.isFunction && expectedType.isFunctionPointer) {
                 reportError("Cannot convert value of type '\(type)' to specified type '\(expectedType)'", at: node)
                 type = Type.invalid
             }
@@ -66,9 +67,23 @@ extension Checker {
 
             currentScope.insert(entity)
 
-            node.value = Declaration(identifier: decl.identifier, type: decl.type,
-                                                    value: decl.value, isCompileTime: decl.isCompileTime,
-                                                    entity: entity)
+            node.value = Declaration(
+                identifier: decl.identifier, type: decl.type, value: decl.value, isCompileTime: decl.isCompileTime,
+                entity: entity)
+
+
+        case .assign:
+            let assign = node.asAssign
+
+            let lvalType = checkExpr(node: assign.lvalue)
+            let rvalType = checkExpr(node: assign.rvalue, desiredType: lvalType)
+
+            guard lvalType == rvalType else {
+                reportError("Cannot assign value of type '\(rvalType)' to value of type '\(lvalType)'", at: node)
+                return
+            }
+
+            node.value = Assign(lvalue: assign.lvalue, rvalue: assign.rvalue)
 
         case .block:
             let block = node.asBlock
@@ -121,6 +136,11 @@ extension Checker {
                 return Type.invalid
             }
             node.value = Identifier(name: ident, entity: entity)
+
+            if entity.type!.isFunction {
+                return Type.makePointer(to: entity.type!)
+            }
+
             return entity.type!
 
         case .litString:
@@ -201,8 +221,41 @@ extension Checker {
 
                 node.value = Function(
                     parameters: fn.parameters, returnType: fn.returnType, body: fn.body,
-                    scope: currentScope, type: type, isSpecialization: false)
+                    scope: currentScope, isSpecialization: false, type: type)
             }
+
+            return type
+
+        case .functionType:
+            let fn = node.asFunctionType
+
+            // NOTE(vdka): Ability to refer to polymorphic function types?
+            var needsSpecialization = false
+            var params: [Entity] = []
+            for param in fn.parameters {
+                assert(param.kind == .declaration)
+
+                check(node: param)
+
+                let entity = currentScope.members.last!
+
+                if entity.flags.contains(.ct) {
+                    needsSpecialization = true
+                }
+
+                params.append(entity)
+            }
+
+            var returnType = checkExpr(node: fn.returnType)
+            returnType = lowerFromMetatype(returnType, atNode: fn.returnType)
+
+            let functionType = Type.Function(node: node, params: params, returnType: returnType, needsSpecialization: needsSpecialization)
+
+            let instanceType = Type(value: functionType, entity: Entity.anonymous)
+            let fnPointerType = Type.makePointer(to: instanceType)
+            let type = Type.makeMetatype(fnPointerType)
+
+            node.value = FunctionType(parameters: fn.parameters, returnType: fn.returnType, type: type)
 
             return type
 
@@ -329,13 +382,17 @@ extension Checker {
 
         case .call:
             let call = node.asCall
-            let calleeType = checkExpr(node: call.callee)
+            var calleeType = checkExpr(node: call.callee)
 
             if calleeType.isMetatype {
                 return checkCast(callNode: node)
             }
 
-            guard case .function = calleeType.kind else {
+            if calleeType.isFunctionPointer {
+                calleeType = calleeType.asPointer.pointeeType
+            }
+
+            guard calleeType.isFunction else {
                 reportError("Cannot call value of non-function type '\(calleeType)'", at: node)
                 return Type.invalid
             }
@@ -536,7 +593,7 @@ extension Checker {
 
         fnNode.value = Function(
             parameters: strippedParameters, returnType: fn.returnType, body: fn.body,
-            scope: currentScope, type: strippedType, isSpecialization: true)
+            scope: currentScope, isSpecialization: true, type: strippedType)
 
         let specialization = FunctionSpecialization(specializationIndices: specializationIndices, specializedTypes: specializations,
                                                     strippedType: strippedType, fnNode: fnNode)
@@ -697,14 +754,15 @@ extension Checker {
     struct Function: CheckedExpression, CheckedAstValue {
         typealias UncheckedValue = AstNode.Function
 
-        let parameters: [AstNode]
-        let returnType: AstNode
+        var parameters: [AstNode]
+        var returnType: AstNode
         let body: AstNode
 
         /// The scope the parameters occur within
         let scope: Scope
-        let type: Type
         let isSpecialization: Bool
+
+        var type: Type
     }
 
     struct PolymorphicFunction: CheckedExpression, CheckedAstValue {
@@ -728,6 +786,15 @@ extension Checker {
         let type: Type
     }
 
+    struct FunctionType: CheckedAstValue {
+        typealias UncheckedValue = AstNode.FunctionType
+
+        let parameters: [AstNode]
+        let returnType: AstNode
+
+        let type: Type
+    }
+
     struct Declaration: CheckedAstValue {
         typealias UncheckedValue = AstNode.Declaration
 
@@ -737,6 +804,10 @@ extension Checker {
         let isCompileTime: Bool
 
         let entity: Entity
+
+        var isFunction: Bool {
+            return value.kind == .function || value.kind == .polymorphicFunction
+        }
     }
 
     struct Paren: CheckedExpression, CheckedAstValue {
@@ -766,6 +837,13 @@ extension Checker {
         let op: OpCode.Binary
         let lhsCast: OpCode.Cast?
         let rhsCast: OpCode.Cast?
+    }
+
+    struct Assign: CheckedAstValue {
+        typealias UncheckedValue = AstNode.Assign
+
+        let lvalue: AstNode
+        let rvalue: AstNode
     }
 
     struct Call: CheckedExpression, CheckedAstValue {
