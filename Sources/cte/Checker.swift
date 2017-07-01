@@ -26,7 +26,7 @@ extension Checker {
     mutating func check(node: AstNode) {
 
         switch node.kind {
-        case .empty:
+        case .empty, .comment:
             return
 
         case .identifier, .call, .paren, .prefix, .infix:
@@ -123,7 +123,7 @@ extension Checker {
             }
 
         default:
-            fatalError()
+            fatalError("Unknown node kind: \(node.kind)")
         }
     }
 

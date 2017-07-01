@@ -10,6 +10,9 @@ extension AstNode: CustomStringConvertible {
         case .empty:
             return ""
 
+        case .comment:
+            return "//" + asComment.comment
+
         case .identifier:
             return asIdentifier.name
 

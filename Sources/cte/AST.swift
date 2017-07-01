@@ -29,6 +29,7 @@ class AstNode: Hashable {
 enum AstKind {
     case invalid
     case empty
+    case comment
     case identifier
     case litString
     case litFloat
@@ -69,6 +70,12 @@ extension AstNode {
 
     struct Empty: AstValue {
         static let astKind = AstKind.empty
+    }
+
+    struct Comment: AstValue {
+        static let astKind = AstKind.comment
+
+        let comment: String
     }
 
     struct Identifier: AstValue {

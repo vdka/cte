@@ -24,6 +24,11 @@ extension AstValue {
                 arguments: value.arguments.map({ $0.copy() })
         )
 
+        case let value as AstNode.Comment:
+            return AstNode.Comment(
+                comment: value.comment
+        )
+
         case let value as AstNode.Declaration:
             return AstNode.Declaration(
                 identifier: value.identifier.copy(),
