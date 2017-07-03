@@ -26,7 +26,7 @@ struct Parser {
 
     mutating func expression(_ rbp: UInt8 = 0) -> AstNode {
 
-        guard let token = lexer.peek() else { 
+        guard let token = lexer.peek() else {
             return AstNode.empty
         }
 
@@ -75,6 +75,12 @@ struct Parser {
 
             let rparen = advance(expecting: .rparen)
             return AstNode(AstNode.Paren(expr: expr), tokens: [lparen, rparen])
+
+        case .comment(let comment):
+            advance()
+
+            let comment = AstNode.Comment(comment: comment)
+            return AstNode.init(comment, tokens: [token])
 
         case .ident(let symbol):
             advance()

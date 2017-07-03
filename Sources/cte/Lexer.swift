@@ -109,6 +109,30 @@ struct Lexer {
             }
             kind = .minus
 
+        case "/":
+            let isBlockComment: Bool
+
+            let nextChar = scanner.peek(aheadBy: 1)
+            if nextChar == "/" {
+                isBlockComment = false
+            } else if nextChar == "*" {
+                isBlockComment = true
+            } else {
+                kind = .divide
+                break
+            }
+
+            charactersToPop = 0
+
+            let comment: String
+            if isBlockComment {
+                comment = consumeBlockComment()
+            } else {
+                comment = consumeComment()
+            }
+
+            kind = .comment(comment)
+
         case "\"":
             charactersToPop = 0
             scanner.pop()
@@ -204,6 +228,47 @@ struct Lexer {
         }
     }
 
+    private mutating func consumeComment() -> String {
+        assert(scanner.hasPrefix("//"))
+        scanner.pop(2)
+
+        var comment = ""
+        while let char = scanner.peek(), char != "\n" {
+            comment.append(char)
+            scanner.pop()
+        }
+
+        assert(scanner.hasPrefix("\n"))
+        scanner.pop()
+
+        return comment
+    }
+
+    private mutating func consumeBlockComment() -> String {
+        assert(scanner.hasPrefix("/*"))
+        scanner.pop(2)
+
+        var scalars: [UnicodeScalar] = []
+        var depth = 1
+        repeat {
+            guard let scalar = scanner.peek() else {
+                return ""
+            }
+            scalars.append(scalar)
+
+            if scanner.hasPrefix("*/") { depth -= 1 }
+            else if scanner.hasPrefix("/*") { depth += 1 }
+
+            scanner.pop()
+        } while depth > 0
+
+        assert(scanner.peek() == "/")
+        scanner.pop()
+
+        scalars.removeLast()
+        return String(scalars)
+    }
+
     private mutating func skipWhitespace() {
 
         while let char = scanner.peek() {
@@ -236,6 +301,8 @@ extension Token {
     enum Kind {
         case invalid(String)
 
+        case comment(String)
+
         case ident(String)
         case integer(UInt64)
         case float(Double)
@@ -256,6 +323,7 @@ extension Token {
         case plus
         case minus
         case asterix
+        case divide
         case ampersand
 
         // Punctuation
@@ -286,7 +354,7 @@ extension Token: Equatable {
 }
 
 extension Token.Kind: Equatable {
-    
+
     static func == (lhs: Token.Kind, rhs: Token.Kind) -> Bool {
         var (lhs, rhs) = (lhs, rhs)
         let lhsBytes = withUnsafeBytes(of: &lhs, { $0 })
@@ -314,6 +382,9 @@ extension Token.Kind: CustomStringConvertible {
         case .invalid:
             return "<invalid>"
 
+        case .comment(let comment):
+            return "//" + comment
+
         case .ident(let string):
             return string
 
@@ -337,6 +408,7 @@ extension Token.Kind: CustomStringConvertible {
         case .plus: return "+"
         case .minus: return "-"
         case .asterix: return "*"
+        case .divide: return "/"
         case .ampersand: return "&"
         case .comma: return ","
         case .lt: return "<"

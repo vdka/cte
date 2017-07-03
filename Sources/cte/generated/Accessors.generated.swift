@@ -19,6 +19,11 @@ extension AstNode {
         return value as! CommonCall
     }
 
+    var asComment: CommonComment {
+        assert(kind == AstNode.Comment.astKind)
+        return value as! CommonComment
+    }
+
     var asDeclaration: CommonDeclaration {
         assert(kind == AstNode.Declaration.astKind)
         return value as! CommonDeclaration
@@ -193,6 +198,11 @@ protocol CommonCall {
     var arguments: [AstNode] { get }
 }
 
+protocol CommonComment {
+
+    var comment: String { get }
+}
+
 protocol CommonDeclaration {
 
     var identifier: AstNode { get }
@@ -284,6 +294,8 @@ extension AstNode.Assign: CommonAssign {}
 extension AstNode.Block: CommonBlock {}
 
 extension AstNode.Call: CommonCall {}
+
+extension AstNode.Comment: CommonComment {}
 
 extension AstNode.Declaration: CommonDeclaration {}
 

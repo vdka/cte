@@ -37,6 +37,9 @@ struct IRGenerator {
     func emit(node: AstNode) {
 
         switch node.kind {
+        case .comment:
+            return
+
         case .declaration:
             let decl = node.asCheckedDeclaration
 
@@ -259,7 +262,7 @@ struct IRGenerator {
         }
 
         let args = call.arguments.map({ emitExpr(node: $0) })
-        
+
         return builder.buildCall(callee, args: args)
     }
 
