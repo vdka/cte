@@ -1,0 +1,33 @@
+
+min :: fn ($T: type, a: T, b: T) -> T {
+  if a < b return a
+  else return b
+}
+
+add :: fn (foo: i64) -> i64 {
+    return foo + 1
+}
+
+sub :: fn (foo: i64) -> i64 {
+    return foo - 1
+}
+
+a : f64 = 5.0
+b : i64 = 3
+c := min(f64, a, 4)
+d := min(i64, b, 4)
+e := min(i64, b, d)
+
+f := f64(b)
+
+g : fn(foo: i64) -> i64 = add
+
+h := g(8)
+
+g = sub
+
+h = g(8)
+
+addrA := &a
+valA := <addrA
+

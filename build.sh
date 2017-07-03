@@ -12,7 +12,8 @@ sourcery)
 ;;
 
 *)
-    swift build -Xswiftc -DDEBUG
+    MACOSX_DEPLOYMENT_TARGET=10.12
+    swift build -Xswiftc -DDEBUG -Xswiftc "-target" -Xswiftc "x86_64-apple-macosx10.12"
     cp .build/debug/cte /usr/local/bin/
 esac
 

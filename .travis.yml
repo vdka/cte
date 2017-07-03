@@ -1,0 +1,19 @@
+
+os:
+  - osx
+language: generic
+sudo: required
+osx_image: xcode9
+before_install:
+  - brew update
+install:
+  - brew install llvm
+  - export PATH="/usr/local/opt/llvm/bin:$PATH"
+  - echo $PATH
+  - ls /usr/local/opt/llvm/bin
+script:
+  - set -o pipefail
+  - swift package update
+  - swift .build/checkouts/LLVMSwift.git-*/utils/make-pkgconfig.swift
+  - ./build.sh
+  - cte code/test.cte
