@@ -19,7 +19,7 @@ e := min(i64, b, d)
 
 f := f64(b)
 
-g : fn(foo: i64) -> i64 = add
+g : fn(i64) -> i64 = add
 
 h := g(8)
 

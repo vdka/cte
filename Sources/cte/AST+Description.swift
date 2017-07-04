@@ -50,6 +50,9 @@ extension AstNode: CustomStringConvertible {
         case .pointerType:
             return "*" + asPointerType.pointee.description
 
+        case .compileTime:
+            return "$" + asCompileTime.stmt.description
+
         case .declaration:
             let d = asDeclaration
             let ident = d.identifier.description

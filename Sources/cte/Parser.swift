@@ -8,7 +8,8 @@ struct Parser {
     struct State: OptionSet {
         let rawValue: UInt8
 
-        static let parseList = State(rawValue: 0b0000_0001)
+        static let parseList            = State(rawValue: 0b0000_0001)
+        static let isDeclarationValue   = State(rawValue: 0b0000_0010)
     }
 
     mutating func parse() -> [AstNode] {
@@ -120,6 +121,20 @@ struct Parser {
             let stmtBlock = AstNode.Block(stmts: stmts)
             return AstNode(stmtBlock, tokens: [lbrace, rbrace])
 
+        case .dollar:
+            let dollar = advance()
+            let stmt = expression()
+
+            if stmt.kind == .declaration {
+                let decl = stmt.asDeclaration
+                stmt.tokens.insert(dollar, at: 0)
+                stmt.value = AstNode.Declaration(identifier: decl.identifier, type: decl.type, value: decl.value, isCompileTime: true)
+                return stmt
+            }
+
+            let ct = AstNode.CompileTime(stmt: stmt)
+            return AstNode(ct, tokens: [dollar])
+
         case .keywordIf:
             let ifToken = advance()
 
@@ -144,39 +159,20 @@ struct Parser {
             let lparen = advance(expecting: .lparen)
             consumeNewlines()
 
-            var parameters: [AstNode] = []
-            if let nextToken = lexer.peek(), nextToken.kind != .rparen {
-                while true {
+            var params: [AstNode] = []
+            while true {
 
-                    var dollar: Token?
-                    if lexer.peek()?.kind == .dollar {
-                        dollar = advance()
-                    }
-
-                    guard let parameterName = lexer.peek(), case .ident(let symbol) = parameterName.kind else {
-                        reportError("Expected parameter name", at: lexer)
-                        return AstNode.invalid
-                    }
-                    advance()
-
-                    let colon = advance(expecting: .colon)
-
-                    let typeExpr = expression()
-
-                    let isCT = dollar != nil
-
-                    let parameterNameNode = AstNode(AstNode.Identifier(name: symbol), tokens: isCT ? [dollar!, parameterName] : [parameterName])
-                    let declaration = AstNode.Declaration(identifier: parameterNameNode, type: typeExpr, value: AstNode.empty, isCompileTime: isCT)
-                    let param = AstNode(declaration, tokens: [parameterName, colon])
-
-                    parameters.append(param)
-
-                    if lexer.peek()?.kind != .comma {
-                        break
-                    }
-                    advance(expecting: .comma)
-                    consumeNewlines()
+                let param = expression()
+                if state.contains(.isDeclarationValue), param.kind != .declaration {
+                    reportError("Procedure literals must provide parameter names in their function prototype", at: param)
                 }
+
+                params.append(param)
+                if lexer.peek()?.kind != .comma {
+                    break
+                }
+                advance(expecting: .comma)
+                consumeNewlines()
             }
 
             consumeNewlines()
@@ -187,7 +183,7 @@ struct Parser {
             let returnType = expression(Token.Kind.equals.lbp)
 
             if lexer.peek()?.kind != .lbrace {
-                let functionType = AstNode.FunctionType(parameters: parameters, returnType: returnType)
+                let functionType = AstNode.FunctionType(parameters: params, returnType: returnType)
                 return AstNode(functionType, tokens: [fnToken, lparen, rparen, returnArrow])
             }
 
@@ -197,7 +193,7 @@ struct Parser {
                 reportError("Body of a function should be a block statement", at: body)
             }
 
-            let function = AstNode.Function(parameters: parameters, returnType: returnType, body: body)
+            let function = AstNode.Function(parameters: params, returnType: returnType, body: body)
 
             return AstNode(function, tokens: [fnToken, lparen, rparen, returnArrow])
 
@@ -269,15 +265,18 @@ struct Parser {
             }
 
             guard let nextToken = lexer.peek(), nextToken.kind == .equals || nextToken.kind == .colon else {
-                // catches `x: foo`
-                reportError("Expected '=' or ':' followed by an inital value", at: lexer)
-                attachNote("If your aim is to create an uninitialized value, you cannot. At least for now.")
-                return AstNode.invalid
+                // matches `x: foo`
+                assert(type != nil)
+                let decl = AstNode.Declaration(identifier: lvalue, type: type, value: .empty, isCompileTime: false)
+                return AstNode(decl, tokens: [colon])
             }
 
             let token = advance()
 
+            let prevState = state
+            state.insert(.isDeclarationValue)
             let value = expression(Token.Kind.equals.lbp)
+            state = prevState
 
             let decl = AstNode.Declaration(identifier: lvalue, type: type, value: value, isCompileTime: token.kind == .colon)
             return AstNode(decl, tokens: [colon, token])

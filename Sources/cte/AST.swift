@@ -46,6 +46,7 @@ enum AstKind {
     case block
     case `if`
     case `return`
+    case compileTime
     case pointerType
     case functionType
 }
@@ -122,6 +123,12 @@ extension AstNode {
         static let astKind = AstKind.pointerType
 
         let pointee: AstNode
+    }
+
+    struct CompileTime: AstValue {
+        static let astKind = AstKind.compileTime
+
+        let stmt: AstNode
     }
 
     struct Declaration: AstValue {

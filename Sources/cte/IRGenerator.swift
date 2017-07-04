@@ -358,10 +358,9 @@ func canonicalize(_ type: Type) -> IRType {
         let fn = type.asFunction
 
         var paramTypes: [IRType] = []
-        // strip specialized paramters.
-        for param in fn.params.filter({ !$0.flags.contains(.ct) }) {
+        for param in fn.params {
 
-            paramTypes.append(canonicalize(param.type!))
+            paramTypes.append(canonicalize(param))
         }
 
         let retType = canonicalize(fn.returnType)

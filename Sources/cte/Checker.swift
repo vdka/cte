@@ -183,7 +183,7 @@ extension Checker {
             }
 
             var needsSpecialization = false
-            var params: [Entity] = []
+            var params: [Type] = []
             for param in fn.parameters {
                 assert(param.kind == .declaration)
 
@@ -195,7 +195,7 @@ extension Checker {
                     needsSpecialization = true
                 }
 
-                params.append(entity)
+                params.append(entity.type!)
             }
 
             var returnType = checkExpr(node: fn.returnType)
@@ -230,27 +230,18 @@ extension Checker {
         case .functionType:
             let fn = node.asFunctionType
 
-            // NOTE(vdka): Ability to refer to polymorphic function types?
-            var needsSpecialization = false
-            var params: [Entity] = []
+            var params: [Type] = []
             for param in fn.parameters {
-                assert(param.kind == .declaration)
 
-                check(node: param)
+                let type = checkExpr(node: param)
 
-                let entity = currentScope.members.last!
-
-                if entity.flags.contains(.ct) {
-                    needsSpecialization = true
-                }
-
-                params.append(entity)
+                params.append(type)
             }
 
             var returnType = checkExpr(node: fn.returnType)
             returnType = lowerFromMetatype(returnType, atNode: fn.returnType)
 
-            let functionType = Type.Function(node: node, params: params, returnType: returnType, needsSpecialization: needsSpecialization)
+            let functionType = Type.Function(node: node, params: params, returnType: returnType, needsSpecialization: false)
 
             let instanceType = Type(value: functionType, entity: Entity.anonymous)
             let fnPointerType = Type.makePointer(to: instanceType)
@@ -403,13 +394,13 @@ extension Checker {
                 return checkPolymorphicCall(callNode: node, calleeType: calleeType)
             } else {
 
-                for (arg, expected) in zip(call.arguments, calleeType.asFunction.params) {
-                    assert(!expected.flags.contains(.ct), "functions with ct params should be marked as needing specialization")
+                for (arg, expectedType) in zip(call.arguments, calleeType.asFunction.params) {
+//                    assert(!expected.flags.contains(.ct), "functions with ct params should be marked as needing specialization")
 
-                    let argType = checkExpr(node: arg, desiredType: expected.type!)
+                    let argType = checkExpr(node: arg, desiredType: expectedType)
 
-                    guard argType == expected.type! else {
-                        reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expected)'", at: arg)
+                    guard argType == expectedType else {
+                        reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expectedType)'", at: arg)
                         continue
                     }
                 }
@@ -483,8 +474,11 @@ extension Checker {
         var fn = fnNode.asCheckedPolymorphicFunction
 
         var specializations: [Type] = []
-        for (arg, expected) in zip(call.arguments, calleeType.asFunction.params).filter({ $0.1.flags.contains(.ct) }) {
 
+        let paramEntities = fn.parameters.map({ $0.asCheckedDeclaration.entity })
+        for (arg, expected) in zip(call.arguments, paramEntities).filter({ $0.1.flags.contains(.ct) }) {
+
+            // TODO(vdka): Desired type
             let argType = checkExpr(node: arg)
 
             guard argType == expected.type! || argType.isMetatype && expected.type == Type.type else {
@@ -498,15 +492,15 @@ extension Checker {
         // If there is already a matching specialization no need to recheck
         if let specialization = fn.specializations.firstMatching(specializations) {
 
-            let runtimeArguments = zip(call.arguments, calleeType.asFunction.params)
+            let runtimeArguments = zip(call.arguments, paramEntities)
                 .filter({ !$0.1.flags.contains(.ct) })
                 .map({ $0.0 })
             // check runtime arguments
-            for (arg, expected) in zip(runtimeArguments, specialization.strippedType.asFunction.params) {
+            for (arg, expectedType) in zip(runtimeArguments, specialization.strippedType.asFunction.params) {
 
-                let argType = checkExpr(node: arg, desiredType: expected.type!)
-                guard argType == expected.type! else {
-                    reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expected.type!)'", at: arg)
+                let argType = checkExpr(node: arg, desiredType: expectedType)
+                guard argType == expectedType else {
+                    reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expectedType)'", at: arg)
                     continue
                 }
             }
@@ -534,7 +528,8 @@ extension Checker {
         }
 
         var specializedTypeIterator = specializations.makeIterator()
-        var params: [Entity] = []
+        var paramsEntities: [Entity] = []
+        var strippedParamTypes: [Type] = []
         var specializationIndices: [Int] = []
         for (index, param) in fn.parameters.enumerated() {
             assert(param.kind == .declaration)
@@ -553,9 +548,11 @@ extension Checker {
                 // Inject the type we are specializing to.
                 entity.type = specializedTypeIterator.next()!
                 specializationIndices.append(index)
+            } else {
+                strippedParamTypes.append(entity.type!)
             }
 
-            params.append(entity)
+            paramsEntities.append(entity)
         }
 
         var returnType = checkExpr(node: fn.returnType)
@@ -571,7 +568,7 @@ extension Checker {
         // Once done return to the function scope to check the body
         let fnScope = currentScope
         currentScope = prevScope
-        for (arg, expected) in zip(call.arguments, params) {
+        for (arg, expected) in zip(call.arguments, paramsEntities) {
 
             let argType = checkExpr(node: arg, desiredType: expected.type!)
             guard argType == expected.type! else {
@@ -584,8 +581,8 @@ extension Checker {
         currentSpecializationCall = callNode
         check(node: fn.body)
         currentSpecializationCall = nil
-
-        let strippedFunction = Type.Function(node: fnNode, params: params.filter({ !$0.flags.contains(.ct) }),
+ 
+        let strippedFunction = Type.Function(node: fnNode, params: strippedParamTypes,
                                              returnType: returnType, needsSpecialization: false)
         let strippedType = Type(value: strippedFunction, entity: Entity.anonymous)
 
