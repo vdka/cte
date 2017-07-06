@@ -24,6 +24,20 @@ struct IRGenerator {
         builder.positionAtEnd(of: entryBlock)
     }
 
+    init(forModule module: Module, nodes: [AstNode]) {
+        self.nodes = nodes
+
+        self.module = module
+        self.builder = IRBuilder(module: module)
+
+        let mainType = FunctionType(argTypes: [], returnType: IntType.int32)
+        self.mainFunction = builder.addFunction("main", type: mainType)
+
+        let entryBlock = mainFunction.appendBasicBlock(named: "entry")
+
+        builder.positionAtEnd(of: entryBlock)
+    }
+
     func generate() {
 
         for node in nodes {
@@ -57,7 +71,19 @@ struct IRGenerator {
             }
 
             let type = canonicalize(decl.entity.type!)
+
+            if options.contains(.emitIr) {
+                if let endOfAlloca = builder.insertBlock!.instructions.first(where: { !$0.isAAllocaInst }) {
+                    builder.position(endOfAlloca, block: builder.insertBlock!)
+                }
+            }
+
             let stackValue = builder.buildAlloca(type: type, name: decl.entity.name)
+
+            if options.contains(.emitIr) {
+                builder.positionAtEnd(of: builder.insertBlock!)
+            }
+
             decl.entity.value = stackValue
 
             guard decl.value != .empty else {

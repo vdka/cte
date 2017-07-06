@@ -2,60 +2,66 @@
 import Foundation
 import LLVM
 
-assert(CommandLine.arguments.count > 1)
-let filepath = CommandLine.arguments[1]
-guard let file = File(path: filepath) else {
-    fatalError("Needs file.")
+guard CommandLine.arguments.count > 1 else {
+    print("ERROR: No file supplied for command line arguments")
+    exit(1)
 }
 
-var options = CommandLine.arguments[2...]
+let filepath = CommandLine.arguments[1]
+guard let file = SourceFile(path: filepath) else {
+    print("ERROR: \(filepath) not found")
+    exit(1)
+}
+
+var options = Options.from(arguments: CommandLine.arguments[2...])
+
+performCompilationPreflightChecks(with: options)
 
 startTiming("Parsing")
-var lexer = Lexer(file)
-var parser = Parser(lexer: lexer, state: [])
-let nodes = parser.parse()
-emitErrors(for: "Parsing")
+file.parseEmittingErrors()
 endTiming()
 
 startTiming("Checking")
-var checker = Checker(nodes: nodes)
-checker.check() // Changes nodes to Checked variants where appropriate
-emitErrors(for: "Checking")
+file.checkEmittingErrors()
 endTiming()
 
 startTiming("IR Generation")
-let irgen = IRGenerator(forModuleNamed: "main", nodes: nodes)
-irgen.generate()
+file.generateIntermediateRepresentation()
 endTiming()
 
-do {
+startTiming("IR Validation")
+file.validateIntermediateRepresentation()
+endTiming()
 
-    startTiming("IR Validation")
-    try irgen.module.verify()
-    endTiming()
+startTiming("IR Compilation")
+file.compileIntermediateRepresentation()
+endTiming()
 
-    startTiming("IR Emission")
-    try TargetMachine().emitToFile(module: irgen.module, type: .object, path: FileManager.default.currentDirectoryPath + "/main.o")
-    endTiming()
+startTiming("Linking (via shell)")
+file.link()
+endTiming()
 
-    startTiming("Linking (via shell)")
-    let clangPath = getClangPath()
-    shell(path: clangPath, args: ["-o", "main", "main.o"])
-    endTiming()
+if !options.contains(.noCleanup) {
+    file.cleanupBuildProducts()
+}
 
-    if options.contains("-emit-ir") {
-        irgen.module.dump()
+if options.contains(.emitIr) {
+    file.emitIr()
+}
+
+if options.contains(.emitBitcode) {
+    file.emitBitcode()
+}
+
+if options.contains(.emitAssembly) {
+    file.emitAssembly()
+}
+
+if options.contains(.emitTiming) {
+    var total = 0.0
+    for (name, duration) in timings {
+        total += duration
+        print("\(name) took \(String(format: "%.3f", duration)) seconds")
     }
-
-} catch {
-    print(error)
-
-    irgen.module.dump()
+    print("Total time was \(String(format: "%.3f", total)) seconds")
 }
-
-var total = 0.0
-for timing in timings {
-    total += timing.duration
-    print("\(timing.name) took \(String(format: "%.3f", timing.duration)) seconds")
-}
-print("Total time was \(String(format: "%.3f", total)) seconds")

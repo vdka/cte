@@ -3,11 +3,15 @@ import Darwin.C
 
 struct File {
     let path: String
+    let fullpath: String
     let data: String
 
-    /// 
     init?(path: String) {
+        guard let fullpath = realpath(path, nil) else {
+            return nil
+        }
         self.path = path
+        self.fullpath = String(cString: fullpath)
 
         guard let fp = fopen(path, "r") else { return nil }
         defer { fclose(fp) }

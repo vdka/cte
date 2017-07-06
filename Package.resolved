@@ -5,8 +5,8 @@
         "package": "LLVM",
         "repositoryURL": "https://github.com/vdka/LLVMSwift.git",
         "state": {
-          "branch": "comparisons-are-binary",
-          "revision": "b17f07220f8fce7394c0757659bf43e371fc4e56",
+          "branch": "master",
+          "revision": "e81996dec32c87aff40a6f96866f7b14d3306da2",
           "version": null
         }
       },

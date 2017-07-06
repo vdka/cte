@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "cte",
     dependencies: [
-       .package(url: "https://github.com/vdka/LLVMSwift.git", .branch("comparisons-are-binary")),
+       .package(url: "https://github.com/vdka/LLVMSwift.git", .branch("master")),
     ],
     targets: [
         .target(name: "cte", dependencies: ["LLVM"]),

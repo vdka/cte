@@ -1,81 +1,100 @@
 
 import Foundation.NSFileManager
+import func Darwin.C.exit
+import func Darwin.C.fflush
+import LLVM
+import cllvm
 
-/// Stdlib files
-enum std {
+var targetMachine: TargetMachine!
 
-    static let types: String = "stdtypes.kai"
+var currentDirectory = FileManager.default.currentDirectoryPath
+
+var buildDirectory = currentDirectory + "/" + ".cte" + "/"
+
+/// Ensures everything is preparred for compilation
+func performCompilationPreflightChecks(with options: Options) {
+    do {
+        targetMachine = try TargetMachine()
+        try ensureBuildDirectoryExists()
+    } catch {
+        print("ERROR: \(error)")
+        print("  While performing preflight checks")
+        exit(1)
+    }
 }
 
-protocol PointerHashable: Hashable {}
-extension PointerHashable {
-
-    var hashValue: Int {
-        assert(MemoryLayout<Self>.size == MemoryLayout<Int>.size)
-
-        return unsafeBitCast(self, to: Int.self)
-    }
-
-    static func ==(lhs: Self, rhs: Self) -> Bool {
-        return lhs.hashValue == rhs.hashValue
-    }
-}
-
-func resolveLibraryPath(_ name: String, for currentFilePath: String) -> String? {
+func ensureBuildDirectoryExists() throws {
     let fm = FileManager.default
 
+    var isDir: ObjCBool = false
+    if fm.fileExists(atPath: buildDirectory, isDirectory: &isDir) {
+        if !isDir.boolValue {
+            throw "cannot write to output directory \(buildDirectory)"
+        }
+    } else {
+        try fm.createDirectory(atPath: buildDirectory, withIntermediateDirectories: false, attributes: nil)
+    }
+}
+
+
+func resolveLibraryPath(_ name: String, for currentFilePath: String) -> String? {
+    
     if name.hasSuffix(".framework") {
         // FIXME(vdka): We need to support non system frameworks
         return name
     }
 
-    if let fullpath = fm.absolutePath(for: name) {
+    if let fullpath = absolutePath(for: name) {
         return fullpath
     }
 
-    if let fullpath = fm.absolutePath(for: name, relativeTo: currentFilePath) {
+    if let fullpath = absolutePath(for: name, relativeTo: currentFilePath) {
         return fullpath
     }
 
     // If the library does not exist at a relative path, check system library locations
-    if let fullpath = fm.absolutePath(for: name, relativeTo: "/usr/local/lib") {
+    if let fullpath = absolutePath(for: name, relativeTo: "/usr/local/lib") {
         return fullpath
     }
 
     return nil
 }
 
-extension FileManager {
+func absolutePath(for filePath: String) -> String? {
 
-    func absolutePath(for filePath: String) -> String? {
+    let url = URL(fileURLWithPath: filePath)
+    do {
+        guard try url.checkResourceIsReachable() else { return nil }
+    } catch { return nil }
 
-        let url = URL(fileURLWithPath: filePath)
-        do {
-            guard try url.checkResourceIsReachable() else { return nil }
-        } catch { return nil }
+    let absoluteURL = url.absoluteString
 
-        let absoluteURL = url.absoluteString
+    return absoluteURL.components(separatedBy: "file://").last
+}
 
-        return absoluteURL.components(separatedBy: "file://").last
-    }
+func absolutePath(for filepath: String, relativeTo file: String) -> String? {
 
-    func absolutePath(for filepath: String, relativeTo file: String) -> String? {
+    let fileUrl = URL(fileURLWithPath: file)
+        .deletingLastPathComponent()
+        .appendingPathComponent(filepath)
 
-        let fileUrl = URL(fileURLWithPath: file)
-            .deletingLastPathComponent()
-            .appendingPathComponent(filepath)
-
-        do {
-            guard try fileUrl.checkResourceIsReachable() else {
-                return nil
-            }
-        } catch {
+    do {
+        guard try fileUrl.checkResourceIsReachable() else {
             return nil
         }
-
-        let absoluteURL = fileUrl.absoluteString
-        return absoluteURL.components(separatedBy: "file://").last
+    } catch {
+        return nil
     }
+
+    let absoluteURL = fileUrl.absoluteString
+    return absoluteURL.components(separatedBy: "file://").last
+}
+
+func removeFile(at path: String) throws {
+
+    let fm = FileManager.default
+
+    try fm.removeItem(atPath: path)
 }
 
 extension String {
@@ -203,7 +222,7 @@ extension Sequence {
     }
 }
 
-import Darwin
+extension String: Swift.Error {}
 
 func unimplemented(_ featureName: String, file: StaticString = #file, line: UInt = #line) -> Never {
     print("\(file):\(line): Unimplemented feature \(featureName).")
