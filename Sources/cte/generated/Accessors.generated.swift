@@ -64,6 +64,11 @@ extension AstNode {
         return value as! CommonIf
     }
 
+    var asImport: CommonImport {
+        assert(kind == AstNode.Import.astKind)
+        return value as! CommonImport
+    }
+
     var asInfix: CommonInfix {
         assert(kind == AstNode.Infix.astKind)
         return value as! CommonInfix
@@ -77,6 +82,11 @@ extension AstNode {
     var asInvalid: CommonInvalid {
         assert(kind == AstNode.Invalid.astKind)
         return value as! CommonInvalid
+    }
+
+    var asLibrary: CommonLibrary {
+        assert(kind == AstNode.Library.astKind)
+        return value as! CommonLibrary
     }
 
     var asParen: CommonParen {
@@ -256,6 +266,14 @@ protocol CommonIf {
     var elseStmt: AstNode? { get }
 }
 
+protocol CommonImport {
+
+    var path: String { get }
+    var symbol: AstNode? { get }
+    var includeSymbolsInParentScope: Bool { get }
+    var file: SourceFile { get }
+}
+
 protocol CommonInfix {
 
     var kind: Token.Kind { get }
@@ -270,6 +288,12 @@ protocol CommonIntegerLiteral {
 
 protocol CommonInvalid {
 
+}
+
+protocol CommonLibrary {
+
+    var path: String { get }
+    var symbol: AstNode? { get }
 }
 
 protocol CommonParen {
@@ -323,11 +347,15 @@ extension AstNode.Identifier: CommonIdentifier {}
 
 extension AstNode.If: CommonIf {}
 
+extension AstNode.Import: CommonImport {}
+
 extension AstNode.Infix: CommonInfix {}
 
 extension AstNode.IntegerLiteral: CommonIntegerLiteral {}
 
 extension AstNode.Invalid: CommonInvalid {}
+
+extension AstNode.Library: CommonLibrary {}
 
 extension AstNode.Paren: CommonParen {}
 

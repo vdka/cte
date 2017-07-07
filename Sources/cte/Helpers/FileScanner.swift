@@ -8,7 +8,7 @@ struct FileScanner {
     init(file: File) {
 
         self.file = file
-        self.position = SourceLocation(line: 1, column: 1, file: file.path)
+        self.position = SourceLocation(line: 1, column: 1, file: file.absolutePath)
         self.scanner = BufferedScanner(file.makeIterator())
     }
 }

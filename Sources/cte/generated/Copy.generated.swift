@@ -75,6 +75,14 @@ extension AstValue {
                 elseStmt: value.elseStmt?.copy()
         )
 
+        case let value as AstNode.Import:
+            return AstNode.Import(
+                path: value.path,
+                symbol: value.symbol?.copy(),
+                includeSymbolsInParentScope: value.includeSymbolsInParentScope,
+                file: value.file.copy()
+        )
+
         case let value as AstNode.Infix:
             return AstNode.Infix(
                 kind: value.kind,
@@ -89,6 +97,12 @@ extension AstValue {
 
         case is AstNode.Invalid:
             return AstNode.Invalid()
+
+        case let value as AstNode.Library:
+            return AstNode.Library(
+                path: value.path,
+                symbol: value.symbol?.copy()
+        )
 
         case let value as AstNode.Paren:
             return AstNode.Paren(
@@ -255,6 +269,8 @@ extension Entity {
             ident: ident,
             type: type?.copy(),
             flags: flags,
+            memberScope: memberScope?.copy(),
+            owningScope: owningScope?.copy(),
             value: value
         )
     }
@@ -276,6 +292,7 @@ extension Scope {
     func copy() -> Scope {
         return Scope(
             parent: parent?.copy(),
+            file: file?.copy(),
             members: members
         )
     }
@@ -289,6 +306,14 @@ extension Type {
             flags: flags,
             value: value
         )
+    }
+}
+
+extension SourceFile {
+
+    func copy() -> SourceFile {
+        // no need to copy SourceFiles
+        return self
     }
 }
 

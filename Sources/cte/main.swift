@@ -3,13 +3,13 @@ import Foundation
 import LLVM
 
 guard CommandLine.arguments.count > 1 else {
-    print("ERROR: No file supplied for command line arguments")
+    print("ERROR: No input file")
     exit(1)
 }
 
 let filepath = CommandLine.arguments[1]
-guard let file = SourceFile(path: filepath) else {
-    print("ERROR: \(filepath) not found")
+guard let file = SourceFile.new(path: filepath) else {
+    print("ERROR: No such file or directory '\(filepath)'")
     exit(1)
 }
 

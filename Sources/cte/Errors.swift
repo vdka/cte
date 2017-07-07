@@ -62,7 +62,7 @@ fileprivate func formatMessage(severity: String = "ERROR", _ message: String, _ 
     var formatted = severity + "(" + location.description + ")" + ": " + message
 
     #if DEBUG
-        formatted = formatted + "\n\traised by \(file):\(line)"
+        formatted = formatted + "\n\traised on line \(line) of \(String(describing: file).basename)"
     #endif
 
     return formatted

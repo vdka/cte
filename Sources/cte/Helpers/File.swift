@@ -2,18 +2,13 @@
 import Darwin.C
 
 struct File {
-    let path: String
-    let fullpath: String
+    let absolutePath: String
     let data: String
 
-    init?(path: String) {
-        guard let fullpath = realpath(path, nil) else {
-            return nil
-        }
-        self.path = path
-        self.fullpath = String(cString: fullpath)
+    init?(absolutePath: String) {
+        self.absolutePath = absolutePath
 
-        guard let fp = fopen(path, "r") else { return nil }
+        guard let fp = fopen(absolutePath, "r") else { return nil }
         defer { fclose(fp) }
 
         // Read the whole file and store the contents.
@@ -40,10 +35,8 @@ struct File {
 }
 
 extension File {
-
-    var name: String { return path.split(separator: "/").last! }
+    var name: String { return String(absolutePath.split(separator: "/").last!) }
 }
-
 
 extension File: Sequence {
 

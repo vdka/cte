@@ -1,31 +1,73 @@
 
 import LLVM
 import func Darwin.C.exit
+import func Darwin.C.realpath
+import func Darwin.C.dirname
+
+var knownSourceFiles: [String: SourceFile] = [:]
 
 final class SourceFile {
 
-    weak var importedFrom: SourceFile?
+    weak var firstImportedFrom: SourceFile?
+    var isInitialFile: Bool {
+        return firstImportedFrom == nil
+    }
 
     var nodes: [AstNode] = []
 
     let lexer: Lexer
     var fullpath: String
-    var importedPath: String
-    var importedFiles: [SourceFile] = []
 
+    var hasBeenParsed: Bool = false
+    var hasBeenChecked: Bool = false
+    var hasBeenGenerated: Bool = false
+
+    var pathFirstImportedAs: String
+    var importStatements: [AstNode] = []
+
+    // Set in Checker
+    var scope: Scope!
+    var linkedLibraries: Set<String> = []
+
+    // Set in IRGen
     var moduleName: String!
     var module: Module!
 
-    var scope: Scope?
+    init(lexer: Lexer, fullpath: String, pathImportedAs: String, importedFrom: SourceFile?) {
+        self.lexer = lexer
+        self.fullpath = fullpath
+        self.pathFirstImportedAs = pathImportedAs
+        self.firstImportedFrom = importedFrom
+    }
 
-    init?(path: String) {
-        guard let file = File(path: filepath) else {
+    /// - Returns: nil iff the file could not be located or opened for reading
+    static func new(path: String, importedFrom: SourceFile? = nil) -> SourceFile? {
+
+        var pathRelativeToInitialFile = path
+
+        if let importedFrom = importedFrom {
+            pathRelativeToInitialFile = importedFrom.fullpath.dirname + path
+        }
+        
+        guard let fullpathC = realpath(pathRelativeToInitialFile, nil) else {
             return nil
         }
-        self.lexer = Lexer(file)
 
-        self.importedPath = filepath
-        self.fullpath = file.fullpath
+        let fullpath = String(cString: fullpathC)
+
+        if let existing = knownSourceFiles[fullpath] {
+            return existing
+        }
+
+        guard let file = File(absolutePath: fullpath) else {
+            return nil
+        }
+        let lexer = Lexer(file)
+
+        let sourceFile = SourceFile(lexer: lexer, fullpath: fullpath, pathImportedAs: path, importedFrom: importedFrom)
+        knownSourceFiles[fullpath] = sourceFile
+
+        return sourceFile
     }
 
     var moduleObjFilepath: String {
@@ -33,32 +75,43 @@ final class SourceFile {
     }
 
     func parseEmittingErrors() {
-        var parser = Parser(lexer: lexer, state: [])
+        assert(!hasBeenParsed)
+        var parser = Parser(file: self)
         self.nodes = parser.parse()
+
+        let importedFiles = importStatements.map({ $0.asImport.file })
+
+        for importedFile in importedFiles {
+            guard !importedFile.hasBeenParsed else {
+                continue
+            }
+            importedFile.parseEmittingErrors()
+        }
         emitErrors(for: "Parsing")
+
+        hasBeenParsed = true
     }
 
     func checkEmittingErrors() {
-        for importedFile in importedFiles {
-            importedFile.checkEmittingErrors()
+        guard !hasBeenChecked else {
+            return
         }
-        var checker = Checker(nodes: nodes)
+        // checks importted files when needed
+        var checker = Checker(file: self)
+        scope = checker.currentScope
         checker.check() // Changes node values to checked values
         emitErrors(for: "Checking")
+
+        hasBeenChecked = true
     }
 
     func generateIntermediateRepresentation() {
 
-        assert(fullpath.hasSuffix(".cte"))
-
-        moduleName = importedPath.split(separator: "/")
-            .last!.split(separator: ".").first!
+        moduleName = String(pathFirstImportedAs
+            .split(separator: "/").last!
+            .split(separator: ".").first!)
 
         let module = Module(name: moduleName)
-
-        for importedFile in importedFiles {
-            SourceFile.generateIntermediateRepresentation(to: module, for: importedFile)
-        }
 
         SourceFile.generateIntermediateRepresentation(to: module, for: self)
 
@@ -69,8 +122,8 @@ final class SourceFile {
         do {
             try module.verify()
         } catch {
+            try! module.print(to: "/dev/stdout")
             print(error)
-            module.dump()
             exit(1)
         }
     }
@@ -91,6 +144,25 @@ final class SourceFile {
 
     func link() {
         let clangPath = getClangPath()
+
+        var args = ["-o", moduleName, moduleObjFilepath]
+        for library in linkedLibraries {
+            if library.hasSuffix(".framework") {
+
+                let frameworkName = library.components(separatedBy: ".").first!
+
+                args.append("-framework")
+                args.append(frameworkName)
+
+                guard library == library.basename else {
+                    print("ERROR: Only system frameworks are supported")
+                    exit(1)
+                }
+            } else {
+                args.append(library)
+            }
+        }
+
         shell(path: clangPath, args: ["-o", moduleName, moduleObjFilepath])
     }
 
@@ -109,7 +181,7 @@ final class SourceFile {
             try module.print(to: "/dev/stdout")
         } catch {
             print("ERROR: \(error)")
-            print("  While emitting IR")
+            print("  While emitting IR to '/dev/stdout'")
             exit(1)
         }
     }
@@ -143,12 +215,22 @@ final class SourceFile {
     }
 
     static func generateIntermediateRepresentation(to module: Module, for file: SourceFile) {
+        assert(file.hasBeenChecked)
+        assert(!file.hasBeenGenerated)
 
-        for importedFile in file.importedFiles {
+        let importedFiles = file.importStatements.map({ $0.asImport.file })
+
+        for importedFile in importedFiles {
+            guard !importedFile.hasBeenGenerated else {
+                continue
+            }
+
             generateIntermediateRepresentation(to: module, for: importedFile)
         }
 
-        let irGenerator = IRGenerator(forModule: module, nodes: file.nodes)
+        let irGenerator = IRGenerator(forModule: module, file: file)
         irGenerator.generate()
+
+        file.hasBeenGenerated = true
     }
 }

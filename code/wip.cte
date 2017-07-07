@@ -1,3 +1,8 @@
+
+#library "libc" libc
+#import "math/constants.cte" .
+#import "math/circle.cte" .
+
 min :: fn ($T: type, a: T, b: T) -> T {
   if a < b return a
   else return b
@@ -26,6 +31,8 @@ h := g(8)
 g = sub
 
 h = g(8)
+
+i := circumference(tau)
 
 addrA := &a
 valA := <addrA

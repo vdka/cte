@@ -3,7 +3,15 @@ struct Parser {
 
     var lexer: Lexer
 
+    var file: SourceFile
+
     var state: State
+
+    init(file: SourceFile) {
+        self.file = file
+        self.state = []
+        self.lexer = file.lexer
+    }
 
     struct State: OptionSet {
         let rawValue: UInt8
@@ -26,6 +34,8 @@ struct Parser {
     }
 
     mutating func expression(_ rbp: UInt8 = 0) -> AstNode {
+
+        consumeNewlines()
 
         guard let token = lexer.peek() else {
             return AstNode.empty
@@ -198,13 +208,81 @@ struct Parser {
             return AstNode(function, tokens: [fnToken, lparen, rparen, returnArrow])
 
         case .keywordReturn:
-            let returnToken = advance()
+            let ŕeturn = advance()
 
             let expr = expression()
 
             let stmtReturn = AstNode.Return(value: expr)
 
-            return AstNode(stmtReturn, tokens: [returnToken])
+            return AstNode(stmtReturn, tokens: [ŕeturn])
+
+        case .directiveImport:
+            let ímport = advance()
+
+            // 3 possibilities:
+            // <string> <newline>
+            // <string> <identifier> <newline>
+            // <string> <dot> <newline>
+
+            guard case .string(let path)? = lexer.peek()?.kind else {
+                reportError("Expected path for library as string literal", at: ímport)
+                return AstNode.invalid
+            }
+
+            let pathtok = advance()
+            let symboltok = lexer.peek()
+
+            var dot: Token?
+            var symbol: AstNode?
+            switch symboltok?.kind {
+            case .ident?:
+                symbol = expression()
+
+            case .dot?:
+                dot = advance()
+
+            case .newline?, nil:
+                symbol = nil
+
+            default:
+                reportError("Expected identifier to bind imported entities to or '.' to import them into the current scope", at: symboltok!)
+                return AstNode.invalid(with: [ímport, pathtok])
+            }
+
+            guard let importedFile = SourceFile.new(path: path, importedFrom: file) else {
+                reportError("Failed to open '\(path)' for reading", at: pathtok)
+                return AstNode.invalid(with: [ímport, pathtok])
+            }
+
+            let imp = AstNode.Import(path: path, symbol: symbol, includeSymbolsInParentScope: dot != nil, file: importedFile)
+
+            var tokens = [ímport, pathtok]
+            if let dot = dot {
+                tokens.append(dot)
+            }
+
+            let node = AstNode(imp, tokens: tokens)
+            file.importStatements.append(node)
+
+            return node
+
+        case .directiveLibrary:
+            let library = advance()
+
+            guard case .string(let path)? = lexer.peek()?.kind else {
+                reportError("Expected path for library as string literal", at: library)
+                return AstNode.invalid
+            }
+
+            let pathtok = advance()
+
+            var symbol: AstNode?
+            if case .ident? = lexer.peek()?.kind {
+                symbol = expression()
+            }
+
+            let lib = AstNode.Library(path: path, symbol: symbol)
+            return AstNode(lib, tokens: [library, pathtok])
 
         default:
             fatalError("Parser has no nud for \(token)")

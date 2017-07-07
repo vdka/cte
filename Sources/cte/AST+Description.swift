@@ -113,6 +113,14 @@ extension AstNode: CustomStringConvertible {
         case .return:
             let ret = asReturn
             return "return " + ret.value.description
+
+        case .import:
+            let imp = asImport
+            return "#import " + imp.path + (imp.symbol?.description ?? (imp.includeSymbolsInParentScope ? " ." : ""))
+
+        case .library:
+            let lib = asLibrary
+            return "#library " + lib.path + (lib.symbol?.description ?? "")
         }
     }
 }

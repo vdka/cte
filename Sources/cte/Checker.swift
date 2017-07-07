@@ -2,23 +2,23 @@
 import LLVM
 
 struct Checker {
-    var nodes: [AstNode]
+    var file: SourceFile
 
-    var currentScope: Scope = Scope(parent: Scope.global)
+    var currentScope: Scope
     var currentExpectedReturnType: Type? = nil
     var currentSpecializationCall: AstNode? = nil
 
-    init(nodes: [AstNode]) {
-        self.nodes = nodes
+    init(file: SourceFile) {
+        self.file = file
+        self.currentScope = Scope(parent: Scope.global, file: file)
     }
 }
-
 
 extension Checker {
 
     mutating func check() {
 
-        for node in nodes {
+        for node in file.nodes {
             check(node: node)
         }
     }
@@ -122,6 +122,86 @@ extension Checker {
                 reportError("Cannot convert type '\(type)' to expected type '\(currentExpectedReturnType!)'", at: ret.value)
             }
 
+        case .import:
+            let imp = node.asImport
+            assert(imp.file.hasBeenParsed)
+
+            var entity: Entity?
+            if let symbol = imp.symbol, symbol.kind == .identifier {
+
+                entity = Entity(ident: symbol.tokens.first!, flags: .file)
+            } else if !imp.includeSymbolsInParentScope {
+
+                let path = imp.path
+                guard let name = pathToEntityName(path) else {
+                    reportError("Cannot infer an import name for \(imp.path)", at: node.tokens[1])
+                    attachNote("You will need to manually specify one: #import \"file-2.cte\" file2")
+                    return
+                }
+
+                // end of string token
+                let eos = node.tokens[1].end // the second token will always be the path string token
+                let start = SourceLocation(line: eos.line, column: numericCast(numericCast(eos.column) - fileExtension.count - name.count - 1), file: eos.file)
+                let end = SourceLocation(line: eos.line, column: numericCast(numericCast(eos.column) - fileExtension.count - 1), file: eos.file)
+                let identifier = Token(kind: .ident(name), location: start ..< end)
+
+                entity = Entity(ident: identifier, flags: .file)
+            } else {
+                assert(imp.includeSymbolsInParentScope)
+            }
+
+            imp.file.checkEmittingErrors()
+
+            if imp.includeSymbolsInParentScope {
+                for entity in imp.file.scope.members {
+                    // TODO(vdka): Allow file scopes to export that which they import
+                    guard entity.owningScope === imp.file.scope else {
+                        continue
+                    }
+                    currentScope.insert(entity, scopeOwnsEntity: false)
+                }
+            }
+
+            if let entity = entity {
+                entity.memberScope = imp.file.scope
+                currentScope.insert(entity)
+            }
+
+        case .library:
+            let lib = node.asLibrary
+
+            var entity: Entity
+            if let symbol = lib.symbol {
+
+                entity = Entity(ident: symbol.tokens.first!, flags: .library)
+            } else {
+
+                guard let name = pathToEntityName(lib.path) else {
+                    reportError("Cannot infer an import name for \(lib.path)", at: node.tokens[1])
+                    attachNote("You will need to manually specify one: #library \"libc++\" cpp")
+                    return
+                }
+
+                // end of string token
+                let eos = node.tokens[1].end // the second token will always be the path string token
+                let start = SourceLocation(line: eos.line, column: numericCast(numericCast(eos.column) - fileExtension.count - name.count - 1), file: eos.file)
+                let end = SourceLocation(line: eos.line, column: numericCast(numericCast(eos.column) - fileExtension.count - 1), file: eos.file)
+                let identifier = Token(kind: .ident(name), location: start ..< end)
+
+                entity = Entity(ident: identifier, flags: .library)
+            }
+
+            if lib.path != "libc" {
+
+                guard let linkpath = resolveLibraryPath(lib.path, for: file.fullpath) else {
+                    reportError("Failed to find resolve path for '\(lib.path)'", at: node.tokens[1])
+                    return
+                }
+                file.linkedLibraries.insert(linkpath)
+            }
+
+            currentScope.insert(entity)
+
         default:
             fatalError("Unknown node kind: \(node.kind)")
         }
@@ -137,6 +217,16 @@ extension Checker {
                 return Type.invalid
             }
             node.value = Identifier(name: ident, entity: entity)
+
+            guard !entity.flags.contains(.file) else {
+                reportError("Cannot use file scope as expression", at: node)
+                return Type.invalid
+            }
+
+            guard !entity.flags.contains(.library) else {
+                reportError("Cannot use library as expression", at: node)
+                return Type.invalid
+            }
 
             if entity.type!.isFunction {
                 return Type.makePointer(to: entity.type!)
@@ -650,7 +740,8 @@ extension AstNode {
             return asParen.expr.isLvalue
 
         case .identifier:
-            return true
+            let entity = asCheckedIdentifier.entity
+            return !(entity.flags.contains(.file) || entity.flags.contains(.library))
 
         default:
             return false
@@ -663,7 +754,11 @@ extension AstNode {
         case _ where isStmt:
             return false
 
-        case .identifier, .call, .function, .polymorphicFunction, .prefix, .infix, .paren, .litFloat, .litString, .pointerType:
+        case .identifier:
+            let entity = asCheckedIdentifier.entity
+            return !(entity.flags.contains(.file) || entity.flags.contains(.library))
+
+        case .call, .function, .polymorphicFunction, .prefix, .infix, .paren, .litFloat, .litString, .pointerType:
             return true
 
         default:

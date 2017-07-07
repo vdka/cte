@@ -3,7 +3,7 @@ let digits        = Array("1234567890".unicodeScalars)
 let hexDigits   = digits + Array("abcdefABCDEF".unicodeScalars)
 let opChars     = Array("~!%^&+-*/=<>|?".unicodeScalars)
 let identChars  = Array("_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".unicodeScalars)
-let whitespace  = Array(" \t\n\r".unicodeScalars)
+let whitespace  = Array(" \t".unicodeScalars)
 
 typealias SourceRange = Range<SourceLocation>
 struct SourceLocation {
@@ -79,6 +79,7 @@ struct Lexer {
         case "{": kind = .lbrace
         case "}": kind = .rbrace
         case ":": kind = .colon
+        case ".": kind = .dot
         case ",": kind = .comma
         case "$": kind = .dollar
         case "+": kind = .plus
@@ -154,9 +155,13 @@ struct Lexer {
 
         default:
             charactersToPop = 0
-            if identChars.contains(char) {
+            if identChars.contains(char) || char == "#" {
 
                 var string = ""
+                if let char = scanner.peek(), char == "#" { // allow '#' as first char for directives
+                    string.append(char)
+                    scanner.pop()
+                }
                 while let char = scanner.peek(), (identChars + digits).contains(char) {
                     string.append(char)
                     scanner.pop()
@@ -168,6 +173,9 @@ struct Lexer {
                 case "else": kind = .keywordElse
                 case "return": kind = .keywordReturn
                 case "struct": kind = .keywordStruct
+                case "#import": kind = .directiveImport
+                case "#library": kind = .directiveLibrary
+                case "#foreign": kind = .directiveForeign
                 default: kind = .ident(string)
                 }
             } else if digits.contains(char) {
@@ -316,6 +324,7 @@ extension Token {
         case lbrace
         case rbrace
         case colon
+        case dot
 
         case dollar
 
@@ -343,6 +352,10 @@ extension Token {
         case keywordReturn
 
         case keywordStruct
+
+        case directiveImport
+        case directiveLibrary
+        case directiveForeign
     }
 }
 
@@ -403,6 +416,7 @@ extension Token.Kind: CustomStringConvertible {
         case .lbrace: return "{"
         case .rbrace: return "}"
         case .colon: return ":"
+        case .dot: return "."
         case .dollar: return "$"
         case .equals: return "="
         case .plus: return "+"
@@ -421,6 +435,9 @@ extension Token.Kind: CustomStringConvertible {
         case .keywordElse: return "else"
         case .keywordReturn: return "return"
         case .keywordStruct: return "struct"
+        case .directiveImport: return "#import"
+        case .directiveLibrary: return "#library"
+        case .directiveForeign: return "#foreign"
         }
     }
 }

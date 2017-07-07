@@ -9,7 +9,9 @@ var targetMachine: TargetMachine!
 
 var currentDirectory = FileManager.default.currentDirectoryPath
 
-var buildDirectory = currentDirectory + "/" + ".cte" + "/"
+var buildDirectory = currentDirectory + "/" + fileExtension + "/"
+
+let fileExtension = ".cte"
 
 /// Ensures everything is preparred for compilation
 func performCompilationPreflightChecks(with options: Options) {
@@ -36,6 +38,29 @@ func ensureBuildDirectoryExists() throws {
     }
 }
 
+func pathToEntityName(_ path: String) -> String? {
+    assert(!path.isEmpty)
+
+    func isValidIdentifier(_ str: String) -> Bool {
+
+        if !identChars.contains(str.unicodeScalars.first!) {
+            return false
+        }
+
+        return str.unicodeScalars.dropFirst()
+            .contains(where: { identChars.contains($0) || digits.contains($0) })
+    }
+
+    let filename = String(path
+        .split(separator: "/").last!
+        .split(separator: ".").first!)
+
+    guard isValidIdentifier(filename) else {
+        return nil
+    }
+
+    return filename
+}
 
 func resolveLibraryPath(_ name: String, for currentFilePath: String) -> String? {
     
@@ -123,7 +148,19 @@ extension String {
     }
 }
 
-typealias Byte = UInt8
+extension String {
+
+    var dirname: String {
+        if !self.contains("/") {
+            return "."
+        }
+        return String(self.reversed().drop(while: { $0 != "/" }).reversed())
+    }
+
+    var basename: String {
+        return String(self.split(separator: "/").last ?? "")
+    }
+}
 
 /*
     Miscelaneous methods extensions and other tidbits of useful functionality
@@ -152,13 +189,7 @@ extension Set {
     }
 }
 
-
 extension String {
-
-    // God, why does the stdlib not have such simple things.
-    func split(separator: Character) -> [String] {
-        return self.characters.split(separator: separator).map(String.init)
-    }
 
     init(_ unicodeScalars: [UnicodeScalar]) {
         self.init(unicodeScalars.map(Character.init))
@@ -191,8 +222,8 @@ func isMemoryEquivalent<A, B>(_ lhs: A, _ rhs: B) -> Bool {
     let lhsPointer = withUnsafePointer(to: &lhs) { $0 }
     let rhsPointer = withUnsafePointer(to: &rhs) { $0 }
 
-    let lhsFirstByte = lhsPointer.withMemoryRebound(to: Byte.self, capacity: MemoryLayout<A>.size) { $0 }
-    let rhsFirstByte = rhsPointer.withMemoryRebound(to: Byte.self, capacity: MemoryLayout<B>.size) { $0 }
+    let lhsFirstByte = lhsPointer.withMemoryRebound(to: UInt8.self, capacity: MemoryLayout<A>.size) { $0 }
+    let rhsFirstByte = rhsPointer.withMemoryRebound(to: UInt8.self, capacity: MemoryLayout<B>.size) { $0 }
 
     let lhsBytes = UnsafeBufferPointer(start: lhsFirstByte, count: MemoryLayout<A>.size)
     let rhsBytes = UnsafeBufferPointer(start: rhsFirstByte, count: MemoryLayout<B>.size)

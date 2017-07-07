@@ -3,55 +3,45 @@ import LLVM
 
 struct IRGenerator {
 
-    var nodes: [AstNode]
+    var file: SourceFile
 
     var module: Module
     var builder: IRBuilder
 
-    var mainFunction: Function
+    var function: Function?
 
-    init(forModuleNamed name: String, nodes: [AstNode]) {
-        self.nodes = nodes
-
-        self.module = Module(name: name)
-        self.builder = IRBuilder(module: module)
-
-        let mainType = FunctionType(argTypes: [], returnType: IntType.int32)
-        self.mainFunction = builder.addFunction("main", type: mainType)
-
-        let entryBlock = mainFunction.appendBasicBlock(named: "entry")
-
-        builder.positionAtEnd(of: entryBlock)
-    }
-
-    init(forModule module: Module, nodes: [AstNode]) {
-        self.nodes = nodes
+    init(forModule module: Module, file: SourceFile) {
+        self.file = file
 
         self.module = module
         self.builder = IRBuilder(module: module)
 
         let mainType = FunctionType(argTypes: [], returnType: IntType.int32)
-        self.mainFunction = builder.addFunction("main", type: mainType)
-
-        let entryBlock = mainFunction.appendBasicBlock(named: "entry")
-
-        builder.positionAtEnd(of: entryBlock)
+        if file.isInitialFile {
+            // this is the file the compiler has been invoked upon
+            let mainFunction = builder.addFunction("main", type: mainType)
+            let entryBlock = mainFunction.appendBasicBlock(named: "entry")
+            builder.positionAtEnd(of: entryBlock)
+            self.function = mainFunction
+        }
     }
 
     func generate() {
 
-        for node in nodes {
+        for node in file.nodes {
             emit(node: node)
         }
 
-        builder.positionAtEnd(of: mainFunction.entryBlock!)
-        builder.buildRet(IntType.int32.constant(0))
+        if file.isInitialFile {
+            builder.positionAtEnd(of: function!.entryBlock!)
+            builder.buildRet(IntType.int32.constant(0))
+        }
     }
 
     func emit(node: AstNode) {
 
         switch node.kind {
-        case .comment:
+        case .comment, .import, .library:
             return
 
         case .declaration:
@@ -71,6 +61,21 @@ struct IRGenerator {
             }
 
             let type = canonicalize(decl.entity.type!)
+
+            if decl.entity.flags.contains(.ct) {
+                let value = emitExpr(node: decl.value)
+                var globalValue = builder.addGlobal(decl.entity.name, initializer: value)
+                globalValue.isGlobalConstant = true
+                decl.entity.value = globalValue
+                return
+            }
+
+            if let file = decl.entity.owningScope.file, !file.isInitialFile {
+                let value = emitExpr(node: decl.value)
+                let globalValue = builder.addGlobal(decl.entity.name, initializer: value)
+                decl.entity.value = globalValue
+                return
+            }
 
             if options.contains(.emitIr) {
                 if let endOfAlloca = builder.insertBlock!.instructions.first(where: { !$0.isAAllocaInst }) {
@@ -296,10 +301,14 @@ struct IRGenerator {
 
         let function = builder.addFunction(name, type: canonicalize(fn.type) as! FunctionType)
 
+        let lastBlock = builder.insertBlock
+
         let entryBlock = function.appendBasicBlock(named: "entry")
         builder.positionAtEnd(of: entryBlock)
         defer {
-            builder.positionAtEnd(of: mainFunction.entryBlock!)
+            if let lastBlock = lastBlock {
+                builder.positionAtEnd(of: lastBlock)
+            }
         }
 
         for (param, var irParam) in zip(fn.parameters, function.parameters) {
@@ -327,10 +336,14 @@ struct IRGenerator {
 
             let function = builder.addFunction(name + nameSuffix, type: canonicalize(specialization.strippedType) as! FunctionType)
 
+            let lastBlock = builder.insertBlock
+
             let entryBlock = function.appendBasicBlock(named: "entry")
             builder.positionAtEnd(of: entryBlock)
             defer {
-                builder.positionAtEnd(of: mainFunction.entryBlock!)
+                if let lastBlock = lastBlock {
+                    builder.positionAtEnd(of: lastBlock)
+                }
             }
 
             for (param, var irParam) in zip(fn.parameters, function.parameters) {

@@ -49,11 +49,17 @@ enum AstKind {
     case compileTime
     case pointerType
     case functionType
+    case `import`
+    case library
 }
 
 extension AstNode {
     static let empty = AstNode(AstNode.Empty(), tokens: [])
     static let invalid = AstNode(AstNode.Invalid(), tokens: [])
+
+    static func invalid(with tokens: [Token]) -> AstNode {
+        return AstNode(AstNode.Invalid(), tokens: tokens)
+    }
 }
 
 
@@ -197,5 +203,21 @@ extension AstNode {
         static let astKind = AstKind.return
 
         let value: AstNode
+    }
+
+    struct Library: AstValue {
+        static let astKind = AstKind.library
+
+        let path: String
+        let symbol: AstNode?
+    }
+
+    struct Import: AstValue {
+        static let astKind = AstKind.import
+
+        let path: String
+        let symbol: AstNode?
+        let includeSymbolsInParentScope: Bool
+        let file: SourceFile
     }
 }
