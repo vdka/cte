@@ -457,7 +457,7 @@ protocol CommonCall: AstValue {
 protocol CommonCase: AstValue {
 
     var condition: AstNode? { get }
-    var body: [AstNode] { get }
+    var block: AstNode { get }
 }
 
 protocol CommonComment: AstValue {

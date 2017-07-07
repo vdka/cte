@@ -413,10 +413,8 @@ struct IRGenerator {
             }
 
             builder.positionAtEnd(of: block)
-            // TODO(Brett): update scope for case body
-            for stmt in ćase.body {
-                emit(node: stmt)
-            }
+
+            emit(node: ćase.block)
 
             if builder.insertBlock!.terminator == nil {
                 builder.buildBr(postBlock)

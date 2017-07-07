@@ -28,7 +28,7 @@ extension AstValue {
         case let value as AstNode.Case:
             return AstNode.Case(
                 condition: value.condition?.copy(),
-                body: value.body.map({ $0.copy() })
+                block: value.block.copy()
         )
 
         case let value as AstNode.Comment:
@@ -175,7 +175,7 @@ extension AstValue {
         case let value as Checker.Case:
             return Checker.Case(
                 condition: value.condition?.copy(),
-                body: value.body.map({ $0.copy() }),
+                block: value.block.copy(),
                 scope: value.scope.copy()
         )
 

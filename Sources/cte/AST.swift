@@ -213,7 +213,7 @@ extension AstNode {
         static let astKind = AstKind.case
 
         let condition: AstNode?
-        let body: [AstNode]
+        let block: AstNode
     }
 
     struct Return: AstValue {

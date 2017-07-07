@@ -185,11 +185,9 @@ extension Checker {
                     currentScope = prevScope
                 }
 
-                asCase.body.forEach {
-                    check(node: $0)
-                }
+                check(node: asCase.block)
 
-                ćase.value = Case(condition: asCase.condition, body: asCase.body, scope: currentScope)
+                ćase.value = Case(condition: asCase.condition, block: asCase.block, scope: currentScope)
                 checkedCases.append(ćase)
             }
 
@@ -1075,7 +1073,7 @@ extension Checker {
         typealias UncheckedValue = AstNode.Case
 
         let condition: AstNode?
-        let body: [AstNode]
+        let block: AstNode
         let scope: Scope
     }
 }

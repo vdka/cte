@@ -251,9 +251,9 @@ struct Parser {
             let colon = advance(expecting: .colon)
             consumeNewlines()
 
-            var body: [AstNode] = []
+            var stmts: [AstNode] = []
             if lexer.peek()?.kind == .keywordCase {
-                body.append(.invalid)
+                stmts.append(.invalid)
 
                 if isDefault {
                     reportError("`default` label in a `switch` must have exactly one executable statement or `break`", at: lexer)
@@ -263,12 +263,14 @@ struct Parser {
             } else {
                 while let token = lexer.peek()?.kind, token != .keywordCase, token != .rbrace {
                     let expr = expression()
-                    body.append(expr)
+                    stmts.append(expr)
                     consumeNewlines()
                 }
             }
 
-            let ćase = AstNode.Case(condition: match, body: body)
+            let blockValue = AstNode.Block(stmts: stmts, isForeign: false)
+            let block = AstNode(blockValue, tokens: [colon])
+            let ćase = AstNode.Case(condition: match, block: block)
             return AstNode(ćase, tokens: [startToken, colon])
 
         case .keywordReturn:
