@@ -170,6 +170,8 @@ struct Lexer {
                 case "else":     kind = .keywordElse
                 case "return":   kind = .keywordReturn
                 case "struct":   kind = .keywordStruct
+                case "switch":   kind = .keywordSwitch
+                case "case":     kind = .keywordCase
                 case "#import":  kind = .directiveImport
                 case "#library": kind = .directiveLibrary
                 case "#foreign": kind = .directiveForeign
