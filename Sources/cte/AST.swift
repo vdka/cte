@@ -159,14 +159,14 @@ extension AstNode {
     struct Prefix: AstValue {
         static let astKind = AstKind.prefix
 
-        let kind: Token.Kind
+        let token: Token
         let expr: AstNode
     }
 
     struct Infix: AstValue {
         static let astKind = AstKind.infix
 
-        let kind: Token.Kind
+        let token: Token
         let lhs: AstNode
         let rhs: AstNode
     }

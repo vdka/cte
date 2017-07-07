@@ -15,10 +15,8 @@ class Entity: CustomStringConvertible {
     var value: IRValue?
 
     var name: String {
-        guard case .ident(let ident) = ident.kind else {
-            fatalError()
-        }
-        return ident
+        assert(ident.kind == .ident)
+        return ident.value as! String
     }
 
     init(ident: Token, type: Type? = nil, flags: Flag = .none) {
@@ -57,7 +55,7 @@ class Entity: CustomStringConvertible {
 extension Entity {
 
     static func makeBuiltin(_ name: String, type: Type? = nil) -> Entity {
-        let tok = Token(kind: .ident(name), location: .unknown)
+        let tok = Token(kind: .ident, value: name, location: .unknown)
         let entity = Entity(ident: tok)
         entity.type = type
         entity.flags.insert(.ct)

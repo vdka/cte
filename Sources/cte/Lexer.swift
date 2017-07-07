@@ -62,10 +62,10 @@ struct Lexer {
 
         skipWhitespace()
 
-        guard var char = scanner.peek() else { return nil }
+        guard let char = scanner.peek() else { return nil }
 
+        var value: TokenValue?
         var charactersToPop = 1
-
         defer {
             scanner.pop(charactersToPop)
         }
@@ -74,18 +74,18 @@ struct Lexer {
         var kind: Token.Kind
         switch char {
         case "\n": kind = .newline
-        case "(": kind = .lparen
-        case ")": kind = .rparen
-        case "{": kind = .lbrace
-        case "}": kind = .rbrace
-        case ":": kind = .colon
-        case ".": kind = .dot
-        case ",": kind = .comma
-        case "$": kind = .dollar
-        case "+": kind = .plus
-        case "*": kind = .asterix
-        case "&": kind = .ampersand
-        case "=": kind = .equals
+        case "(":  kind = .lparen
+        case ")":  kind = .rparen
+        case "{":  kind = .lbrace
+        case "}":  kind = .rbrace
+        case ":":  kind = .colon
+        case ".":  kind = .dot
+        case ",":  kind = .comma
+        case "$":  kind = .dollar
+        case "+":  kind = .plus
+        case "*":  kind = .asterix
+        case "&":  kind = .ampersand
+        case "=":  kind = .equals
         case "<":
             guard !scanner.hasPrefix("<=") else {
                 charactersToPop = 2
@@ -111,28 +111,24 @@ struct Lexer {
             kind = .minus
 
         case "/":
-            let isBlockComment: Bool
+            charactersToPop = 0
 
+            let isBlockComment: Bool
             let nextChar = scanner.peek(aheadBy: 1)
             if nextChar == "/" {
                 isBlockComment = false
             } else if nextChar == "*" {
                 isBlockComment = true
             } else {
+                scanner.pop()
                 kind = .divide
                 break
             }
 
-            charactersToPop = 0
+            let comment = isBlockComment ? consumeBlockComment() : consumeLineComment()
 
-            let comment: String
-            if isBlockComment {
-                comment = consumeBlockComment()
-            } else {
-                comment = consumeComment()
-            }
-
-            kind = .comment(comment)
+            kind = .comment
+            value = comment
 
         case "\"":
             charactersToPop = 0
@@ -145,13 +141,14 @@ struct Lexer {
             }
 
             guard scanner.hasPrefix("\"") else { // String is unterminated.
-                kind = .invalid("\"" + string)
+                kind = .invalid
                 break
             }
 
             scanner.pop()
 
-            kind = .string(string)
+            kind = .string
+            value = string
 
         default:
             charactersToPop = 0
@@ -168,15 +165,17 @@ struct Lexer {
                 }
 
                 switch string {
-                case "fn": kind = .keywordFn
-                case "if": kind = .keywordIf
-                case "else": kind = .keywordElse
-                case "return": kind = .keywordReturn
-                case "struct": kind = .keywordStruct
-                case "#import": kind = .directiveImport
+                case "fn":       kind = .keywordFn
+                case "if":       kind = .keywordIf
+                case "else":     kind = .keywordElse
+                case "return":   kind = .keywordReturn
+                case "struct":   kind = .keywordStruct
+                case "#import":  kind = .directiveImport
                 case "#library": kind = .directiveLibrary
                 case "#foreign": kind = .directiveForeign
-                default: kind = .ident(string)
+                default:
+                    kind = .ident
+                    value = string
                 }
             } else if digits.contains(char) {
 
@@ -191,11 +190,13 @@ struct Lexer {
                 }
 
                 if !isFloat, let val = UInt64(string) {
-                    kind = .integer(val)
+                    kind = .integer
+                    value = val
                 } else if let val = Double(string) {
-                    kind = .float(val)
+                    kind = .float
+                    value = val
                 } else {
-                    kind = .invalid(string)
+                    kind = .invalid
                 }
             } else {
 
@@ -205,11 +206,12 @@ struct Lexer {
                     scanner.pop()
                 }
 
-                kind = .invalid(string)
+                kind = .invalid
+                value = string
             }
         }
 
-        return Token(kind: kind, location: location ..< scanner.position)
+        return Token(kind: kind, value: value, location: location ..< scanner.position)
     }
 
     mutating func peek(aheadBy n: Int = 0) -> Token? {
@@ -236,7 +238,7 @@ struct Lexer {
         }
     }
 
-    private mutating func consumeComment() -> String {
+    private mutating func consumeLineComment() -> String {
         assert(scanner.hasPrefix("//"))
         scanner.pop(2)
 
@@ -293,6 +295,7 @@ struct Lexer {
 
 struct Token {
     let kind: Kind
+    var value: TokenValue?
     let location: SourceRange
 
     var start: SourceLocation {
@@ -302,19 +305,36 @@ struct Token {
     var end: SourceLocation {
         return location.upperBound
     }
+
+    var stringValue: String {
+        return value as! String
+    }
+
+    var integerValue: UInt64 {
+        return value as! UInt64
+    }
+
+    var floatingValue: Double {
+        return value as! Double
+    }
 }
+
+protocol TokenValue: CustomStringConvertible {}
+extension String: TokenValue {}
+extension UInt64: TokenValue {}
+extension Double: TokenValue {}
 
 extension Token {
 
     enum Kind {
-        case invalid(String)
+        case invalid
 
-        case comment(String)
+        case comment
 
-        case ident(String)
-        case integer(UInt64)
-        case float(Double)
-        case string(String)
+        case ident
+        case integer
+        case float
+        case string
 
         case newline
 
@@ -384,32 +404,62 @@ extension Token.Kind: Equatable {
 extension Token: CustomStringConvertible {
 
     var description: String {
-        return kind.description
+        switch kind {
+        case .invalid:
+            return "<invalid>"
+
+        case .comment:
+            return "//" + value!.description
+
+        case .ident:
+            return value!.description
+
+        case .float:
+            return value!.description
+
+        case .integer:
+            return value!.description
+
+        case .string:
+            return "\"" + value!.description + "\""
+
+        case .newline: fallthrough
+        case .lparen: fallthrough
+        case .rparen: fallthrough
+        case .lbrace: fallthrough
+        case .rbrace: fallthrough
+        case .colon: fallthrough
+        case .dot: fallthrough
+        case .dollar: fallthrough
+        case .equals: fallthrough
+        case .plus: fallthrough
+        case .minus: fallthrough
+        case .asterix: fallthrough
+        case .divide: fallthrough
+        case .ampersand: fallthrough
+        case .comma: fallthrough
+        case .lt: fallthrough
+        case .gt: fallthrough
+        case .lte: fallthrough
+        case .gte: fallthrough
+        case .returnArrow: fallthrough
+        case .keywordFn: fallthrough
+        case .keywordIf: fallthrough
+        case .keywordElse: fallthrough
+        case .keywordReturn: fallthrough
+        case .keywordStruct: fallthrough
+        case .directiveImport: fallthrough
+        case .directiveLibrary: fallthrough
+        case .directiveForeign: fatalError()
+        }
     }
+
 }
 
 extension Token.Kind: CustomStringConvertible {
 
     var description: String {
         switch self {
-        case .invalid:
-            return "<invalid>"
-
-        case .comment(let comment):
-            return "//" + comment
-
-        case .ident(let string):
-            return string
-
-        case .float(let val):
-            return val.description
-
-        case .integer(let val):
-            return val.description
-
-        case .string(let val):
-            return "\"" + val + "\""
-
         case .newline: return "\\n"
         case .lparen: return "("
         case .rparen: return ")"
@@ -438,6 +488,8 @@ extension Token.Kind: CustomStringConvertible {
         case .directiveImport: return "#import"
         case .directiveLibrary: return "#library"
         case .directiveForeign: return "#foreign"
+        case .invalid, .comment, .ident, .float, .integer, .string:
+            fatalError()
         }
     }
 }

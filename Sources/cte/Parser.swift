@@ -87,34 +87,34 @@ struct Parser {
             let rparen = advance(expecting: .rparen)
             return AstNode(AstNode.Paren(expr: expr), tokens: [lparen, rparen])
 
-        case .comment(let comment):
+        case .comment:
             advance()
 
-            let comment = AstNode.Comment(comment: comment)
+            let comment = AstNode.Comment(comment: token.stringValue)
             return AstNode.init(comment, tokens: [token])
 
-        case .ident(let symbol):
+        case .ident:
             advance()
 
-            let identifier = AstNode.Identifier(name: symbol)
+            let identifier = AstNode.Identifier(name: token.stringValue)
             return AstNode(identifier, tokens: [token])
 
-        case .string(let string):
+        case .string:
             advance()
 
-            let litString = AstNode.StringLiteral(value: string)
+            let litString = AstNode.StringLiteral(value: token.stringValue)
             return AstNode(litString, tokens: [token])
 
-        case .float(let val):
+        case .float:
             advance()
 
-            let floatLit = AstNode.FloatLiteral(value: val)
+            let floatLit = AstNode.FloatLiteral(value: token.floatingValue)
             return AstNode(floatLit, tokens: [token])
 
-        case .integer(let val):
+        case .integer:
             advance()
 
-            let integerLit = AstNode.IntegerLiteral(value: val)
+            let integerLit = AstNode.IntegerLiteral(value: token.integerValue)
             return AstNode(integerLit, tokens: [token])
 
         case .lbrace:
@@ -224,12 +224,7 @@ struct Parser {
             // <string> <identifier> <newline>
             // <string> <dot> <newline>
 
-            guard case .string(let path)? = lexer.peek()?.kind else {
-                reportError("Expected path for library as string literal", at: ímport)
-                return AstNode.invalid
-            }
-
-            let pathtok = advance()
+            let pathtok = advance(expecting: .string)
             let symboltok = lexer.peek()
 
             var dot: Token?
@@ -249,12 +244,12 @@ struct Parser {
                 return AstNode.invalid(with: [ímport, pathtok])
             }
 
-            guard let importedFile = SourceFile.new(path: path, importedFrom: file) else {
-                reportError("Failed to open '\(path)' for reading", at: pathtok)
+            guard let importedFile = SourceFile.new(path: pathtok.stringValue, importedFrom: file) else {
+                reportError("Failed to open '\(pathtok.stringValue)' for reading", at: pathtok)
                 return AstNode.invalid(with: [ímport, pathtok])
             }
 
-            let imp = AstNode.Import(path: path, symbol: symbol, includeSymbolsInParentScope: dot != nil, file: importedFile)
+            let imp = AstNode.Import(path: pathtok.stringValue, symbol: symbol, includeSymbolsInParentScope: dot != nil, file: importedFile)
 
             var tokens = [ímport, pathtok]
             if let dot = dot {
@@ -269,19 +264,14 @@ struct Parser {
         case .directiveLibrary:
             let library = advance()
 
-            guard case .string(let path)? = lexer.peek()?.kind else {
-                reportError("Expected path for library as string literal", at: library)
-                return AstNode.invalid
-            }
-
-            let pathtok = advance()
+            let pathtok = advance(expecting: .string)
 
             var symbol: AstNode?
             if case .ident? = lexer.peek()?.kind {
                 symbol = expression()
             }
 
-            let lib = AstNode.Library(path: path, symbol: symbol)
+            let lib = AstNode.Library(path: pathtok.stringValue, symbol: symbol)
             return AstNode(lib, tokens: [library, pathtok])
 
         default:
@@ -371,11 +361,15 @@ struct Parser {
     }
 
     @discardableResult
-    mutating func advance(expecting expected: Token.Kind? = nil) -> Token {
+    mutating func advance(expecting expected: Token.Kind? = nil, errorMessage: String? = nil) -> Token {
 
         if let expected = expected, let token = lexer.peek(), token.kind != expected {
-            reportError("Expected '" + expected.description + "'", at: token)
-            return Token(kind: .invalid(""), location: token.location)
+            if let errorMessage = errorMessage {
+                reportError(errorMessage, at: token)
+            } else {
+                reportError("Expected '" + expected.description + "'", at: token)
+            }
+            return Token(kind: .invalid, value: nil, location: token.location)
         }
 
         return lexer.pop()

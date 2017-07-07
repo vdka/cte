@@ -85,7 +85,7 @@ extension AstValue {
 
         case let value as AstNode.Infix:
             return AstNode.Infix(
-                kind: value.kind,
+                token: value.token,
                 lhs: value.lhs.copy(),
                 rhs: value.rhs.copy()
         )
@@ -116,7 +116,7 @@ extension AstValue {
 
         case let value as AstNode.Prefix:
             return AstNode.Prefix(
-                kind: value.kind,
+                token: value.token,
                 expr: value.expr.copy()
         )
 
@@ -198,7 +198,7 @@ extension AstValue {
 
         case let value as Checker.Infix:
             return Checker.Infix(
-                kind: value.kind,
+                token: value.token,
                 lhs: value.lhs.copy(),
                 rhs: value.rhs.copy(),
                 type: value.type.copy(),
@@ -236,7 +236,7 @@ extension AstValue {
 
         case let value as Checker.Prefix:
             return Checker.Prefix(
-                kind: value.kind,
+                token: value.token,
                 expr: value.expr.copy(),
                 type: value.type.copy()
         )

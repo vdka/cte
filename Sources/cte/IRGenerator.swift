@@ -219,13 +219,13 @@ struct IRGenerator {
 
     func emitPrefix(_ prefix: Checker.Prefix) -> IRValue {
 
-        if prefix.kind == .ampersand {
+        if prefix.token.kind == .ampersand {
             return emitExpr(node: prefix.expr, returnAddress: true)
         }
 
         let expr = emitExpr(node: prefix.expr)
 
-        switch prefix.kind {
+        switch prefix.token.kind {
         case .plus:
             return expr
 
@@ -254,7 +254,7 @@ struct IRGenerator {
         case .icmp:
             let isSigned = infix.lhs.exprType.isSignedInteger
             var pred: IntPredicate
-            switch infix.kind {
+            switch infix.token.kind {
             case .lt:  pred = isSigned ? .signedLessThan : .unsignedLessThan
             case .gt:  pred = isSigned ? .signedGreaterThan : .unsignedGreaterThan
             case .lte: pred = isSigned ? .signedLessThanOrEqual : .unsignedLessThanOrEqual
@@ -266,7 +266,7 @@ struct IRGenerator {
 
         case .fcmp:
             var pred: RealPredicate
-            switch infix.kind {
+            switch infix.token.kind {
             case .lt:  pred = .orderedLessThan
             case .gt:  pred = .orderedGreaterThan
             case .lte: pred = .orderedLessThanOrEqual

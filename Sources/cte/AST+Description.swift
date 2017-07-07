@@ -71,16 +71,16 @@ extension AstNode: CustomStringConvertible {
             return "(" + asParen.expr.description + ")"
 
         case .prefix:
-            let u = asPrefix
-            let op = u.kind.description
-            let expr = u.expr.description
+            let prefix = asPrefix
+            let op = prefix.token.description
+            let expr = prefix.expr.description
             return op + expr
 
         case .infix:
-            let b = asInfix
-            let op = b.kind.description
-            let lhs = b.lhs.description
-            let rhs = b.rhs.description
+            let infix = asInfix
+            let op = infix.token.description
+            let lhs = infix.lhs.description
+            let rhs = infix.rhs.description
             return lhs + " " + op + " " + rhs
 
         case .assign:

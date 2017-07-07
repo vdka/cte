@@ -276,7 +276,7 @@ protocol CommonImport {
 
 protocol CommonInfix {
 
-    var kind: Token.Kind { get }
+    var token: Token { get }
     var lhs: AstNode { get }
     var rhs: AstNode { get }
 }
@@ -308,7 +308,7 @@ protocol CommonPointerType {
 
 protocol CommonPrefix {
 
-    var kind: Token.Kind { get }
+    var token: Token { get }
     var expr: AstNode { get }
 }
 

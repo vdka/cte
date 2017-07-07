@@ -143,7 +143,7 @@ extension Checker {
                 let eos = node.tokens[1].end // the second token will always be the path string token
                 let start = SourceLocation(line: eos.line, column: numericCast(numericCast(eos.column) - fileExtension.count - name.count - 1), file: eos.file)
                 let end = SourceLocation(line: eos.line, column: numericCast(numericCast(eos.column) - fileExtension.count - 1), file: eos.file)
-                let identifier = Token(kind: .ident(name), location: start ..< end)
+                let identifier = Token(kind: .ident, value: name, location: start ..< end)
 
                 entity = Entity(ident: identifier, flags: .file)
             } else {
@@ -186,7 +186,7 @@ extension Checker {
                 let eos = node.tokens[1].end // the second token will always be the path string token
                 let start = SourceLocation(line: eos.line, column: numericCast(numericCast(eos.column) - fileExtension.count - name.count - 1), file: eos.file)
                 let end = SourceLocation(line: eos.line, column: numericCast(numericCast(eos.column) - fileExtension.count - 1), file: eos.file)
-                let identifier = Token(kind: .ident(name), location: start ..< end)
+                let identifier = Token(kind: .ident, value: name, location: start ..< end)
 
                 entity = Entity(ident: identifier, flags: .library)
             }
@@ -360,10 +360,10 @@ extension Checker {
             let prefix = node.asPrefix
             var type = checkExpr(node: prefix.expr)
 
-            switch prefix.kind {
+            switch prefix.token.kind {
             case .plus, .minus:
                 guard type == Type.f64 else {
-                    reportError("Prefix operator '\(prefix.kind)' is only valid on signed numeric types", at: prefix.expr)
+                    reportError("Prefix operator '\(prefix.token)' is only valid on signed numeric types", at: prefix.expr)
                     return Type.invalid
                 }
 
@@ -383,10 +383,10 @@ extension Checker {
                 type = Type.makePointer(to: type)
 
             default:
-                reportError("Prefix operator '\(prefix.kind)', is invalid on type '\(type)'", at: prefix.expr)
+                reportError("Prefix operator '\(prefix.token)', is invalid on type '\(type)'", at: prefix.expr)
                 return Type.invalid
             }
-            node.value = Prefix(kind: prefix.kind, expr: prefix.expr, type: type)
+            node.value = Prefix(token: prefix.token, expr: prefix.expr, type: type)
             return type
 
         case .infix:
@@ -429,7 +429,7 @@ extension Checker {
                     rCast = .fpext
                 }
             } else {
-                reportError("Operator '\(infix.kind) is not valid between '\(lhsType)' and '\(rhsType)' types", at: node)
+                reportError("Operator '\(infix.token) is not valid between '\(lhsType)' and '\(rhsType)' types", at: node)
                 return Type.invalid
             }
 
@@ -438,7 +438,7 @@ extension Checker {
             let isIntegerOp = lhsType.isInteger || rhsType.isInteger
 
             var type: Type
-            switch infix.kind {
+            switch infix.token.kind {
             case .lt, .lte, .gt, .gte:
                 guard lhsType.isNumber && rhsType.isNumber else {
                     reportError("Cannot compare '\(lhsType)' and '\(rhsType)' comparison is only valid on 'number' types", at: node)
@@ -459,7 +459,7 @@ extension Checker {
                 fatalError()
             }
 
-            node.value = Infix(kind: infix.kind, lhs: infix.lhs, rhs: infix.rhs, type: type, op: op, lhsCast: lCast, rhsCast: rCast)
+            node.value = Infix(token: infix.token, lhs: infix.lhs, rhs: infix.rhs, type: type, op: op, lhsCast: lCast, rhsCast: rCast)
             return type
 
         case .call:
@@ -915,7 +915,7 @@ extension Checker {
     struct Prefix: CheckedExpression, CheckedAstValue {
         typealias UncheckedValue = AstNode.Prefix
 
-        let kind: Token.Kind
+        let token: Token
         let expr: AstNode
 
         let type: Type
@@ -924,7 +924,7 @@ extension Checker {
     struct Infix: CheckedExpression, CheckedAstValue {
         typealias UncheckedValue = AstNode.Infix
 
-        let kind: Token.Kind
+        let token: Token
         let lhs: AstNode
         let rhs: AstNode
         let type: Type
