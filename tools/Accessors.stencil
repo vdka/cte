@@ -4,14 +4,24 @@ extension AstNode {
 
     {% if type.parentName|contains:"AstNode" %}
     var as{{ type.localName }}: Common{{ type.localName }} {
-        assert(kind == {{ type.name }}.astKind)
-        return value as! Common{{ type.localName }}
+        get {
+            assert(kind == {{ type.name }}.astKind)
+            return value as! Common{{ type.localName }}
+        }
+        set {
+            self.value = newValue
+        }
     }
     {% endif %}
     {% if type.parentName|contains:"Checker" %}
     var asChecked{{ type.localName }}: {{ type.name }} {
-        assert(kind == {{ type.name }}.astKind)
-        return value as! {{ type.name }}
+        get {
+            assert(kind == {{ type.name }}.astKind)
+            return value as! {{ type.name }}
+        }
+        set {
+            value = newValue
+        }
     }
     {% endif %}
 {% endfor %}
@@ -20,10 +30,10 @@ extension AstNode {
 {% for type in types.implementing.AstValue|!protocol %}
 {% if type.parentName|contains:"AstNode" %}
 
-protocol Common{{ type.localName }} {
+protocol Common{{ type.localName }}: AstValue {
 
-    {% for variable in type.instanceVariables %}
-    var {{ variable.name }}: {{ variable.typeName }} { get }
+    {% for var in type.instanceVariables %}
+    var {{ var.name }}: {{ var.typeName }} { get{% if var.isMutable %} set{% endif %} }
     {% endfor %}
 }
 {% endif %}
@@ -31,7 +41,6 @@ protocol Common{{ type.localName }} {
 
 {% for type in types.implementing.AstValue|!protocol %}
 {% if type.localName != "PolymorphicFunction" and type.localName != "Cast" %}
-
 extension {{ type.name }}: Common{{ type.localName }} {}
 {% endif %}
 {% endfor %}

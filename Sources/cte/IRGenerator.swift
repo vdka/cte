@@ -47,20 +47,30 @@ struct IRGenerator {
         case .declaration:
             let decl = node.asCheckedDeclaration
 
-            if decl.entity.type!.kind == .metatype {
-                return
-            }
-
             guard decl.entity.type!.kind != .metatype else {
                 return
             }
 
-            guard decl.value.kind != .polymorphicFunction && decl.value.kind != .function else {
+            guard (decl.value.kind != .polymorphicFunction && decl.value.kind != .function) || decl.isForeign else {
                 decl.entity.value = emitExpr(node: decl.value, name: decl.entity.name)
                 return
             }
 
             let type = canonicalize(decl.entity.type!)
+
+            if decl.isForeign {
+                let name = decl.linkName ?? decl.identifier.asIdentifier.name
+                if let type = type as? FunctionType {
+                    let function = builder.addFunction(name, type: type)
+                    decl.entity.value = function
+                    return
+                }
+
+                var global = builder.addGlobal(name, type: type)
+                global.isExternallyInitialized = true
+                decl.entity.value = global
+                return
+            }
 
             if decl.entity.flags.contains(.ct) {
                 let value = emitExpr(node: decl.value)

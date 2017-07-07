@@ -51,6 +51,7 @@ enum AstKind {
     case functionType
     case `import`
     case library
+    case foreign
 }
 
 extension AstNode {
@@ -143,11 +144,10 @@ extension AstNode {
         let identifier: AstNode
         let type: AstNode?
         let value: AstNode
-        let isCompileTime: Bool
+        var isCompileTime: Bool
+        var isForeign: Bool
 
-        var isFunction: Bool {
-            return value.kind == .function || value.kind == .polymorphicFunction
-        }
+        var linkName: String?
     }
 
     struct Paren: AstValue {
@@ -182,13 +182,14 @@ extension AstNode {
         static let astKind = AstKind.call
 
         let callee: AstNode
-        var arguments: [AstNode]
+        let arguments: [AstNode]
     }
 
     struct Block: AstValue {
         static let astKind = AstKind.block
 
         let stmts: [AstNode]
+        var isForeign: Bool
     }
 
     struct If: AstValue {
@@ -219,5 +220,19 @@ extension AstNode {
         let symbol: AstNode?
         let includeSymbolsInParentScope: Bool
         let file: SourceFile
+    }
+
+    struct Foreign: AstValue {
+        static let astKind = AstKind.foreign
+
+        let library: AstNode
+        let stmt: AstNode
+    }
+}
+
+extension CommonDeclaration {
+
+    var isFunction: Bool {
+        return value.kind == .function || value.kind == .polymorphicFunction
     }
 }

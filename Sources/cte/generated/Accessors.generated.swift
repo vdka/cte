@@ -5,268 +5,476 @@
 extension AstNode {
 
     var asAssign: CommonAssign {
-        assert(kind == AstNode.Assign.astKind)
-        return value as! CommonAssign
+        get {
+            assert(kind == AstNode.Assign.astKind)
+            return value as! CommonAssign
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asBlock: CommonBlock {
-        assert(kind == AstNode.Block.astKind)
-        return value as! CommonBlock
+        get {
+            assert(kind == AstNode.Block.astKind)
+            return value as! CommonBlock
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asCall: CommonCall {
-        assert(kind == AstNode.Call.astKind)
-        return value as! CommonCall
+        get {
+            assert(kind == AstNode.Call.astKind)
+            return value as! CommonCall
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asComment: CommonComment {
-        assert(kind == AstNode.Comment.astKind)
-        return value as! CommonComment
+        get {
+            assert(kind == AstNode.Comment.astKind)
+            return value as! CommonComment
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asCompileTime: CommonCompileTime {
-        assert(kind == AstNode.CompileTime.astKind)
-        return value as! CommonCompileTime
+        get {
+            assert(kind == AstNode.CompileTime.astKind)
+            return value as! CommonCompileTime
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asDeclaration: CommonDeclaration {
-        assert(kind == AstNode.Declaration.astKind)
-        return value as! CommonDeclaration
+        get {
+            assert(kind == AstNode.Declaration.astKind)
+            return value as! CommonDeclaration
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asEmpty: CommonEmpty {
-        assert(kind == AstNode.Empty.astKind)
-        return value as! CommonEmpty
+        get {
+            assert(kind == AstNode.Empty.astKind)
+            return value as! CommonEmpty
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asFloatLiteral: CommonFloatLiteral {
-        assert(kind == AstNode.FloatLiteral.astKind)
-        return value as! CommonFloatLiteral
+        get {
+            assert(kind == AstNode.FloatLiteral.astKind)
+            return value as! CommonFloatLiteral
+        }
+        set {
+            self.value = newValue
+        }
+    }
+
+    var asForeign: CommonForeign {
+        get {
+            assert(kind == AstNode.Foreign.astKind)
+            return value as! CommonForeign
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asFunction: CommonFunction {
-        assert(kind == AstNode.Function.astKind)
-        return value as! CommonFunction
+        get {
+            assert(kind == AstNode.Function.astKind)
+            return value as! CommonFunction
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asFunctionType: CommonFunctionType {
-        assert(kind == AstNode.FunctionType.astKind)
-        return value as! CommonFunctionType
+        get {
+            assert(kind == AstNode.FunctionType.astKind)
+            return value as! CommonFunctionType
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asIdentifier: CommonIdentifier {
-        assert(kind == AstNode.Identifier.astKind)
-        return value as! CommonIdentifier
+        get {
+            assert(kind == AstNode.Identifier.astKind)
+            return value as! CommonIdentifier
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asIf: CommonIf {
-        assert(kind == AstNode.If.astKind)
-        return value as! CommonIf
+        get {
+            assert(kind == AstNode.If.astKind)
+            return value as! CommonIf
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asImport: CommonImport {
-        assert(kind == AstNode.Import.astKind)
-        return value as! CommonImport
+        get {
+            assert(kind == AstNode.Import.astKind)
+            return value as! CommonImport
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asInfix: CommonInfix {
-        assert(kind == AstNode.Infix.astKind)
-        return value as! CommonInfix
+        get {
+            assert(kind == AstNode.Infix.astKind)
+            return value as! CommonInfix
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asIntegerLiteral: CommonIntegerLiteral {
-        assert(kind == AstNode.IntegerLiteral.astKind)
-        return value as! CommonIntegerLiteral
+        get {
+            assert(kind == AstNode.IntegerLiteral.astKind)
+            return value as! CommonIntegerLiteral
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asInvalid: CommonInvalid {
-        assert(kind == AstNode.Invalid.astKind)
-        return value as! CommonInvalid
+        get {
+            assert(kind == AstNode.Invalid.astKind)
+            return value as! CommonInvalid
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asLibrary: CommonLibrary {
-        assert(kind == AstNode.Library.astKind)
-        return value as! CommonLibrary
+        get {
+            assert(kind == AstNode.Library.astKind)
+            return value as! CommonLibrary
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asParen: CommonParen {
-        assert(kind == AstNode.Paren.astKind)
-        return value as! CommonParen
+        get {
+            assert(kind == AstNode.Paren.astKind)
+            return value as! CommonParen
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asPointerType: CommonPointerType {
-        assert(kind == AstNode.PointerType.astKind)
-        return value as! CommonPointerType
+        get {
+            assert(kind == AstNode.PointerType.astKind)
+            return value as! CommonPointerType
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asPrefix: CommonPrefix {
-        assert(kind == AstNode.Prefix.astKind)
-        return value as! CommonPrefix
+        get {
+            assert(kind == AstNode.Prefix.astKind)
+            return value as! CommonPrefix
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asReturn: CommonReturn {
-        assert(kind == AstNode.Return.astKind)
-        return value as! CommonReturn
+        get {
+            assert(kind == AstNode.Return.astKind)
+            return value as! CommonReturn
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asStringLiteral: CommonStringLiteral {
-        assert(kind == AstNode.StringLiteral.astKind)
-        return value as! CommonStringLiteral
+        get {
+            assert(kind == AstNode.StringLiteral.astKind)
+            return value as! CommonStringLiteral
+        }
+        set {
+            self.value = newValue
+        }
     }
 
     var asCheckedAssign: Checker.Assign {
-        assert(kind == Checker.Assign.astKind)
-        return value as! Checker.Assign
+        get {
+            assert(kind == Checker.Assign.astKind)
+            return value as! Checker.Assign
+        }
+        set {
+            value = newValue
+        }
     }
 
     var asCheckedBlock: Checker.Block {
-        assert(kind == Checker.Block.astKind)
-        return value as! Checker.Block
+        get {
+            assert(kind == Checker.Block.astKind)
+            return value as! Checker.Block
+        }
+        set {
+            value = newValue
+        }
     }
 
     var asCheckedCall: Checker.Call {
-        assert(kind == Checker.Call.astKind)
-        return value as! Checker.Call
+        get {
+            assert(kind == Checker.Call.astKind)
+            return value as! Checker.Call
+        }
+        set {
+            value = newValue
+        }
     }
 
     var asCheckedCast: Checker.Cast {
-        assert(kind == Checker.Cast.astKind)
-        return value as! Checker.Cast
+        get {
+            assert(kind == Checker.Cast.astKind)
+            return value as! Checker.Cast
+        }
+        set {
+            value = newValue
+        }
     }
 
     var asCheckedDeclaration: Checker.Declaration {
-        assert(kind == Checker.Declaration.astKind)
-        return value as! Checker.Declaration
+        get {
+            assert(kind == Checker.Declaration.astKind)
+            return value as! Checker.Declaration
+        }
+        set {
+            value = newValue
+        }
     }
 
     var asCheckedFloatLiteral: Checker.FloatLiteral {
-        assert(kind == Checker.FloatLiteral.astKind)
-        return value as! Checker.FloatLiteral
+        get {
+            assert(kind == Checker.FloatLiteral.astKind)
+            return value as! Checker.FloatLiteral
+        }
+        set {
+            value = newValue
+        }
     }
 
     var asCheckedFunction: Checker.Function {
-        assert(kind == Checker.Function.astKind)
-        return value as! Checker.Function
+        get {
+            assert(kind == Checker.Function.astKind)
+            return value as! Checker.Function
+        }
+        set {
+            value = newValue
+        }
     }
 
     var asCheckedFunctionType: Checker.FunctionType {
-        assert(kind == Checker.FunctionType.astKind)
-        return value as! Checker.FunctionType
+        get {
+            assert(kind == Checker.FunctionType.astKind)
+            return value as! Checker.FunctionType
+        }
+        set {
+            value = newValue
+        }
     }
 
     var asCheckedIdentifier: Checker.Identifier {
-        assert(kind == Checker.Identifier.astKind)
-        return value as! Checker.Identifier
+        get {
+            assert(kind == Checker.Identifier.astKind)
+            return value as! Checker.Identifier
+        }
+        set {
+            value = newValue
+        }
     }
 
     var asCheckedInfix: Checker.Infix {
-        assert(kind == Checker.Infix.astKind)
-        return value as! Checker.Infix
+        get {
+            assert(kind == Checker.Infix.astKind)
+            return value as! Checker.Infix
+        }
+        set {
+            value = newValue
+        }
     }
 
     var asCheckedIntegerLiteral: Checker.IntegerLiteral {
-        assert(kind == Checker.IntegerLiteral.astKind)
-        return value as! Checker.IntegerLiteral
+        get {
+            assert(kind == Checker.IntegerLiteral.astKind)
+            return value as! Checker.IntegerLiteral
+        }
+        set {
+            value = newValue
+        }
     }
 
     var asCheckedParen: Checker.Paren {
-        assert(kind == Checker.Paren.astKind)
-        return value as! Checker.Paren
+        get {
+            assert(kind == Checker.Paren.astKind)
+            return value as! Checker.Paren
+        }
+        set {
+            value = newValue
+        }
     }
 
     var asCheckedPointerType: Checker.PointerType {
-        assert(kind == Checker.PointerType.astKind)
-        return value as! Checker.PointerType
+        get {
+            assert(kind == Checker.PointerType.astKind)
+            return value as! Checker.PointerType
+        }
+        set {
+            value = newValue
+        }
     }
 
     var asCheckedPolymorphicFunction: Checker.PolymorphicFunction {
-        assert(kind == Checker.PolymorphicFunction.astKind)
-        return value as! Checker.PolymorphicFunction
+        get {
+            assert(kind == Checker.PolymorphicFunction.astKind)
+            return value as! Checker.PolymorphicFunction
+        }
+        set {
+            value = newValue
+        }
     }
 
     var asCheckedPrefix: Checker.Prefix {
-        assert(kind == Checker.Prefix.astKind)
-        return value as! Checker.Prefix
+        get {
+            assert(kind == Checker.Prefix.astKind)
+            return value as! Checker.Prefix
+        }
+        set {
+            value = newValue
+        }
     }
 
     var asCheckedStringLiteral: Checker.StringLiteral {
-        assert(kind == Checker.StringLiteral.astKind)
-        return value as! Checker.StringLiteral
+        get {
+            assert(kind == Checker.StringLiteral.astKind)
+            return value as! Checker.StringLiteral
+        }
+        set {
+            value = newValue
+        }
     }
 }
 
 
-protocol CommonAssign {
+protocol CommonAssign: AstValue {
 
     var lvalue: AstNode { get }
     var rvalue: AstNode { get }
 }
 
-protocol CommonBlock {
+protocol CommonBlock: AstValue {
 
     var stmts: [AstNode] { get }
+    var isForeign: Bool { get set }
 }
 
-protocol CommonCall {
+protocol CommonCall: AstValue {
 
     var callee: AstNode { get }
     var arguments: [AstNode] { get }
 }
 
-protocol CommonComment {
+protocol CommonComment: AstValue {
 
     var comment: String { get }
 }
 
-protocol CommonCompileTime {
+protocol CommonCompileTime: AstValue {
 
     var stmt: AstNode { get }
 }
 
-protocol CommonDeclaration {
+protocol CommonDeclaration: AstValue {
 
     var identifier: AstNode { get }
     var type: AstNode? { get }
     var value: AstNode { get }
-    var isCompileTime: Bool { get }
-    var isFunction: Bool { get }
+    var isCompileTime: Bool { get set }
+    var isForeign: Bool { get set }
+    var linkName: String? { get set }
 }
 
-protocol CommonEmpty {
+protocol CommonEmpty: AstValue {
 
 }
 
-protocol CommonFloatLiteral {
+protocol CommonFloatLiteral: AstValue {
 
     var value: Double { get }
 }
 
-protocol CommonFunction {
+protocol CommonForeign: AstValue {
 
-    var parameters: [AstNode] { get }
-    var returnType: AstNode { get }
+    var library: AstNode { get }
+    var stmt: AstNode { get }
+}
+
+protocol CommonFunction: AstValue {
+
+    var parameters: [AstNode] { get set }
+    var returnType: AstNode { get set }
     var body: AstNode { get }
 }
 
-protocol CommonFunctionType {
+protocol CommonFunctionType: AstValue {
 
     var parameters: [AstNode] { get }
     var returnType: AstNode { get }
 }
 
-protocol CommonIdentifier {
+protocol CommonIdentifier: AstValue {
 
     var name: String { get }
 }
 
-protocol CommonIf {
+protocol CommonIf: AstValue {
 
     var condition: AstNode { get }
     var thenStmt: AstNode { get }
     var elseStmt: AstNode? { get }
 }
 
-protocol CommonImport {
+protocol CommonImport: AstValue {
 
     var path: String { get }
     var symbol: AstNode? { get }
@@ -274,125 +482,90 @@ protocol CommonImport {
     var file: SourceFile { get }
 }
 
-protocol CommonInfix {
+protocol CommonInfix: AstValue {
 
     var token: Token { get }
     var lhs: AstNode { get }
     var rhs: AstNode { get }
 }
 
-protocol CommonIntegerLiteral {
+protocol CommonIntegerLiteral: AstValue {
 
     var value: UInt64 { get }
 }
 
-protocol CommonInvalid {
+protocol CommonInvalid: AstValue {
 
 }
 
-protocol CommonLibrary {
+protocol CommonLibrary: AstValue {
 
     var path: String { get }
     var symbol: AstNode? { get }
 }
 
-protocol CommonParen {
+protocol CommonParen: AstValue {
 
     var expr: AstNode { get }
 }
 
-protocol CommonPointerType {
+protocol CommonPointerType: AstValue {
 
     var pointee: AstNode { get }
 }
 
-protocol CommonPrefix {
+protocol CommonPrefix: AstValue {
 
     var token: Token { get }
     var expr: AstNode { get }
 }
 
-protocol CommonReturn {
+protocol CommonReturn: AstValue {
 
     var value: AstNode { get }
 }
 
-protocol CommonStringLiteral {
+protocol CommonStringLiteral: AstValue {
 
     var value: String { get }
 }
 
-
 extension AstNode.Assign: CommonAssign {}
-
 extension AstNode.Block: CommonBlock {}
-
 extension AstNode.Call: CommonCall {}
-
 extension AstNode.Comment: CommonComment {}
-
 extension AstNode.CompileTime: CommonCompileTime {}
-
 extension AstNode.Declaration: CommonDeclaration {}
-
 extension AstNode.Empty: CommonEmpty {}
-
 extension AstNode.FloatLiteral: CommonFloatLiteral {}
-
+extension AstNode.Foreign: CommonForeign {}
 extension AstNode.Function: CommonFunction {}
-
 extension AstNode.FunctionType: CommonFunctionType {}
-
 extension AstNode.Identifier: CommonIdentifier {}
-
 extension AstNode.If: CommonIf {}
-
 extension AstNode.Import: CommonImport {}
-
 extension AstNode.Infix: CommonInfix {}
-
 extension AstNode.IntegerLiteral: CommonIntegerLiteral {}
-
 extension AstNode.Invalid: CommonInvalid {}
-
 extension AstNode.Library: CommonLibrary {}
-
 extension AstNode.Paren: CommonParen {}
-
 extension AstNode.PointerType: CommonPointerType {}
-
 extension AstNode.Prefix: CommonPrefix {}
-
 extension AstNode.Return: CommonReturn {}
-
 extension AstNode.StringLiteral: CommonStringLiteral {}
-
 extension Checker.Assign: CommonAssign {}
-
 extension Checker.Block: CommonBlock {}
-
 extension Checker.Call: CommonCall {}
-
 extension Checker.Declaration: CommonDeclaration {}
-
 extension Checker.FloatLiteral: CommonFloatLiteral {}
-
 extension Checker.Function: CommonFunction {}
-
 extension Checker.FunctionType: CommonFunctionType {}
-
 extension Checker.Identifier: CommonIdentifier {}
-
 extension Checker.Infix: CommonInfix {}
-
 extension Checker.IntegerLiteral: CommonIntegerLiteral {}
-
 extension Checker.Paren: CommonParen {}
-
 extension Checker.PointerType: CommonPointerType {}
-
 extension Checker.Prefix: CommonPrefix {}
-
 extension Checker.StringLiteral: CommonStringLiteral {}
 
 extension Type {

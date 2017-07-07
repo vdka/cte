@@ -15,7 +15,8 @@ extension AstValue {
 
         case let value as AstNode.Block:
             return AstNode.Block(
-                stmts: value.stmts.map({ $0.copy() })
+                stmts: value.stmts.map({ $0.copy() }),
+                isForeign: value.isForeign
         )
 
         case let value as AstNode.Call:
@@ -39,7 +40,9 @@ extension AstValue {
                 identifier: value.identifier.copy(),
                 type: value.type?.copy(),
                 value: value.value.copy(),
-                isCompileTime: value.isCompileTime
+                isCompileTime: value.isCompileTime,
+                isForeign: value.isForeign,
+                linkName: value.linkName
         )
 
         case is AstNode.Empty:
@@ -48,6 +51,12 @@ extension AstValue {
         case let value as AstNode.FloatLiteral:
             return AstNode.FloatLiteral(
                 value: value.value
+        )
+
+        case let value as AstNode.Foreign:
+            return AstNode.Foreign(
+                library: value.library.copy(),
+                stmt: value.stmt.copy()
         )
 
         case let value as AstNode.Function:
@@ -139,6 +148,7 @@ extension AstValue {
         case let value as Checker.Block:
             return Checker.Block(
                 stmts: value.stmts.map({ $0.copy() }),
+                isForeign: value.isForeign,
                 scope: value.scope.copy()
         )
 
@@ -164,6 +174,8 @@ extension AstValue {
                 type: value.type?.copy(),
                 value: value.value.copy(),
                 isCompileTime: value.isCompileTime,
+                isForeign: value.isForeign,
+                linkName: value.linkName,
                 entity: value.entity.copy()
         )
 

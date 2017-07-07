@@ -48,6 +48,19 @@ extension Checker {
 
             var type = (decl.value == .empty) ? expectedType! : checkExpr(node: decl.value, desiredType: expectedType)
 
+            if decl.isForeign, decl.isCompileTime {
+                guard type.isMetatype else {
+                    reportError("A type is the expected rvalue for a foreign symbol", at: decl.value)
+                    type = Type.invalid
+                    return
+                }
+                type = Type.lowerFromMetatype(type)
+
+                if decl.value.kind == .functionType {
+                    type = type.asPointer.pointeeType
+                }
+            }
+
             if let expectedType = expectedType, type != expectedType &&
                 (Type.makePointer(to: type) != expectedType && type.isFunction && expectedType.isFunctionPointer) {
                 reportError("Cannot convert value of type '\(type)' to specified type '\(expectedType)'", at: node)
@@ -62,16 +75,19 @@ extension Checker {
                 entity.flags.insert(.ct)
             }
 
+            if decl.isForeign {
+                entity.flags.insert(.foreign)
+            }
+
             if type == Type.type {
                 entity.flags.insert(.type)
             }
 
             currentScope.insert(entity)
 
-            node.value = Declaration(
-                identifier: decl.identifier, type: decl.type, value: decl.value, isCompileTime: decl.isCompileTime,
-                entity: entity)
-
+            node.value = Declaration(identifier: decl.identifier, type: decl.type, value: decl.value,
+                                     isCompileTime: decl.isCompileTime, isForeign: decl.isForeign, linkName: decl.linkName,
+                                     entity: entity)
 
         case .assign:
             let assign = node.asAssign
@@ -89,16 +105,25 @@ extension Checker {
         case .block:
             let block = node.asBlock
 
-            let prevScope = currentScope
-            currentScope = Scope(parent: currentScope)
-            defer {
-                currentScope = prevScope
+            if !block.isForeign {
+                let prevScope = currentScope
+                currentScope = Scope(parent: currentScope)
+                defer {
+                    currentScope = prevScope
+                }
             }
             for node in block.stmts {
+                if block.isForeign {
+                    guard node.kind == .declaration else {
+                        reportError("Only declarations are valid within a foreign block", at: node)
+                        continue
+                    }
+                    node.asDeclaration.isForeign = true
+                }
                 check(node: node)
             }
 
-            node.value = Block(stmts: block.stmts, scope: currentScope)
+            node.value = Block(stmts: block.stmts, isForeign: block.isForeign, scope: currentScope)
 
         case .if:
             let iff = node.asIf
@@ -323,7 +348,14 @@ extension Checker {
             var params: [Type] = []
             for param in fn.parameters {
 
-                let type = checkExpr(node: param)
+                var type: Type
+                if param.kind == .declaration {
+                    type = checkExpr(node: param.asDeclaration.type!)
+                    type = lowerFromMetatype(type, atNode: param.asDeclaration.type!)
+                } else {
+                    type = checkExpr(node: param)
+                    type = lowerFromMetatype(type, atNode: param)
+                }
 
                 params.append(type)
             }
@@ -626,7 +658,8 @@ extension Checker {
 
             let decl = param.asCheckedDeclaration
             // Changed the param node value back to being unchecked
-            param.value = AstNode.Declaration(identifier: decl.identifier, type: decl.type, value: decl.value, isCompileTime: decl.isCompileTime)
+            param.value = AstNode.Declaration(identifier: decl.identifier, type: decl.type, value: decl.value,
+                                              isCompileTime: decl.isCompileTime, isForeign: decl.isForeign, linkName: decl.linkName)
 
             // check the declaration as usual.
             check(node: param)
@@ -896,13 +929,12 @@ extension Checker {
         let identifier: AstNode
         let type: AstNode?
         let value: AstNode
-        let isCompileTime: Bool
+        var isCompileTime: Bool
+        var isForeign: Bool
+        
+        var linkName: String?
 
         let entity: Entity
-
-        var isFunction: Bool {
-            return value.kind == .function || value.kind == .polymorphicFunction
-        }
     }
 
     struct Paren: CheckedExpression, CheckedAstValue {
@@ -967,6 +999,7 @@ extension Checker {
         typealias UncheckedValue = AstNode.Block
 
         let stmts: [AstNode]
+        var isForeign: Bool
         let scope: Scope
     }
 }

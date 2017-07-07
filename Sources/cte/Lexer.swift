@@ -376,6 +376,7 @@ extension Token {
         case directiveImport
         case directiveLibrary
         case directiveForeign
+        case directiveLinkname
     }
 }
 
@@ -450,7 +451,8 @@ extension Token: CustomStringConvertible {
         case .keywordStruct: fallthrough
         case .directiveImport: fallthrough
         case .directiveLibrary: fallthrough
-        case .directiveForeign: fatalError()
+        case .directiveForeign: fallthrough
+        case .directiveLinkname: fatalError()
         }
     }
 
@@ -488,6 +490,7 @@ extension Token.Kind: CustomStringConvertible {
         case .directiveImport: return "#import"
         case .directiveLibrary: return "#library"
         case .directiveForeign: return "#foreign"
+        case .directiveLinkname: return "#linkname"
         case .invalid, .comment, .ident, .float, .integer, .string:
             fatalError()
         }

@@ -3,12 +3,18 @@
 #import "math/constants.cte" .
 #import "math/circle.cte" .
 
+#foreign libc {
+    printf :: fn (fmt: string) -> i32
+    exit :: fn (code: i32) -> i32
+}
+
+
 min :: fn ($T: type, a: T, b: T) -> T {
   if a < b return a
   else return b
 }
 
-add :: fn (foo: i64) -> i64 {
+add : fn (i64) -> i64 : fn (foo: i64) -> i64 {
     return foo + 1
 }
 
@@ -33,6 +39,8 @@ g = sub
 h = g(8)
 
 i := circumference(tau)
+
+p := printf("printf")
 
 addrA := &a
 valA := <addrA

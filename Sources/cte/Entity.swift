@@ -45,6 +45,7 @@ class Entity: CustomStringConvertible {
         static let library  = Flag(rawValue: 0b0000_0100)
         static let type     = Flag(rawValue: 0b0001_0000)
         static let ct       = Flag(rawValue: 0b0010_0000)
+        static let foreign  = Flag(rawValue: 0b0100_0000)
     }
 
     var description: String {

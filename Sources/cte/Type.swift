@@ -60,7 +60,7 @@ class Type: Hashable, CustomStringConvertible {
         case .function:
             // fn ($T: type, a: T, b: T) -> T
             let fn = self.asFunction
-            return "fn(" + fn.params.map({ $0.name + ": " + $0.description }).joined(separator: ", ") + ")" + " -> " + fn.returnType.description
+            return "fn(" + fn.params.map({ $0.description }).joined(separator: ", ") + ")" + " -> " + fn.returnType.description
         }
     }
 

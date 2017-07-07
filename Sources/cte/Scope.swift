@@ -38,5 +38,5 @@ class Scope {
         members.append(entity)
     }
 
-    static let global = Scope(members: [BuiltinType.void, .type, .bool, .string, .f32, .f64, .u8, .i64].map({ $0.entity }))
+    static let global = Scope(members: builtinTypes.map({ $0.entity }))
 }

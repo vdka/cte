@@ -37,7 +37,6 @@ extension AstNode: CustomStringConvertible {
             return "fn" + "(" + parameterList + ") -> " + returnType + " " + fn.body.description
 
         case .functionType:
-
             let fn = asFunctionType
             let parameterList = fn.parameters
                 .map({ $0.description })
@@ -121,7 +120,10 @@ extension AstNode: CustomStringConvertible {
         case .library:
             let lib = asLibrary
             return "#library " + lib.path + (lib.symbol?.description ?? "")
+
+        case .foreign:
+            let foreign = asForeign
+            return "#foreign " + foreign.library.description + "\n" + foreign.stmt.description
         }
     }
 }
-

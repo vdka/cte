@@ -54,12 +54,7 @@ struct Parser {
     }
 
     mutating func lbp(for token: Token) -> UInt8? {
-
-        if let infixOperator = InfixOperator.lookup(token.kind) {
-            return infixOperator.lbp
-        }
-
-        return token.kind.lbp
+        return InfixOperator.lookup(token.kind)?.lbp ?? token.kind.lbp
     }
 
     mutating func nud(for token: Token) -> AstNode {
@@ -128,7 +123,7 @@ struct Parser {
 
             let rbrace = advance(expecting: .rbrace)
 
-            let stmtBlock = AstNode.Block(stmts: stmts)
+            let stmtBlock = AstNode.Block(stmts: stmts, isForeign: false)
             return AstNode(stmtBlock, tokens: [lbrace, rbrace])
 
         case .dollar:
@@ -136,9 +131,8 @@ struct Parser {
             let stmt = expression()
 
             if stmt.kind == .declaration {
-                let decl = stmt.asDeclaration
                 stmt.tokens.insert(dollar, at: 0)
-                stmt.value = AstNode.Declaration(identifier: decl.identifier, type: decl.type, value: decl.value, isCompileTime: true)
+                stmt.asDeclaration.isCompileTime = true
                 return stmt
             }
 
@@ -217,7 +211,7 @@ struct Parser {
             return AstNode(stmtReturn, tokens: [ŕeturn])
 
         case .directiveImport:
-            let ímport = advance()
+            let directive = advance()
 
             // 3 possibilities:
             // <string> <newline>
@@ -241,17 +235,17 @@ struct Parser {
 
             default:
                 reportError("Expected identifier to bind imported entities to or '.' to import them into the current scope", at: symboltok!)
-                return AstNode.invalid(with: [ímport, pathtok])
+                return AstNode.invalid(with: [directive, pathtok])
             }
 
             guard let importedFile = SourceFile.new(path: pathtok.stringValue, importedFrom: file) else {
                 reportError("Failed to open '\(pathtok.stringValue)' for reading", at: pathtok)
-                return AstNode.invalid(with: [ímport, pathtok])
+                return AstNode.invalid(with: [directive, pathtok])
             }
 
             let imp = AstNode.Import(path: pathtok.stringValue, symbol: symbol, includeSymbolsInParentScope: dot != nil, file: importedFile)
 
-            var tokens = [ímport, pathtok]
+            var tokens = [directive, pathtok]
             if let dot = dot {
                 tokens.append(dot)
             }
@@ -262,7 +256,7 @@ struct Parser {
             return node
 
         case .directiveLibrary:
-            let library = advance()
+            let directive = advance()
 
             let pathtok = advance(expecting: .string)
 
@@ -272,7 +266,30 @@ struct Parser {
             }
 
             let lib = AstNode.Library(path: pathtok.stringValue, symbol: symbol)
-            return AstNode(lib, tokens: [library, pathtok])
+            return AstNode(lib, tokens: [directive, pathtok])
+
+        case .directiveForeign:
+            let directive = advance()
+            let library = expression()
+
+            guard library.kind == .identifier else {
+                reportError("Expected identifier for library", at: library)
+                return AstNode.invalid
+            }
+
+            let stmt = expression()
+
+            if stmt.kind == .declaration {
+                stmt.asDeclaration.isForeign = true
+            } else if stmt.kind == .block {
+                stmt.asBlock.isForeign = true
+            } else {
+                reportError("Expected a declaration or block of declarations", at: stmt)
+            }
+
+            stmt.tokens.insert(directive, at: 0)
+
+            return stmt
 
         default:
             fatalError("Parser has no nud for \(token)")
@@ -335,7 +352,8 @@ struct Parser {
             guard let nextToken = lexer.peek(), nextToken.kind == .equals || nextToken.kind == .colon else {
                 // matches `x: foo`
                 assert(type != nil)
-                let decl = AstNode.Declaration(identifier: lvalue, type: type, value: .empty, isCompileTime: false)
+                let decl = AstNode.Declaration(identifier: lvalue, type: type, value: .empty,
+                                               isCompileTime: false, isForeign: false, linkName: nil)
                 return AstNode(decl, tokens: [colon])
             }
 
@@ -346,8 +364,26 @@ struct Parser {
             let value = expression(Token.Kind.equals.lbp)
             state = prevState
 
-            let decl = AstNode.Declaration(identifier: lvalue, type: type, value: value, isCompileTime: token.kind == .colon)
+            let decl = AstNode.Declaration(identifier: lvalue, type: type, value: value,
+                                           isCompileTime: token.kind == .colon, isForeign: false, linkName: nil)
             return AstNode(decl, tokens: [colon, token])
+
+        case .directiveLinkname:
+            let directive = advance()
+            let name = advance(expecting: .string)
+            guard lvalue.kind == .declaration else {
+                reportError("Linkname is only valid on declarations", at: directive)
+                return AstNode.invalid(with: [directive, name])
+            }
+
+            guard lvalue.asDeclaration.linkName == nil else {
+                reportError("At most 1 #linkname should appead on a declaration", at: directive)
+                return lvalue
+            }
+
+            lvalue.asDeclaration.linkName = name.stringValue
+
+            return lvalue
 
         default:
             fatalError()
@@ -381,6 +417,9 @@ extension Token.Kind {
     var lbp: UInt8 {
         switch self {
         case .colon, .equals:
+            return 10
+
+        case .directiveLinkname:
             return 10
 
         case .lparen:
