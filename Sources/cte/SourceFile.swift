@@ -48,7 +48,7 @@ final class SourceFile {
         if let importedFrom = importedFrom {
             pathRelativeToInitialFile = importedFrom.fullpath.dirname + path
         }
-        
+
         guard let fullpathC = realpath(pathRelativeToInitialFile, nil) else {
             return nil
         }

@@ -238,6 +238,22 @@ struct Lexer {
         }
     }
 
+    private mutating func consumeComment() -> String {
+        assert(scanner.hasPrefix("//"))
+        scanner.pop(2)
+
+        var comment = ""
+        while let char = scanner.peek(), char != "\n" {
+            comment.append(char)
+            scanner.pop()
+        }
+
+        assert(scanner.hasPrefix("\n"))
+        scanner.pop()
+
+        return comment
+    }
+
     private mutating func consumeLineComment() -> String {
         assert(scanner.hasPrefix("//"))
         scanner.pop(2)
@@ -370,7 +386,8 @@ extension Token {
         case keywordIf
         case keywordElse
         case keywordReturn
-
+        case keywordSwitch
+        case keywordCase
         case keywordStruct
 
         case directiveImport
@@ -448,11 +465,13 @@ extension Token: CustomStringConvertible {
         case .keywordIf: fallthrough
         case .keywordElse: fallthrough
         case .keywordReturn: fallthrough
+        case .keywordSwitch: fallthrough
+        case .keywordCase: fallthrough
         case .keywordStruct: fallthrough
         case .directiveImport: fallthrough
         case .directiveLibrary: fallthrough
         case .directiveForeign: fallthrough
-        case .directiveLinkname: fatalError()
+        case .directiveLinkname: return kind.description
         }
     }
 
@@ -486,6 +505,8 @@ extension Token.Kind: CustomStringConvertible {
         case .keywordIf: return "if"
         case .keywordElse: return "else"
         case .keywordReturn: return "return"
+        case .keywordSwitch: return "switch"
+        case .keywordCase: return "case"
         case .keywordStruct: return "struct"
         case .directiveImport: return "#import"
         case .directiveLibrary: return "#library"
@@ -496,4 +517,3 @@ extension Token.Kind: CustomStringConvertible {
         }
     }
 }
-

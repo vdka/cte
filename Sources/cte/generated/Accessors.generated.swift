@@ -34,6 +34,16 @@ extension AstNode {
         }
     }
 
+    var asCase: CommonCase {
+        get {
+            assert(kind == AstNode.Case.astKind)
+            return value as! CommonCase
+        }
+        set {
+            self.value = newValue
+        }
+    }
+
     var asComment: CommonComment {
         get {
             assert(kind == AstNode.Comment.astKind)
@@ -234,6 +244,16 @@ extension AstNode {
         }
     }
 
+    var asSwitch: CommonSwitch {
+        get {
+            assert(kind == AstNode.Switch.astKind)
+            return value as! CommonSwitch
+        }
+        set {
+            self.value = newValue
+        }
+    }
+
     var asCheckedAssign: Checker.Assign {
         get {
             assert(kind == Checker.Assign.astKind)
@@ -258,6 +278,16 @@ extension AstNode {
         get {
             assert(kind == Checker.Call.astKind)
             return value as! Checker.Call
+        }
+        set {
+            value = newValue
+        }
+    }
+
+    var asCheckedCase: Checker.Case {
+        get {
+            assert(kind == Checker.Case.astKind)
+            return value as! Checker.Case
         }
         set {
             value = newValue
@@ -393,6 +423,16 @@ extension AstNode {
             value = newValue
         }
     }
+
+    var asCheckedSwitch: Checker.Switch {
+        get {
+            assert(kind == Checker.Switch.astKind)
+            return value as! Checker.Switch
+        }
+        set {
+            value = newValue
+        }
+    }
 }
 
 
@@ -412,6 +452,12 @@ protocol CommonCall: AstValue {
 
     var callee: AstNode { get }
     var arguments: [AstNode] { get }
+}
+
+protocol CommonCase: AstValue {
+
+    var condition: AstNode? { get }
+    var body: [AstNode] { get }
 }
 
 protocol CommonComment: AstValue {
@@ -530,9 +576,16 @@ protocol CommonStringLiteral: AstValue {
     var value: String { get }
 }
 
+protocol CommonSwitch: AstValue {
+
+    var subject: AstNode? { get }
+    var cases: [AstNode] { get }
+}
+
 extension AstNode.Assign: CommonAssign {}
 extension AstNode.Block: CommonBlock {}
 extension AstNode.Call: CommonCall {}
+extension AstNode.Case: CommonCase {}
 extension AstNode.Comment: CommonComment {}
 extension AstNode.CompileTime: CommonCompileTime {}
 extension AstNode.Declaration: CommonDeclaration {}
@@ -553,9 +606,11 @@ extension AstNode.PointerType: CommonPointerType {}
 extension AstNode.Prefix: CommonPrefix {}
 extension AstNode.Return: CommonReturn {}
 extension AstNode.StringLiteral: CommonStringLiteral {}
+extension AstNode.Switch: CommonSwitch {}
 extension Checker.Assign: CommonAssign {}
 extension Checker.Block: CommonBlock {}
 extension Checker.Call: CommonCall {}
+extension Checker.Case: CommonCase {}
 extension Checker.Declaration: CommonDeclaration {}
 extension Checker.FloatLiteral: CommonFloatLiteral {}
 extension Checker.Function: CommonFunction {}
@@ -567,6 +622,7 @@ extension Checker.Paren: CommonParen {}
 extension Checker.PointerType: CommonPointerType {}
 extension Checker.Prefix: CommonPrefix {}
 extension Checker.StringLiteral: CommonStringLiteral {}
+extension Checker.Switch: CommonSwitch {}
 
 extension Type {
 

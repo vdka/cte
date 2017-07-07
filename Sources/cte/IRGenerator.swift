@@ -160,6 +160,14 @@ struct IRGenerator {
             let val = emitExpr(node: ret.value)
             builder.buildRet(val)
 
+        case .switch:
+            let świtch = node.asCheckedSwitch
+            if świtch.subject == nil {
+                emitBooleanesqueSwitch(świtch)
+            } else {
+                emitSwitch(świtch)
+            }
+
         default:
             fatalError()
         }
@@ -371,6 +379,64 @@ struct IRGenerator {
             specialization.llvm = function
         }
     }
+
+    func emitSwitch(_ świtch: Checker.Switch) {
+        let subject = świtch.subject!
+
+        let switchLn = subject.tokens.first!.start.line
+
+        let currentFunc = builder.currentFunction!
+        let currentBlock = builder.insertBlock!
+
+        let defaultBlock = currentFunc.appendBasicBlock(named: "switch.default.ln.\(switchLn)")
+        let postBlock = currentFunc.appendBasicBlock(named: "switch.post.ln.\(switchLn)")
+
+        // TODO(Brett): escape points
+        builder.positionAtEnd(of: currentBlock)
+        let value = emitExpr(node: subject)
+
+        var caseBlocks: [BasicBlock] = []
+        var constants: [IRValue] = []
+
+        for ćase in świtch.cases {
+            let ćase = ćase.asCheckedCase
+
+            let block: BasicBlock
+
+            if let match = ćase.condition {
+                constants.append(emitExpr(node: match))
+                let ln = match.tokens.first!.start.line
+                block = currentFunc.appendBasicBlock(named: "switch.case.ln.\(ln)")
+                caseBlocks.append(block)
+            } else {
+                block = defaultBlock
+            }
+
+            builder.positionAtEnd(of: block)
+            // TODO(Brett): update scope for case body
+            for stmt in ćase.body {
+                emit(node: stmt)
+            }
+
+            if builder.insertBlock!.terminator == nil {
+                builder.buildBr(postBlock)
+            }
+            assert(block.terminator != nil)
+
+            builder.positionAtEnd(of: currentBlock)
+        }
+
+        let switchPtr = builder.buildSwitch(value, else: defaultBlock, caseCount: constants.count)
+        for (constant, block) in zip(constants, caseBlocks) {
+            switchPtr.addCase(constant, block)
+        }
+
+        builder.positionAtEnd(of: postBlock)
+    }
+
+    func emitBooleanesqueSwitch(_ świtch: Checker.Switch) {
+        unimplemented("IRGen for booleanesque switch")
+    }
 }
 
 func canonicalize(_ type: Type) -> IRType {
@@ -425,4 +491,3 @@ func canonicalize(_ type: Type) -> IRType {
         fatalError() // these should not make it into IRGen (alternatively use these to gen typeinfo)
     }
 }
-

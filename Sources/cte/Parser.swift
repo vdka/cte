@@ -18,6 +18,7 @@ struct Parser {
 
         static let parseList            = State(rawValue: 0b0000_0001)
         static let isDeclarationValue   = State(rawValue: 0b0000_0010)
+        static let permitCase           = State(rawValue: 0b0000_0110)
     }
 
     mutating func parse() -> [AstNode] {
@@ -164,7 +165,7 @@ struct Parser {
             consumeNewlines()
 
             var params: [AstNode] = []
-            while true {
+            while lexer.peek()?.kind != .rparen {
 
                 let param = expression()
                 if state.contains(.isDeclarationValue), param.kind != .declaration {
@@ -200,6 +201,75 @@ struct Parser {
             let function = AstNode.Function(parameters: params, returnType: returnType, body: body)
 
             return AstNode(function, tokens: [fnToken, lparen, rparen, returnArrow])
+
+        case .keywordSwitch:
+            let switchToken = advance()
+
+            let subject: AstNode?
+            switch lexer.peek()?.kind {
+            case .lbrace?:
+                subject = nil
+
+            default:
+                subject = expression()
+            }
+
+            let lbrace = advance(expecting: .lbrace)
+
+            let prevState = state
+            defer { state = prevState }
+            state.insert(.permitCase)
+
+            var cases: [AstNode] = []
+
+            while lexer.peek()?.kind != .rbrace {
+                let expr = expression()
+                cases.append(expr)
+                consumeNewlines()
+            }
+
+            let rbrace = advance(expecting: .rbrace)
+
+            let świtch = AstNode.Switch(subject: subject, cases: cases)
+            return AstNode(świtch, tokens: [switchToken, lbrace, rbrace])
+
+        case .keywordCase:
+            let startToken = advance()
+            let isDefault = lexer.peek()?.kind == .colon
+
+            guard state.contains(.permitCase) else {
+                reportError("Unexpected case outside of switch", at: startToken)
+                if lexer.peek()?.kind == .colon { advance() }
+                return AstNode.invalid
+            }
+
+            var match: AstNode?
+            if !isDefault {
+                match = expression(Token.Kind.colon.lbp - 1)
+            }
+
+            let colon = advance(expecting: .colon)
+            consumeNewlines()
+
+            var body: [AstNode] = []
+            if lexer.peek()?.kind == .keywordCase {
+                body.append(.invalid)
+
+                if isDefault {
+                    reportError("`default` label in a `switch` must have exactly one executable statement or `break`", at: lexer)
+                } else {
+                    reportError("`case` label in a `switch` must have exactly one executable statement, `fallthrough` or `break`", at: lexer)
+                }
+            } else {
+                while let token = lexer.peek()?.kind, token != .keywordCase, token != .rbrace {
+                    let expr = expression()
+                    body.append(expr)
+                    consumeNewlines()
+                }
+            }
+
+            let ćase = AstNode.Case(condition: match, body: body)
+            return AstNode(ćase, tokens: [startToken, colon])
 
         case .keywordReturn:
             let ŕeturn = advance()
