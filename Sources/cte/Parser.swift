@@ -159,6 +159,9 @@ struct Parser {
             let stmtIf = AstNode.If(condition: cond, thenStmt: body, elseStmt: elseStmt)
             return AstNode(stmtIf, tokens: [ifToken, elseToken])
 
+        case .keywordFor:
+            let forToken = advance()
+
         case .keywordFn:
             let fnToken = advance()
 

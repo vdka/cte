@@ -94,6 +94,16 @@ extension AstNode {
         }
     }
 
+    var asFor: CommonFor {
+        get {
+            assert(kind == AstNode.For.astKind)
+            return value as! CommonFor
+        }
+        set {
+            self.value = newValue
+        }
+    }
+
     var asForeign: CommonForeign {
         get {
             assert(kind == AstNode.Foreign.astKind)
@@ -489,6 +499,14 @@ protocol CommonFloatLiteral: AstValue {
     var value: Double { get }
 }
 
+protocol CommonFor: AstValue {
+
+    var initialiser: AstNode? { get }
+    var condition: AstNode? { get }
+    var step: AstNode? { get }
+    var body: AstNode { get }
+}
+
 protocol CommonForeign: AstValue {
 
     var library: AstNode { get }
@@ -593,6 +611,7 @@ extension AstNode.CompileTime: CommonCompileTime {}
 extension AstNode.Declaration: CommonDeclaration {}
 extension AstNode.Empty: CommonEmpty {}
 extension AstNode.FloatLiteral: CommonFloatLiteral {}
+extension AstNode.For: CommonFor {}
 extension AstNode.Foreign: CommonForeign {}
 extension AstNode.Function: CommonFunction {}
 extension AstNode.FunctionType: CommonFunctionType {}

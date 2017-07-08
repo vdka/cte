@@ -174,6 +174,7 @@ struct Lexer {
                 case "fn":       kind = .keywordFn
                 case "if":       kind = .keywordIf
                 case "else":     kind = .keywordElse
+                case "for":      kind = .keywordFor
                 case "return":   kind = .keywordReturn
                 case "struct":   kind = .keywordStruct
                 case "switch":   kind = .keywordSwitch
@@ -395,6 +396,7 @@ extension Token {
         case keywordFn
         case keywordIf
         case keywordElse
+        case keywordFor
         case keywordReturn
         case keywordSwitch
         case keywordCase
@@ -475,6 +477,7 @@ extension Token: CustomStringConvertible {
         case .keywordFn: fallthrough
         case .keywordIf: fallthrough
         case .keywordElse: fallthrough
+        case .keywordFor: fallthrough
         case .keywordReturn: fallthrough
         case .keywordSwitch: fallthrough
         case .keywordCase: fallthrough
@@ -517,6 +520,7 @@ extension Token.Kind: CustomStringConvertible {
         case .keywordFn: return "fn"
         case .keywordIf: return "if"
         case .keywordElse: return "else"
+        case .keywordFor: return "for"
         case .keywordReturn: return "return"
         case .keywordSwitch: return "switch"
         case .keywordCase: return "case"

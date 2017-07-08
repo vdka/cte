@@ -45,6 +45,7 @@ enum AstKind {
     case cast
     case block
     case `if`
+    case `for`
     case `switch`
     case `case`
     case `return`
@@ -202,6 +203,15 @@ extension AstNode {
         let condition: AstNode
         let thenStmt: AstNode
         let elseStmt: AstNode?
+    }
+
+    struct For: AstValue {
+        static let astKind = AstKind.for
+
+        let initialiser: AstNode?
+        let condition: AstNode?
+        let step: AstNode?
+        let body: AstNode
     }
 
     struct Switch: AstValue {
