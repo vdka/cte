@@ -117,6 +117,7 @@ extension AstNode {
         var parameters: [AstNode]
         var returnType: AstNode
         let body: AstNode
+        let isVariadic: Bool
     }
 
     struct FunctionType: AstValue {
@@ -124,6 +125,7 @@ extension AstNode {
 
         let parameters: [AstNode]
         let returnType: AstNode
+        let isVariadic: Bool
     }
 
     struct PointerType: AstValue {

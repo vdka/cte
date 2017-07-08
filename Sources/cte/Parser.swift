@@ -163,8 +163,18 @@ struct Parser {
             let lparen = advance(expecting: .lparen)
             consumeNewlines()
 
+            var isVariadic: Bool = false
             var params: [AstNode] = []
-            while true {
+            while lexer.peek()?.kind != .rparen {
+
+                if lexer.peek()?.kind == .ellipsis { // printf :: fn (fmt: string, ..any) -> i32
+                    advance()
+                    isVariadic = true
+                }
+                if lexer.peek(aheadBy: 2)?.kind == .ellipsis { // printf :: fn (fmt: string, args: ..any) -> i32
+                    isVariadic = true
+                    lexer.buffer.remove(at: 2)
+                }
 
                 let param = expression()
                 if state.contains(.isDeclarationValue), param.kind != .declaration {
@@ -177,6 +187,10 @@ struct Parser {
                 }
                 advance(expecting: .comma)
                 consumeNewlines()
+
+                if isVariadic {
+                    break
+                }
             }
 
             consumeNewlines()
@@ -187,7 +201,7 @@ struct Parser {
             let returnType = expression(Token.Kind.equals.lbp)
 
             if lexer.peek()?.kind != .lbrace {
-                let functionType = AstNode.FunctionType(parameters: params, returnType: returnType)
+                let functionType = AstNode.FunctionType(parameters: params, returnType: returnType, isVariadic: isVariadic)
                 return AstNode(functionType, tokens: [fnToken, lparen, rparen, returnArrow])
             }
 
@@ -197,7 +211,7 @@ struct Parser {
                 reportError("Body of a function should be a block statement", at: body)
             }
 
-            let function = AstNode.Function(parameters: params, returnType: returnType, body: body)
+            let function = AstNode.Function(parameters: params, returnType: returnType, body: body, isVariadic: isVariadic)
 
             return AstNode(function, tokens: [fnToken, lparen, rparen, returnArrow])
 

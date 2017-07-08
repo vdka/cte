@@ -454,12 +454,14 @@ protocol CommonFunction: AstValue {
     var parameters: [AstNode] { get set }
     var returnType: AstNode { get set }
     var body: AstNode { get }
+    var isVariadic: Bool { get }
 }
 
 protocol CommonFunctionType: AstValue {
 
     var parameters: [AstNode] { get }
     var returnType: AstNode { get }
+    var isVariadic: Bool { get }
 }
 
 protocol CommonIdentifier: AstValue {
