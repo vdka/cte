@@ -182,12 +182,10 @@ struct Parser {
                     // Check if we have 2 cases already. If so, that means the
                     // 3rd case is empty. If not, we unexpectedly hit an `{`
                     if exprs.count == 2 {
-                        exprs.append(AstNode.empty)
-                    } else if exprs.count != 3 {
                         reportError("Unexpected `{` in `for` statement.", at: forToken)
                         attachNote("`for` statements require 0, 1 or 3 statements joined by `;`")
                         // try to recover from this error so we can continue diagnostics
-                        exprs.append(contentsOf: Array(repeating: AstNode.invalid, count: 3 - exprs.count))
+                        exprs.append(AstNode.empty)
                     }
 
                     break
