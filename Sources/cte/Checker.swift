@@ -141,6 +141,35 @@ extension Checker {
                 check(node: elsé)
             }
 
+        case .for:
+            let för = node.asFor
+
+            // This scope ensures that the `initialiser`, `condition` and `step` of the
+            // `for` statement have their own block. So, they can shadow values
+            // and be shadowed themselves. This scope is not redundant.
+            let prevScope = currentScope
+            currentScope = Scope(parent: currentScope)
+            defer {
+                currentScope = prevScope
+            }
+
+            if let initialiser = för.initialiser {
+                check(node: initialiser)
+            }
+
+            if let condition = för.condition {
+                let condType = checkExpr(node: condition, desiredType: Type.bool)
+                if condType != Type.bool {
+                    reportError("Cannot convert type '\(condition)' to expected type 'bool'", at: condition)
+                }
+            }
+
+            if let step = för.step {
+                check(node: step)
+            }
+
+            check(node: för.body)
+
         case .switch:
             let świtch = node.asSwitch
             var subjectType: Type?

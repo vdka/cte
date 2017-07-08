@@ -155,6 +155,10 @@ struct IRGenerator {
 
             builder.positionAtEnd(of: postBlock)
 
+        case .for:
+            let för = node.asFor
+            emitFor(för)
+
         case .return:
             let ret = node.asReturn
             let val = emitExpr(node: ret.value)
@@ -378,6 +382,73 @@ struct IRGenerator {
 
             specialization.llvm = function
         }
+    }
+
+    func emitFor(_ för: CommonFor) {
+        let currentFunc = builder.currentFunction!
+
+        var loopBody: BasicBlock
+        var loopPost: BasicBlock
+        var loopCond: BasicBlock?
+        var loopStep: BasicBlock?
+
+        if let initialiser = för.initialiser {
+            emit(node: initialiser)
+        }
+
+        if let condition = för.condition {
+            loopCond = currentFunc.appendBasicBlock(named: "for.cond")
+            if för.step != nil {
+                loopStep = currentFunc.appendBasicBlock(named: "for.step")
+            }
+
+            loopBody = currentFunc.appendBasicBlock(named: "for.body")
+            loopPost = currentFunc.appendBasicBlock(named: "for.post")
+
+            builder.buildBr(loopCond!)
+            builder.positionAtEnd(of: loopCond!)
+
+            let condVal = emitExpr(node: condition)
+            builder.buildCondBr(condition: condVal, then: loopBody, else: loopPost)
+        } else {
+            if för.step != nil {
+                loopStep = currentFunc.appendBasicBlock(named: "for.step")
+            }
+
+            loopBody = currentFunc.appendBasicBlock(named: "for.body")
+            loopPost = currentFunc.appendBasicBlock(named: "for.post")
+
+            builder.buildBr(loopBody)
+        }
+
+        //TODO(Brett): escape points
+        builder.positionAtEnd(of: loopBody)
+
+        emit(node: för.body)
+
+        let hasJump = builder.insertBlock?.terminator != nil
+
+        if let step = för.step {
+            if !hasJump {
+                builder.buildBr(loopStep!)
+            }
+
+            builder.positionAtEnd(of: loopStep!)
+            emit(node: step)
+            builder.buildBr(loopCond!)
+        } else if let loopCond = loopCond {
+            // `for x < 5 { /* ... */ }` || `for i := 1; x < 5; { /* ... */ }`
+            if !hasJump {
+                builder.buildBr(loopCond)
+            }
+        } else {
+            // `for { /* ... */ }`
+            if !hasJump {
+                builder.buildBr(loopBody)
+            }
+        }
+
+        builder.positionAtEnd(of: loopPost)
     }
 
     func emitSwitch(_ świtch: Checker.Switch) {

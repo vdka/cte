@@ -155,7 +155,7 @@ struct Lexer {
             scanner.pop()
 
             kind = .string
-            value = string
+            value = string.replacingOccurrences(of: "\\n", with: "\n")
 
         default:
             charactersToPop = 0
