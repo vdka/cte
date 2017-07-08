@@ -109,6 +109,10 @@ extension AstNode: CustomStringConvertible {
             }
             return "if " + cond + " " + then + elsé
 
+        case .for:
+            //TODO(Brett): finishs
+            return "for"
+
         case .switch:
             let świtch = asSwitch
 

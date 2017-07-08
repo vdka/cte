@@ -79,6 +79,7 @@ struct Lexer {
         case "{":  kind = .lbrace
         case "}":  kind = .rbrace
         case ":":  kind = .colon
+        case ";":  kind = .semicolon
         case ",":  kind = .comma
         case "$":  kind = .dollar
         case "+":  kind = .plus
@@ -384,6 +385,7 @@ extension Token {
 
         // Punctuation
         case comma
+        case semicolon
 
         // Operators
         case lt
@@ -459,6 +461,7 @@ extension Token: CustomStringConvertible {
         case .lbrace: fallthrough
         case .rbrace: fallthrough
         case .colon: fallthrough
+        case .semicolon: fallthrough
         case .dot: fallthrough
         case .ellipsis: fallthrough
         case .dollar: fallthrough
@@ -502,6 +505,7 @@ extension Token.Kind: CustomStringConvertible {
         case .lbrace: return "{"
         case .rbrace: return "}"
         case .colon: return ":"
+        case .semicolon: return ";"
         case .dot: return "."
         case .ellipsis: return ".."
         case .dollar: return "$"

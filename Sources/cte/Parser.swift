@@ -162,6 +162,65 @@ struct Parser {
         case .keywordFor:
             let forToken = advance()
 
+            // Check for infinite loop
+            guard lexer.peek()?.kind != .lbrace else {
+                let body = expression()
+                let stmtFor = AstNode.For(initialiser: nil, condition: nil, step: nil, body: body)
+                return AstNode(stmtFor, tokens: [forToken])
+            }
+
+            var exprs: [AstNode] =  []
+            while exprs.count <= 3 {
+                let token = lexer.peek()?.kind
+                guard token != .semicolon else {
+                    let semicolon = advance()
+                    exprs.append(AstNode(AstNode.Empty(), tokens: [semicolon]))
+                    continue
+                }
+
+                guard token != .lbrace else {
+                    // Check if we have 2 cases already. If so, that means the
+                    // 3rd case is empty. If not, we unexpectedly hit an `{`
+                    if exprs.count == 2 {
+                        exprs.append(AstNode.empty)
+                    } else {
+                        reportError("Unexpected `{` in `for` statement.", at: forToken)
+                        attachNote("`for` statements require 0, 1 or 3 statements joined by `;`")
+                        // try to recover from this error so we can continue diagnostics
+                        exprs.append(contentsOf: Array(repeating: AstNode.invalid, count: 3 - exprs.count))
+                    }
+
+                    break
+                }
+
+                exprs.append(expression())
+
+                if token == .semicolon {
+                    advance()
+                }
+            }
+
+            let body = expression()
+
+            var initialiser: AstNode?
+            var condition: AstNode?
+            var step: AstNode?
+
+            switch exprs.count {
+            case 1:
+                print("for had 1!")
+            case 2:
+                print("for had 2!")
+            case 3:
+                print("for had 3!")
+            default:
+                reportError("`for` statements require 0, 1 or 3 statements", at: forToken)
+                return AstNode.invalid(with: [forToken])
+            }
+
+            let för = AstNode.For(initialiser: initialiser, condition: condition, step: step, body: body)
+            return AstNode.init(för, tokens: [forToken])
+
         case .keywordFn:
             let fnToken = advance()
 
@@ -480,7 +539,7 @@ struct Parser {
     }
 
     mutating func consumeNewlines() {
-        while lexer.peek()?.kind == .newline {
+        while let token = lexer.peek()?.kind, token == .newline || token == .semicolon {
             advance()
         }
     }

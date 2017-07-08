@@ -22,7 +22,8 @@ sub :: fn (foo: i64) -> i64 {
 }
 
 test :: fn (a: i64) -> i64 {
-    for i := 0; i < 10; i += 1 {
+    for ;{
+        // putting a comment here... because...
         a := 5
     }
 }
