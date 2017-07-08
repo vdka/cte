@@ -114,9 +114,10 @@ struct Parser {
 
         case .lbrace:
             let lbrace = advance()
+            consumeNewlines()
 
             var stmts: [AstNode] = []
-            while let nextToken = lexer.peek(), nextToken.kind != .rbrace {
+            while lexer.peek()?.kind != .rbrace {
                 let stmt = expression()
                 stmts.append(stmt)
             }
@@ -322,19 +323,18 @@ struct Parser {
         switch token.kind {
         case .lparen:
             let lparen = advance()
+            consumeNewlines()
 
             var arguments: [AstNode] = []
-            if let nextToken = lexer.peek(), nextToken.kind != .rparen {
-                while true {
+            while lexer.peek()?.kind != .rparen {
 
-                    let argument = expression()
-                    arguments.append(argument)
+                let argument = expression()
+                arguments.append(argument)
 
-                    if lexer.peek()?.kind != .comma {
-                        break
-                    }
-                    advance(expecting: .comma)
+                if lexer.peek()?.kind != .comma {
+                    break
                 }
+                advance(expecting: .comma)
             }
 
             let rparen = advance(expecting: .rparen)
