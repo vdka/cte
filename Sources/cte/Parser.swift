@@ -245,7 +245,7 @@ struct Parser {
 
             var match: AstNode?
             if !isDefault {
-                match = expression(Token.Kind.colon.lbp - 1)
+                match = expression(Token.Kind.colon.lbp)
             }
 
             let colon = advance(expecting: .colon)
