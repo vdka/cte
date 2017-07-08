@@ -72,6 +72,14 @@ class Type: Hashable, CustomStringConvertible {
         return kind == .void
     }
 
+    var isBoolean: Bool {
+        return kind == .boolean
+    }
+
+    var isBooleanesque: Bool {
+        return isBoolean || isNumber
+    }
+
     var isNumber: Bool {
         return isInteger || isFloatingPoint
     }

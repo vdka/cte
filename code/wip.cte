@@ -21,6 +21,15 @@ sub :: fn (foo: i64) -> i64 {
     return foo - 1
 }
 
+test :: fn (a: i64) -> i64 {
+    switch {
+    case a < 10: return 100
+    case: return 999
+    }
+
+    return 5
+}
+
 a : f64 = 5.0
 b : i64 = 3
 c := min(f64, a, 4)

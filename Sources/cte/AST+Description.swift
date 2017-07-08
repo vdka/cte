@@ -100,15 +100,26 @@ extension AstNode: CustomStringConvertible {
             return "{\n" + stmts + "\n}"
 
         case .if:
-            let iff = asIf
-            let cond = iff.condition.description
-            let then = iff.thenStmt.description
+            let íf = asIf
+            let cond = íf.condition.description
+            let then = íf.thenStmt.description
             var elsé = ""
-            if let elseStmt = iff.elseStmt {
+            if let elseStmt = íf.elseStmt {
                 elsé = " else " + elseStmt.description
             }
             return "if " + cond + " " + then + elsé
 
+        case .switch:
+            let świtch = asSwitch
+
+            let subject = świtch.subject?.description ?? ""
+            let cases = świtch.cases.map({ $0.description }).joined(separator: "\n")
+            return "switch \(subject){\n" + cases + "\n}"
+
+        case .case:
+            let ćase = asCase
+
+            return "case \(ćase.condition?.description ?? ""):"
         case .return:
             let ret = asReturn
             return "return " + ret.value.description

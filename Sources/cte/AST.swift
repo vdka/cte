@@ -45,6 +45,8 @@ enum AstKind {
     case cast
     case block
     case `if`
+    case `switch`
+    case `case`
     case `return`
     case compileTime
     case pointerType
@@ -200,6 +202,20 @@ extension AstNode {
         let condition: AstNode
         let thenStmt: AstNode
         let elseStmt: AstNode?
+    }
+
+    struct Switch: AstValue {
+        static let astKind = AstKind.switch
+
+        let subject: AstNode?
+        let cases: [AstNode]
+    }
+
+    struct Case: AstValue {
+        static let astKind = AstKind.case
+
+        let condition: AstNode?
+        let block: AstNode
     }
 
     struct Return: AstValue {

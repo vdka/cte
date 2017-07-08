@@ -25,6 +25,12 @@ extension AstValue {
                 arguments: value.arguments.map({ $0.copy() })
         )
 
+        case let value as AstNode.Case:
+            return AstNode.Case(
+                condition: value.condition?.copy(),
+                block: value.block.copy()
+        )
+
         case let value as AstNode.Comment:
             return AstNode.Comment(
                 comment: value.comment
@@ -141,6 +147,12 @@ extension AstValue {
                 value: value.value
         )
 
+        case let value as AstNode.Switch:
+            return AstNode.Switch(
+                subject: value.subject?.copy(),
+                cases: value.cases.map({ $0.copy() })
+        )
+
         case let value as Checker.Assign:
             return Checker.Assign(
                 lvalue: value.lvalue.copy(),
@@ -160,6 +172,13 @@ extension AstValue {
                 arguments: value.arguments.map({ $0.copy() }),
                 specialization: value.specialization?.copy(),
                 type: value.type.copy()
+        )
+
+        case let value as Checker.Case:
+            return Checker.Case(
+                condition: value.condition?.copy(),
+                block: value.block.copy(),
+                scope: value.scope.copy()
         )
 
         case let value as Checker.Cast:
@@ -262,6 +281,12 @@ extension AstValue {
             return Checker.StringLiteral(
                 value: value.value,
                 type: value.type.copy()
+        )
+
+        case let value as Checker.Switch:
+            return Checker.Switch(
+                subject: value.subject?.copy(),
+                cases: value.cases.map({ $0.copy() })
         )
 
         default:

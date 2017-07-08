@@ -176,6 +176,8 @@ struct Lexer {
                 case "else":     kind = .keywordElse
                 case "return":   kind = .keywordReturn
                 case "struct":   kind = .keywordStruct
+                case "switch":   kind = .keywordSwitch
+                case "case":     kind = .keywordCase
                 case "#import":  kind = .directiveImport
                 case "#library": kind = .directiveLibrary
                 case "#foreign": kind = .directiveForeign
@@ -242,6 +244,22 @@ struct Lexer {
             lastLocation = token.location
             return token
         }
+    }
+
+    private mutating func consumeComment() -> String {
+        assert(scanner.hasPrefix("//"))
+        scanner.pop(2)
+
+        var comment = ""
+        while let char = scanner.peek(), char != "\n" {
+            comment.append(char)
+            scanner.pop()
+        }
+
+        assert(scanner.hasPrefix("\n"))
+        scanner.pop()
+
+        return comment
     }
 
     private mutating func consumeLineComment() -> String {
@@ -378,7 +396,8 @@ extension Token {
         case keywordIf
         case keywordElse
         case keywordReturn
-
+        case keywordSwitch
+        case keywordCase
         case keywordStruct
 
         case directiveImport
@@ -457,6 +476,8 @@ extension Token: CustomStringConvertible {
         case .keywordIf: fallthrough
         case .keywordElse: fallthrough
         case .keywordReturn: fallthrough
+        case .keywordSwitch: fallthrough
+        case .keywordCase: fallthrough
         case .keywordStruct: fallthrough
         case .directiveImport: fallthrough
         case .directiveLibrary: fallthrough
@@ -497,6 +518,8 @@ extension Token.Kind: CustomStringConvertible {
         case .keywordIf: return "if"
         case .keywordElse: return "else"
         case .keywordReturn: return "return"
+        case .keywordSwitch: return "switch"
+        case .keywordCase: return "case"
         case .keywordStruct: return "struct"
         case .directiveImport: return "#import"
         case .directiveLibrary: return "#library"
@@ -507,4 +530,3 @@ extension Token.Kind: CustomStringConvertible {
         }
     }
 }
-

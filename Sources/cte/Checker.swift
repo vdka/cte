@@ -141,6 +141,65 @@ extension Checker {
                 check(node: elsé)
             }
 
+        case .switch:
+            let świtch = node.asSwitch
+            var subjectType: Type?
+
+            if let subject = świtch.subject {
+                subjectType = checkExpr(node: subject)
+            }
+
+            var seenDefaultCase = false
+            var checkedCases: [AstNode] = []
+            for ćase in świtch.cases {
+                guard ćase.kind == .case else {
+                    reportError("Expected `case` block in `switch`, got: \(ćase)", at: ćase)
+                    continue
+                }
+
+                guard !seenDefaultCase else {
+                    reportError("Additional `case` blocks cannot be after a `default` block", at: ćase)
+                    continue
+                }
+
+                let asCase = ćase.asCase
+                if let match = asCase.condition {
+                    let matchType = checkExpr(node: match)
+
+                    if let subjectType = subjectType {
+                        guard matchType == subjectType else {
+                            reportError("Cannot convert type `\(matchType)` to expected type `\(subjectType)`", at: match)
+                            continue
+                        }
+                    } else /* booleanesque */ {
+                        guard matchType.isBooleanesque else {
+                            reportError("Non-bool `\(match)` (type `\(matchType)`) used as condition", at: match)
+                            continue
+                        }
+                    }
+                } else {
+                    seenDefaultCase = true
+                }
+
+                let prevScope = currentScope
+                currentScope = Scope(parent: currentScope)
+                defer {
+                    currentScope = prevScope
+                }
+
+                check(node: asCase.block)
+
+                ćase.value = Case(condition: asCase.condition, block: asCase.block, scope: currentScope)
+                checkedCases.append(ćase)
+            }
+
+            guard seenDefaultCase else {
+                reportError("A `switch` statement must have a default block\n    Note: try adding `case:` block", at: node)
+                return
+            }
+
+            node.value = Switch(subject: świtch.subject, cases: checkedCases)
+
         case .return:
             let ret = node.asReturn
             let type = checkExpr(node: ret.value, desiredType: currentExpectedReturnType!)
@@ -730,7 +789,7 @@ extension Checker {
         currentSpecializationCall = callNode
         check(node: fn.body)
         currentSpecializationCall = nil
- 
+
         let strippedFunction = Type.Function(node: fnNode, params: strippedParamTypes,
                                              returnType: returnType, isVariadic: fn.isVariadic, needsSpecialization: false)
         let strippedType = Type(value: strippedFunction, entity: Entity.anonymous)
@@ -960,7 +1019,7 @@ extension Checker {
         let value: AstNode
         var isCompileTime: Bool
         var isForeign: Bool
-        
+
         var linkName: String?
 
         let entity: Entity
@@ -1029,6 +1088,21 @@ extension Checker {
 
         let stmts: [AstNode]
         var isForeign: Bool
+        let scope: Scope
+    }
+
+    struct Switch: CheckedAstValue {
+        typealias UncheckedValue = AstNode.Switch
+
+        let subject: AstNode?
+        let cases: [AstNode]
+    }
+
+    struct Case: CheckedAstValue {
+        typealias UncheckedValue = AstNode.Case
+
+        let condition: AstNode?
+        let block: AstNode
         let scope: Scope
     }
 }

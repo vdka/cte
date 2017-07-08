@@ -67,4 +67,3 @@ fileprivate func formatMessage(severity: String = "ERROR", _ message: String, _ 
 
     return formatted
 }
-
