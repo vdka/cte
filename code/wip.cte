@@ -22,13 +22,12 @@ sub :: fn (foo: i64) -> i64 {
 }
 
 test :: fn () -> i64 {
-    a := 10
-    switch a {
-    case 10:
-        a := 99
-        return 100
+    switch {
+    case 10 <= 10: return 100
     case: return 999
     }
+
+    return 5
 }
 
 a : f64 = 5.0

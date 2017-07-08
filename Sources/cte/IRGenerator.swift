@@ -433,7 +433,62 @@ struct IRGenerator {
     }
 
     func emitBooleanesqueSwitch(_ świtch: Checker.Switch) {
-        unimplemented("IRGen for booleanesque switch")
+        let switchLn = świtch.cases.first!.tokens.first!.start.line
+
+        let currentFunc = builder.currentFunction!
+        let currentBlock = builder.insertBlock!
+
+        let postBlock = currentFunc.appendBasicBlock(named: "bswitch.post.ln.\(switchLn)")
+
+        // TODO(Brett): escape points
+        var condBlocks: [BasicBlock] = []
+        var thenBlocks: [BasicBlock] = []
+
+        for i in 0..<świtch.cases.count {
+            let ln = świtch.cases[i].tokens.first!.start.line
+            condBlocks.append(currentFunc.appendBasicBlock(named: "bswitch.cond.ln.\(ln)"))
+            thenBlocks.append(currentFunc.appendBasicBlock(named: "bswitch.then.ln.\(ln)"))
+        }
+
+        builder.positionAtEnd(of: currentBlock)
+
+        for (i, caseStmt) in świtch.cases.enumerated() {
+            let caseStmt = caseStmt.asCheckedCase
+
+            let nextCondBlock = condBlocks[safe: i+1] ?? postBlock
+            let condBlock: BasicBlock
+
+            if i == 0 {
+                // the first conditional needs to be in the starting block
+                condBlock = currentBlock
+                condBlocks[i].removeFromParent()
+            } else {
+                condBlock = condBlocks[i]
+            }
+
+            let thenBlock = thenBlocks[i]
+
+            builder.positionAtEnd(of: condBlock)
+
+            if let match = caseStmt.condition {
+                let cond = emitExpr(node: match)
+                builder.buildCondBr(condition: cond, then: thenBlock, else: nextCondBlock)
+            } else {
+                // this is the default case. Will just jump to the `then` block
+                builder.buildBr(thenBlock)
+            }
+
+            builder.positionAtEnd(of: thenBlock)
+            emit(node: caseStmt.block)
+
+            builder.positionAtEnd(of: thenBlock)
+            if thenBlock.terminator == nil {
+                builder.buildBr(postBlock)
+            }
+        }
+
+        postBlock.moveAfter(thenBlocks.last!)
+        builder.positionAtEnd(of: postBlock)
     }
 }
 
