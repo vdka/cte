@@ -69,13 +69,15 @@ extension AstValue {
             return AstNode.Function(
                 parameters: value.parameters.map({ $0.copy() }),
                 returnType: value.returnType.copy(),
-                body: value.body.copy()
+                body: value.body.copy(),
+                isVariadic: value.isVariadic
         )
 
         case let value as AstNode.FunctionType:
             return AstNode.FunctionType(
                 parameters: value.parameters.map({ $0.copy() }),
-                returnType: value.returnType.copy()
+                returnType: value.returnType.copy(),
+                isVariadic: value.isVariadic
         )
 
         case let value as AstNode.Identifier:
@@ -209,6 +211,7 @@ extension AstValue {
                 parameters: value.parameters.map({ $0.copy() }),
                 returnType: value.returnType.copy(),
                 body: value.body.copy(),
+                isVariadic: value.isVariadic,
                 scope: value.scope.copy(),
                 isSpecialization: value.isSpecialization,
                 type: value.type.copy()
@@ -218,6 +221,7 @@ extension AstValue {
             return Checker.FunctionType(
                 parameters: value.parameters.map({ $0.copy() }),
                 returnType: value.returnType.copy(),
+                isVariadic: value.isVariadic,
                 type: value.type.copy()
         )
 
@@ -261,6 +265,7 @@ extension AstValue {
                 parameters: value.parameters.map({ $0.copy() }),
                 returnType: value.returnType.copy(),
                 body: value.body.copy(),
+                isVariadic: value.isVariadic,
                 type: value.type.copy(),
                 specializations: value.specializations
         )

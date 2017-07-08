@@ -4,8 +4,7 @@
 #import "math/circle.cte" .
 
 #foreign libc {
-    printf :: fn (fmt: string) -> i32
-    exit :: fn (code: i32) -> i32
+    printf :: fn (fmt: string, args: ..f64) -> i32
 }
 
 
@@ -50,7 +49,7 @@ h = g(8)
 
 i := circumference(tau)
 
-p := printf("printf")
+p := printf("val: %f", 5.0)
 
 addrA := &a
 valA := <addrA

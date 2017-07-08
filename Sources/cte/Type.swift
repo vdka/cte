@@ -174,6 +174,7 @@ extension Type {
         var node: AstNode
         var params: [Type]
         var returnType: Type
+        var isVariadic: Bool
         var needsSpecialization: Bool
     }
 

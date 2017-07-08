@@ -79,13 +79,19 @@ struct Lexer {
         case "{":  kind = .lbrace
         case "}":  kind = .rbrace
         case ":":  kind = .colon
-        case ".":  kind = .dot
         case ",":  kind = .comma
         case "$":  kind = .dollar
         case "+":  kind = .plus
         case "*":  kind = .asterix
         case "&":  kind = .ampersand
         case "=":  kind = .equals
+        case ".":
+            guard !scanner.hasPrefix("..") else {
+                charactersToPop = 2
+                kind = .ellipsis
+                break
+            }
+            kind = .dot
         case "<":
             guard !scanner.hasPrefix("<=") else {
                 charactersToPop = 2
@@ -364,6 +370,8 @@ extension Token {
         case colon
         case dot
 
+        case ellipsis
+
         case dollar
 
         case equals
@@ -450,6 +458,7 @@ extension Token: CustomStringConvertible {
         case .rbrace: fallthrough
         case .colon: fallthrough
         case .dot: fallthrough
+        case .ellipsis: fallthrough
         case .dollar: fallthrough
         case .equals: fallthrough
         case .plus: fallthrough
@@ -473,7 +482,8 @@ extension Token: CustomStringConvertible {
         case .directiveImport: fallthrough
         case .directiveLibrary: fallthrough
         case .directiveForeign: fallthrough
-        case .directiveLinkname: return kind.description
+        case .directiveLinkname:
+            return kind.description
         }
     }
 
@@ -490,6 +500,7 @@ extension Token.Kind: CustomStringConvertible {
         case .rbrace: return "}"
         case .colon: return ":"
         case .dot: return "."
+        case .ellipsis: return ".."
         case .dollar: return "$"
         case .equals: return "="
         case .plus: return "+"

@@ -471,14 +471,16 @@ func canonicalize(_ type: Type) -> IRType {
         let fn = type.asFunction
 
         var paramTypes: [IRType] = []
-        for param in fn.params {
+
+        let requiredParams = fn.isVariadic ? fn.params[..<fn.params.lastIndex] : ArraySlice(fn.params)
+        for param in requiredParams {
 
             paramTypes.append(canonicalize(param))
         }
 
         let retType = canonicalize(fn.returnType)
 
-        return FunctionType(argTypes: paramTypes, returnType: retType)
+        return FunctionType(argTypes: paramTypes, returnType: retType, isVarArg: fn.isVariadic)
 
     case .pointer:
         let pointer = type.asPointer

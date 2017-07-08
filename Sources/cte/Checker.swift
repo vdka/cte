@@ -115,7 +115,9 @@ extension Checker {
             for node in block.stmts {
                 if block.isForeign {
                     guard node.kind == .declaration else {
-                        reportError("Only declarations are valid within a foreign block", at: node)
+                        if node.kind != .comment {
+                            reportError("Only declarations are valid within a foreign block", at: node)
+                        }
                         continue
                     }
                     node.asDeclaration.isForeign = true
@@ -385,17 +387,17 @@ extension Checker {
                 check(node: fn.body)
             }
 
-            let functionType = Type.Function(node: node, params: params, returnType: returnType, needsSpecialization: needsSpecialization)
+            let functionType = Type.Function(node: node, params: params, returnType: returnType, isVariadic: fn.isVariadic, needsSpecialization: needsSpecialization)
 
             let type = Type(value: functionType, entity: Entity.anonymous)
 
             if needsSpecialization {
 
-                node.value = PolymorphicFunction(parameters: fn.parameters, returnType: fn.returnType, body: fn.body, type: type, specializations: [])
+                node.value = PolymorphicFunction(parameters: fn.parameters, returnType: fn.returnType, body: fn.body, isVariadic: fn.isVariadic, type: type, specializations: [])
             } else {
 
                 node.value = Function(
-                    parameters: fn.parameters, returnType: fn.returnType, body: fn.body,
+                    parameters: fn.parameters, returnType: fn.returnType, body: fn.body, isVariadic: fn.isVariadic,
                     scope: currentScope, isSpecialization: false, type: type)
             }
 
@@ -422,13 +424,13 @@ extension Checker {
             var returnType = checkExpr(node: fn.returnType)
             returnType = lowerFromMetatype(returnType, atNode: fn.returnType)
 
-            let functionType = Type.Function(node: node, params: params, returnType: returnType, needsSpecialization: false)
+            let functionType = Type.Function(node: node, params: params, returnType: returnType, isVariadic: fn.isVariadic, needsSpecialization: false)
 
             let instanceType = Type(value: functionType, entity: Entity.anonymous)
             let fnPointerType = Type.makePointer(to: instanceType)
             let type = Type.makeMetatype(fnPointerType)
 
-            node.value = FunctionType(parameters: fn.parameters, returnType: fn.returnType, type: type)
+            node.value = FunctionType(parameters: fn.parameters, returnType: fn.returnType, isVariadic: fn.isVariadic, type: type)
 
             return type
 
@@ -570,14 +572,32 @@ extension Checker {
                 return Type.invalid
             }
 
-            if calleeType.asFunction.needsSpecialization {
+            let calleeFn = calleeType.asFunction
+
+            if calleeFn.needsSpecialization {
 
                 return checkPolymorphicCall(callNode: node, calleeType: calleeType)
-            } else {
+            }
 
-                for (arg, expectedType) in zip(call.arguments, calleeType.asFunction.params) {
-//                    assert(!expected.flags.contains(.ct), "functions with ct params should be marked as needing specialization")
+            for (arg, expectedType) in zip(call.arguments, calleeFn.params) {
 
+                let argType = checkExpr(node: arg, desiredType: expectedType)
+
+                guard argType == expectedType else {
+                    reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expectedType)'", at: arg)
+                    continue
+                }
+            }
+
+            if call.arguments.count > calleeFn.params.count {
+                let excessArgs = call.arguments[calleeFn.params.count...]
+                guard calleeType.asFunction.isVariadic else {
+                    reportError("Too many arguments in call to \(call.callee)", at: excessArgs.first!)
+                    return calleeType.asFunction.returnType
+                }
+
+                let expectedType = calleeFn.params.last!
+                for arg in excessArgs {
                     let argType = checkExpr(node: arg, desiredType: expectedType)
 
                     guard argType == expectedType else {
@@ -585,12 +605,18 @@ extension Checker {
                         continue
                     }
                 }
-
-                let resultType = calleeType.asFunction.returnType
-                node.value = Call(callee: call.callee, arguments: call.arguments, specialization: nil, type: resultType)
-
-                return resultType
             }
+
+            if call.arguments.count < calleeType.asFunction.params.count {
+                guard calleeFn.isVariadic, call.arguments.count + 1 == calleeFn.params.count else {
+                    reportError("Not enough arguments in call to '\(call.callee)", at: node)
+                    return calleeFn.returnType
+                }
+            }
+
+            node.value = Call(callee: call.callee, arguments: call.arguments, specialization: nil, type: calleeFn.returnType)
+
+            return calleeFn.returnType
 
         default:
             reportError("Cannot convert '\(node)' to an Expression", at: node)
@@ -765,7 +791,7 @@ extension Checker {
         currentSpecializationCall = nil
 
         let strippedFunction = Type.Function(node: fnNode, params: strippedParamTypes,
-                                             returnType: returnType, needsSpecialization: false)
+                                             returnType: returnType, isVariadic: fn.isVariadic, needsSpecialization: false)
         let strippedType = Type(value: strippedFunction, entity: Entity.anonymous)
 
         var strippedParameters = fn.parameters
@@ -774,7 +800,7 @@ extension Checker {
         }
 
         fnNode.value = Function(
-            parameters: strippedParameters, returnType: fn.returnType, body: fn.body,
+            parameters: strippedParameters, returnType: fn.returnType, body: fn.body, isVariadic: fn.isVariadic,
             scope: currentScope, isSpecialization: true, type: strippedType)
 
         let specialization = FunctionSpecialization(specializationIndices: specializationIndices, specializedTypes: specializations,
@@ -944,6 +970,7 @@ extension Checker {
         var parameters: [AstNode]
         var returnType: AstNode
         let body: AstNode
+        let isVariadic: Bool
 
         /// The scope the parameters occur within
         let scope: Scope
@@ -960,6 +987,7 @@ extension Checker {
         let parameters: [AstNode]
         let returnType: AstNode
         let body: AstNode
+        let isVariadic: Bool
 
         let type: Type
 
@@ -978,6 +1006,7 @@ extension Checker {
 
         let parameters: [AstNode]
         let returnType: AstNode
+        let isVariadic: Bool
 
         let type: Type
     }
