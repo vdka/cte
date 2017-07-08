@@ -183,7 +183,7 @@ struct Parser {
                     // 3rd case is empty. If not, we unexpectedly hit an `{`
                     if exprs.count == 2 {
                         exprs.append(AstNode.empty)
-                    } else {
+                    } else if exprs.count != 3 {
                         reportError("Unexpected `{` in `for` statement.", at: forToken)
                         attachNote("`for` statements require 0, 1 or 3 statements joined by `;`")
                         // try to recover from this error so we can continue diagnostics
@@ -208,18 +208,18 @@ struct Parser {
 
             switch exprs.count {
             case 1:
-                print("for had 1!")
-            case 2:
-                print("for had 2!")
+                condition = exprs[0]
             case 3:
-                print("for had 3!")
+                initialiser = exprs[0]
+                condition = exprs[1]
+                step = exprs[2]
             default:
                 reportError("`for` statements require 0, 1 or 3 statements", at: forToken)
                 return AstNode.invalid(with: [forToken])
             }
 
             let för = AstNode.For(initialiser: initialiser, condition: condition, step: step, body: body)
-            return AstNode.init(för, tokens: [forToken])
+            return AstNode(för, tokens: [forToken])
 
         case .keywordFn:
             let fnToken = advance()
