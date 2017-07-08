@@ -21,9 +21,9 @@ sub :: fn (foo: i64) -> i64 {
     return foo - 1
 }
 
-test :: fn () -> i64 {
+test :: fn (a: i64) -> i64 {
     switch {
-    case 10 <= 10: return 100
+    case a < 10: return 100
     case: return 999
     }
 
