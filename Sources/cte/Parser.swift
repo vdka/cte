@@ -18,7 +18,7 @@ struct Parser {
 
         static let parseList            = State(rawValue: 0b0000_0001)
         static let isDeclarationValue   = State(rawValue: 0b0000_0010)
-        static let permitCase           = State(rawValue: 0b0000_0110)
+        static let permitCase           = State(rawValue: 0b0000_0100)
     }
 
     mutating func parse() -> [AstNode] {
