@@ -59,6 +59,14 @@ extension AstValue {
                 value: value.value
         )
 
+        case let value as AstNode.For:
+            return AstNode.For(
+                initializer: value.initializer?.copy(),
+                condition: value.condition?.copy(),
+                step: value.step?.copy(),
+                body: value.body.copy()
+        )
+
         case let value as AstNode.Foreign:
             return AstNode.Foreign(
                 library: value.library.copy(),

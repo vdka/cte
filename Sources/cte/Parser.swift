@@ -87,7 +87,7 @@ struct Parser {
             advance()
 
             let comment = AstNode.Comment(comment: token.stringValue)
-            return AstNode.init(comment, tokens: [token])
+            return AstNode(comment, tokens: [token])
 
         case .ident:
             advance()
@@ -158,6 +158,54 @@ struct Parser {
 
             let stmtIf = AstNode.If(condition: cond, thenStmt: body, elseStmt: elseStmt)
             return AstNode(stmtIf, tokens: [ifToken, elseToken])
+
+        case .keywordFor:
+            let forToken = advance()
+
+            var tokens: [Token] = [forToken]
+            var exprs: [AstNode] =  []
+            while let token = lexer.peek(), token.kind != .lbrace {
+
+                if token.kind == .semicolon {
+                    exprs.append(.empty)
+                } else {
+                    let expr = expression()
+                    exprs.append(expr)
+                }
+
+                if lexer.peek()?.kind != .lbrace {
+                    let semicolon = advance(expecting: .semicolon)
+                    tokens.append(semicolon)
+
+                    if lexer.peek()?.kind == .lbrace {
+                        exprs.append(.empty)
+                        break
+                    }
+                }
+            }
+
+            let body = expression()
+
+            var initializer: AstNode?
+            var condition: AstNode?
+            var step: AstNode?
+
+            switch exprs.count {
+            case 0:
+                break
+            case 1:
+                condition = exprs[0]
+            case 3:
+                initializer = exprs[0]
+                condition = exprs[1]
+                step = exprs[2]
+            default:
+                reportError("`for` statements require 0, 1 or 3 statements", at: forToken)
+                return AstNode.invalid(with: [forToken])
+            }
+
+            let fór = AstNode.For(initializer: initializer, condition: condition, step: step, body: body)
+            return AstNode(fór, tokens: tokens)
 
         case .keywordFn:
             let fnToken = advance()
@@ -476,9 +524,18 @@ struct Parser {
     }
 
     mutating func consumeNewlines() {
-        while lexer.peek()?.kind == .newline {
+        while let token = lexer.peek()?.kind, token == .newline {
             advance()
         }
+    }
+
+    /// - Returns: The semicolon token consumed if there was one
+    @discardableResult
+    mutating func consumeSemicolon() -> Token? {
+        if lexer.peek()?.kind == .semicolon {
+            return advance()
+        }
+        return nil
     }
 
     @discardableResult
