@@ -1,7 +1,7 @@
 
 #library "libc" libc
-#import "math/constants.cte" .
-#import "math/circle.cte" .
+#import "math/constants.cte"
+#import "math/circle.cte"
 
 #foreign libc {
     #discardable
@@ -47,8 +47,13 @@ g = sub
 
 h = g(8)
 
-i := circumference(tau)
+// (call (sel circle circumference) (sel constants tau)) y
+// (sel circle (call circumference (sel constants tau))) n
+i := circle.circumference(constants.tau)
+
+printf("Tau is rounded to %d\n", i64(circle.constants.tau))
 
 z := forExample()
 addrA := &a
 valA := <addrA
+

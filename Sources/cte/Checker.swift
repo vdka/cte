@@ -271,7 +271,7 @@ extension Checker {
             if imp.includeSymbolsInParentScope {
                 for entity in imp.file.scope.members {
                     // TODO(vdka): Allow file scopes to export that which they import
-                    guard entity.owningScope === imp.file.scope else {
+                    guard !entity.flags.contains(.file) else {
                         continue
                     }
                     currentScope.insert(entity, scopeOwnsEntity: false)
@@ -280,6 +280,7 @@ extension Checker {
 
             if let entity = entity {
                 entity.memberScope = imp.file.scope
+                entity.type = Type(value: Type.File(memberScope: imp.file.scope))
                 currentScope.insert(entity)
             }
 
@@ -333,11 +334,6 @@ extension Checker {
                 return Type.invalid
             }
             node.value = Identifier(name: ident, entity: entity)
-
-            guard !entity.flags.contains(.file) else {
-                reportError("Cannot use file scope as expression", at: node)
-                return Type.invalid
-            }
 
             guard !entity.flags.contains(.library) else {
                 reportError("Cannot use library as expression", at: node)
@@ -648,6 +644,25 @@ extension Checker {
             node.value = Call(callee: call.callee, arguments: call.arguments, specialization: nil, type: calleeFn.returnType)
 
             return calleeFn.returnType
+
+        case .memberAccess:
+            let access = node.asMemberAccess
+
+            let aggregateType = checkExpr(node: access.aggregate)
+
+            guard let aggregateScope = aggregateType.memberScope else {
+                reportError("'\(access.aggregate)' (type \(aggregateType)) is not an aggregate type", at: access.aggregate)
+                return Type.invalid
+            }
+
+            guard let memberEntity = aggregateScope.lookup(access.memberName) else {
+                reportError("Member '\(access.member)' not found in scope of '\(access.aggregate)'", at: access.member)
+                return Type.invalid
+            }
+
+            node.value = MemberAccess(aggregate: access.aggregate, member: access.member, entity: memberEntity)
+
+            return memberEntity.type!
 
         default:
             reportError("Cannot convert '\(node)' to an Expression", at: node)
@@ -1130,6 +1145,21 @@ extension Checker {
 
         let type: Type
         let cast: OpCode.Cast
+    }
+
+    struct MemberAccess: CheckedExpression, CheckedAstValue {
+        typealias UncheckedValue = AstNode.MemberAccess
+
+        let aggregate: AstNode
+        let member: AstNode
+        var memberName: String {
+            return member.asIdentifier.name
+        }
+
+        let entity: Entity
+        var type: Type {
+            return entity.type!
+        }
     }
 
     struct Block: CheckedAstValue {

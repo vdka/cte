@@ -204,6 +204,16 @@ extension AstNode {
         }
     }
 
+    var asMemberAccess: CommonMemberAccess {
+        get {
+            assert(kind == AstNode.MemberAccess.astKind)
+            return value as! CommonMemberAccess
+        }
+        set {
+            self.value = newValue
+        }
+    }
+
     var asParen: CommonParen {
         get {
             assert(kind == AstNode.Paren.astKind)
@@ -378,6 +388,16 @@ extension AstNode {
         get {
             assert(kind == Checker.IntegerLiteral.astKind)
             return value as! Checker.IntegerLiteral
+        }
+        set {
+            value = newValue
+        }
+    }
+
+    var asCheckedMemberAccess: Checker.MemberAccess {
+        get {
+            assert(kind == Checker.MemberAccess.astKind)
+            return value as! Checker.MemberAccess
         }
         set {
             value = newValue
@@ -569,6 +589,13 @@ protocol CommonLibrary: AstValue {
     var symbol: AstNode? { get }
 }
 
+protocol CommonMemberAccess: AstValue {
+
+    var aggregate: AstNode { get }
+    var member: AstNode { get }
+    var memberName: String { get }
+}
+
 protocol CommonParen: AstValue {
 
     var expr: AstNode { get }
@@ -621,6 +648,7 @@ extension AstNode.Infix: CommonInfix {}
 extension AstNode.IntegerLiteral: CommonIntegerLiteral {}
 extension AstNode.Invalid: CommonInvalid {}
 extension AstNode.Library: CommonLibrary {}
+extension AstNode.MemberAccess: CommonMemberAccess {}
 extension AstNode.Paren: CommonParen {}
 extension AstNode.PointerType: CommonPointerType {}
 extension AstNode.Prefix: CommonPrefix {}
@@ -638,6 +666,7 @@ extension Checker.FunctionType: CommonFunctionType {}
 extension Checker.Identifier: CommonIdentifier {}
 extension Checker.Infix: CommonInfix {}
 extension Checker.IntegerLiteral: CommonIntegerLiteral {}
+extension Checker.MemberAccess: CommonMemberAccess {}
 extension Checker.Paren: CommonParen {}
 extension Checker.PointerType: CommonPointerType {}
 extension Checker.Prefix: CommonPrefix {}
@@ -648,6 +677,10 @@ extension Type {
 
     var asBoolean: Type.Boolean {
         return value as! Type.Boolean
+    }
+
+    var asFile: Type.File {
+        return value as! Type.File
     }
 
     var asFloatingPoint: Type.FloatingPoint {

@@ -93,6 +93,9 @@ extension AstNode: CustomStringConvertible {
 
             return callee + "(" + arguments + ")"
 
+        case .memberAccess:
+            return asMemberAccess.aggregate.description + "." + asMemberAccess.member.description
+
         case .block:
             let block = asBlock
             let stmts = block.stmts.map({ "    " + $0.description }).joined(separator: "\n")
