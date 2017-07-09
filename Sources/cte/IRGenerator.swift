@@ -365,36 +365,10 @@ struct IRGenerator {
     func emitPolymorphicFunction(named name: String, fn: Checker.PolymorphicFunction) {
 
         for specialization in fn.specializations {
-
             let fn = specialization.fnNode.asCheckedFunction
 
-            let nameSuffix = specialization.specializedTypes.reduce("", { $0 + "$" + $1.asMetatype.instanceType.description })
-
-            let function = builder.addFunction(name + nameSuffix, type: canonicalize(specialization.strippedType) as! FunctionType)
-
-            let lastBlock = builder.insertBlock
-
-            let entryBlock = function.appendBasicBlock(named: "entry")
-            builder.positionAtEnd(of: entryBlock)
-            defer {
-                if let lastBlock = lastBlock {
-                    builder.positionAtEnd(of: lastBlock)
-                }
-            }
-
-            for (param, var irParam) in zip(fn.parameters, function.parameters) {
-
-                let entity = param.asCheckedDeclaration.entity
-                irParam.name = entity.name
-
-                emit(node: param)
-
-                builder.buildStore(irParam, to: entity.value!)
-            }
-
-            emit(node: fn.body)
-
-            specialization.llvm = function
+            let suffix = specialization.specializedTypes.reduce("", { $0 + "$" + $1.asMetatype.instanceType.description })
+            specialization.llvm = emitFunction(named: name + suffix, fn)
         }
     }
 
