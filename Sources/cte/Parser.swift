@@ -462,7 +462,7 @@ struct Parser {
             }
 
             guard lvalue.asDeclaration.linkName == nil else {
-                reportError("At most 1 #linkname should appead on a declaration", at: directive)
+                reportError("Multiple linkname directives for single declaration", at: directive)
                 return lvalue
             }
 
