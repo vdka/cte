@@ -485,9 +485,8 @@ protocol CommonDeclaration: AstValue {
     var identifier: AstNode { get }
     var type: AstNode? { get }
     var value: AstNode { get }
-    var isCompileTime: Bool { get set }
-    var isForeign: Bool { get set }
     var linkName: String? { get set }
+    var flags: DeclarationFlags { get set }
 }
 
 protocol CommonEmpty: AstValue {
@@ -518,14 +517,14 @@ protocol CommonFunction: AstValue {
     var parameters: [AstNode] { get set }
     var returnType: AstNode { get set }
     var body: AstNode { get }
-    var isVariadic: Bool { get }
+    var flags: FunctionFlags { get set }
 }
 
 protocol CommonFunctionType: AstValue {
 
     var parameters: [AstNode] { get }
     var returnType: AstNode { get }
-    var isVariadic: Bool { get }
+    var flags: FunctionFlags { get set }
 }
 
 protocol CommonIdentifier: AstValue {

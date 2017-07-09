@@ -172,17 +172,18 @@ struct Lexer {
                 }
 
                 switch string {
-                case "fn":       kind = .keywordFn
-                case "if":       kind = .keywordIf
-                case "else":     kind = .keywordElse
-                case "for":      kind = .keywordFor
-                case "return":   kind = .keywordReturn
-                case "struct":   kind = .keywordStruct
-                case "switch":   kind = .keywordSwitch
-                case "case":     kind = .keywordCase
-                case "#import":  kind = .directiveImport
-                case "#library": kind = .directiveLibrary
-                case "#foreign": kind = .directiveForeign
+                case "fn":           kind = .keywordFn
+                case "if":           kind = .keywordIf
+                case "else":         kind = .keywordElse
+                case "for":          kind = .keywordFor
+                case "return":       kind = .keywordReturn
+                case "struct":       kind = .keywordStruct
+                case "switch":       kind = .keywordSwitch
+                case "case":         kind = .keywordCase
+                case "#import":      kind = .directiveImport
+                case "#library":     kind = .directiveLibrary
+                case "#foreign":     kind = .directiveForeign
+                case "#discardable": kind = .directiveDiscardable
                 default:
                     kind = .ident
                     value = string
@@ -408,6 +409,7 @@ extension Token {
         case directiveLibrary
         case directiveForeign
         case directiveLinkname
+        case directiveDiscardable
     }
 }
 
@@ -488,7 +490,8 @@ extension Token: CustomStringConvertible {
         case .directiveImport: fallthrough
         case .directiveLibrary: fallthrough
         case .directiveForeign: fallthrough
-        case .directiveLinkname:
+        case .directiveLinkname: fallthrough
+        case .directiveDiscardable:
             return kind.description
         }
     }
@@ -533,6 +536,7 @@ extension Token.Kind: CustomStringConvertible {
         case .directiveLibrary: return "#library"
         case .directiveForeign: return "#foreign"
         case .directiveLinkname: return "#linkname"
+        case .directiveDiscardable: return "#discardable"
         case .invalid, .comment, .ident, .float, .integer, .string:
             fatalError()
         }

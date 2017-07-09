@@ -120,7 +120,8 @@ extension AstNode {
         var parameters: [AstNode]
         var returnType: AstNode
         let body: AstNode
-        let isVariadic: Bool
+
+        var flags: FunctionFlags
     }
 
     struct FunctionType: AstValue {
@@ -128,7 +129,7 @@ extension AstNode {
 
         let parameters: [AstNode]
         let returnType: AstNode
-        let isVariadic: Bool
+        var flags: FunctionFlags
     }
 
     struct PointerType: AstValue {
@@ -149,10 +150,10 @@ extension AstNode {
         let identifier: AstNode
         let type: AstNode?
         let value: AstNode
-        var isCompileTime: Bool
-        var isForeign: Bool
 
         var linkName: String?
+
+        var flags: DeclarationFlags
     }
 
     struct Paren: AstValue {
@@ -258,9 +259,28 @@ extension AstNode {
     }
 }
 
+struct DeclarationFlags: OptionSet {
+    var rawValue: UInt8
+
+    static let compileTime  = DeclarationFlags(rawValue: 0b0000_0001)
+    static let foreign      = DeclarationFlags(rawValue: 0b0000_0010)
+}
+
+struct FunctionFlags: OptionSet {
+    var rawValue: UInt8
+
+    static let variadic          = FunctionFlags(rawValue: 0b0000_0001)
+    static let discardableResult = FunctionFlags(rawValue: 0b0000_0010)
+    static let specialization    = FunctionFlags(rawValue: 0b0000_0100)
+}
+
 extension CommonDeclaration {
 
     var isFunction: Bool {
         return value.kind == .function || value.kind == .polymorphicFunction
+    }
+
+    var isFunctionType: Bool {
+        return value.kind == .functionType
     }
 }

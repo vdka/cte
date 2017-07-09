@@ -1,0 +1,25 @@
+
+{% for type in types.implementing.AstValue %}
+{% for var in type.storedVariables where var.name == "flags" %}
+
+extension {{ type.name }} {
+    {% for flag in var.type.staticVariables where flag.name != "none" %}
+
+    var is{{ flag.name|upperFirst }}: Bool {
+        return flags.contains(.{{ flag.name }}) 
+    }
+    {% endfor %}
+}
+{% if type.name|!contains:"Checker" %}
+extension Common{{ type.localName }} {
+    {% for flag in var.type.staticVariables where flag.name != "none" %}
+
+    var is{{ flag.name|upperFirst }}: Bool {
+        return flags.contains(.{{ flag.name }}) 
+    }
+    {% endfor %}
+}
+{% endif %}
+{% endfor %}
+{% endfor %}
+

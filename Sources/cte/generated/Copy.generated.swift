@@ -46,9 +46,8 @@ extension AstValue {
                 identifier: value.identifier.copy(),
                 type: value.type?.copy(),
                 value: value.value.copy(),
-                isCompileTime: value.isCompileTime,
-                isForeign: value.isForeign,
-                linkName: value.linkName
+                linkName: value.linkName,
+                flags: value.flags
         )
 
         case is AstNode.Empty:
@@ -78,14 +77,14 @@ extension AstValue {
                 parameters: value.parameters.map({ $0.copy() }),
                 returnType: value.returnType.copy(),
                 body: value.body.copy(),
-                isVariadic: value.isVariadic
+                flags: value.flags
         )
 
         case let value as AstNode.FunctionType:
             return AstNode.FunctionType(
                 parameters: value.parameters.map({ $0.copy() }),
                 returnType: value.returnType.copy(),
-                isVariadic: value.isVariadic
+                flags: value.flags
         )
 
         case let value as AstNode.Identifier:
@@ -202,9 +201,8 @@ extension AstValue {
                 identifier: value.identifier.copy(),
                 type: value.type?.copy(),
                 value: value.value.copy(),
-                isCompileTime: value.isCompileTime,
-                isForeign: value.isForeign,
                 linkName: value.linkName,
+                flags: value.flags,
                 entity: value.entity.copy()
         )
 
@@ -219,9 +217,8 @@ extension AstValue {
                 parameters: value.parameters.map({ $0.copy() }),
                 returnType: value.returnType.copy(),
                 body: value.body.copy(),
-                isVariadic: value.isVariadic,
+                flags: value.flags,
                 scope: value.scope.copy(),
-                isSpecialization: value.isSpecialization,
                 type: value.type.copy()
         )
 
@@ -229,7 +226,7 @@ extension AstValue {
             return Checker.FunctionType(
                 parameters: value.parameters.map({ $0.copy() }),
                 returnType: value.returnType.copy(),
-                isVariadic: value.isVariadic,
+                flags: value.flags,
                 type: value.type.copy()
         )
 
@@ -273,7 +270,7 @@ extension AstValue {
                 parameters: value.parameters.map({ $0.copy() }),
                 returnType: value.returnType.copy(),
                 body: value.body.copy(),
-                isVariadic: value.isVariadic,
+                flags: value.flags,
                 type: value.type.copy(),
                 specializations: value.specializations
         )

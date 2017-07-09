@@ -4,6 +4,7 @@
 #import "math/circle.cte" .
 
 #foreign libc {
+    #discardable
     printf :: fn (fmt: string, args: ..i64) -> i32
 }
 
@@ -24,7 +25,7 @@ sub :: fn (foo: i64) -> i64 {
 forExample :: fn () -> i64 {
 
     for i := 0; i < 5; i = i + 1 {
-        e := printf("%d\n", i)
+        printf("%d\n", i)
     }
 
     return 0

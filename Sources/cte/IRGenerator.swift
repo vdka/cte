@@ -172,6 +172,9 @@ struct IRGenerator {
                 emitSwitch(świtch)
             }
 
+        case .call:
+            emitCall(node.asCheckedCall)
+
         default:
             fatalError()
         }
@@ -303,6 +306,7 @@ struct IRGenerator {
         }
     }
 
+    @discardableResult
     func emitCall(_ call: Checker.Call) -> IRValue {
 
         var callee: IRValue

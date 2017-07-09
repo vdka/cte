@@ -31,7 +31,9 @@ extension Checker {
 
         case .identifier, .call, .paren, .prefix, .infix:
             let type = checkExpr(node: node)
-            reportError("Expression of type '\(type)' is unused", at: node)
+            if !node.isDiscardable {
+                reportError("Expression of type '\(type)' is unused", at: node)
+            }
 
         case .declaration:
             let decl = node.asDeclaration
@@ -86,8 +88,7 @@ extension Checker {
             currentScope.insert(entity)
 
             node.value = Declaration(identifier: decl.identifier, type: decl.type, value: decl.value,
-                                     isCompileTime: decl.isCompileTime, isForeign: decl.isForeign, linkName: decl.linkName,
-                                     entity: entity)
+                                     linkName: decl.linkName, flags: decl.flags, entity: entity)
 
         case .assign:
             let assign = node.asAssign
@@ -120,7 +121,7 @@ extension Checker {
                         }
                         continue
                     }
-                    node.asDeclaration.isForeign = true
+                    node.asDeclaration.flags.insert(.foreign)
                 }
                 check(node: node)
             }
@@ -416,18 +417,19 @@ extension Checker {
                 check(node: fn.body)
             }
 
-            let functionType = Type.Function(node: node, params: params, returnType: returnType, isVariadic: fn.isVariadic, needsSpecialization: needsSpecialization)
+            let isVariadic = fn.flags.contains(.variadic)
+            let functionType = Type.Function(node: node, params: params, returnType: returnType, isVariadic: isVariadic, needsSpecialization: needsSpecialization)
 
             let type = Type(value: functionType, entity: Entity.anonymous)
 
             if needsSpecialization {
 
-                node.value = PolymorphicFunction(parameters: fn.parameters, returnType: fn.returnType, body: fn.body, isVariadic: fn.isVariadic, type: type, specializations: [])
+                node.value = PolymorphicFunction(parameters: fn.parameters, returnType: fn.returnType, body: fn.body, flags: fn.flags, type: type, specializations: [])
             } else {
 
                 node.value = Function(
-                    parameters: fn.parameters, returnType: fn.returnType, body: fn.body, isVariadic: fn.isVariadic,
-                    scope: currentScope, isSpecialization: false, type: type)
+                    parameters: fn.parameters, returnType: fn.returnType, body: fn.body, flags: fn.flags,
+                    scope: currentScope, type: type)
             }
 
             return type
@@ -459,7 +461,7 @@ extension Checker {
             let fnPointerType = Type.makePointer(to: instanceType)
             let type = Type.makeMetatype(fnPointerType)
 
-            node.value = FunctionType(parameters: fn.parameters, returnType: fn.returnType, isVariadic: fn.isVariadic, type: type)
+            node.value = FunctionType(parameters: fn.parameters, returnType: fn.returnType, flags: fn.flags, type: type)
 
             return type
 
@@ -773,7 +775,7 @@ extension Checker {
             let decl = param.asCheckedDeclaration
             // Changed the param node value back to being unchecked
             param.value = AstNode.Declaration(identifier: decl.identifier, type: decl.type, value: decl.value,
-                                              isCompileTime: decl.isCompileTime, isForeign: decl.isForeign, linkName: decl.linkName)
+                                              linkName: decl.linkName, flags: decl.flags)
 
             // check the declaration as usual.
             check(node: param)
@@ -820,7 +822,7 @@ extension Checker {
         currentSpecializationCall = nil
 
         let strippedFunction = Type.Function(node: fnNode, params: strippedParamTypes,
-                                             returnType: returnType, isVariadic: fn.isVariadic, needsSpecialization: false)
+                                             returnType: returnType, isVariadic: fn.isSpecialization, needsSpecialization: false)
         let strippedType = Type(value: strippedFunction, entity: Entity.anonymous)
 
         var strippedParameters = fn.parameters
@@ -828,9 +830,11 @@ extension Checker {
             strippedParameters.remove(at: index)
         }
 
+        let flags = fn.flags.union(.specialization)
+
         fnNode.value = Function(
-            parameters: strippedParameters, returnType: fn.returnType, body: fn.body, isVariadic: fn.isVariadic,
-            scope: currentScope, isSpecialization: true, type: strippedType)
+            parameters: strippedParameters, returnType: fn.returnType, body: fn.body, flags: flags,
+            scope: currentScope, type: strippedType)
 
         let specialization = FunctionSpecialization(specializationIndices: specializationIndices, specializedTypes: specializations,
                                                     strippedType: strippedType, fnNode: fnNode)
@@ -911,6 +915,22 @@ extension AstNode {
         default:
             return false
         }
+    }
+
+    var isDiscardable: Bool {
+        assert(!isStmt)
+
+        guard self.kind == .call else {
+            return false
+        }
+
+        let fn = self.asCheckedCall.callee.exprType.asFunction.node
+
+        if fn.kind == .functionType {
+            return fn.asFunctionType.isDiscardableResult
+        }
+        assert(fn.kind == .function)
+        return fn.asFunction.isDiscardableResult
     }
 }
 
@@ -999,11 +1019,11 @@ extension Checker {
         var parameters: [AstNode]
         var returnType: AstNode
         let body: AstNode
-        let isVariadic: Bool
+
+        var flags: FunctionFlags
 
         /// The scope the parameters occur within
         let scope: Scope
-        let isSpecialization: Bool
 
         var type: Type
     }
@@ -1016,7 +1036,7 @@ extension Checker {
         let parameters: [AstNode]
         let returnType: AstNode
         let body: AstNode
-        let isVariadic: Bool
+        let flags: FunctionFlags
 
         let type: Type
 
@@ -1035,7 +1055,7 @@ extension Checker {
 
         let parameters: [AstNode]
         let returnType: AstNode
-        let isVariadic: Bool
+        var flags: FunctionFlags
 
         let type: Type
     }
@@ -1046,10 +1066,10 @@ extension Checker {
         let identifier: AstNode
         let type: AstNode?
         let value: AstNode
-        var isCompileTime: Bool
-        var isForeign: Bool
 
         var linkName: String?
+
+        var flags: DeclarationFlags
 
         let entity: Entity
     }

@@ -19,6 +19,7 @@ struct Parser {
         static let parseList            = State(rawValue: 0b0000_0001)
         static let isDeclarationValue   = State(rawValue: 0b0000_0010)
         static let permitCase           = State(rawValue: 0b0000_0100)
+        static let foreign              = State(rawValue: 0b0000_1000)
     }
 
     mutating func parse() -> [AstNode] {
@@ -134,7 +135,7 @@ struct Parser {
 
             if stmt.kind == .declaration {
                 stmt.tokens.insert(dollar, at: 0)
-                stmt.asDeclaration.isCompileTime = true
+                stmt.asDeclaration.flags.insert(.compileTime)
                 return stmt
             }
 
@@ -250,8 +251,16 @@ struct Parser {
 
             let returnType = expression(Token.Kind.equals.lbp)
 
+            var flags: FunctionFlags = []
+            if isVariadic {
+                flags.insert(.variadic)
+            }
+            if returnType.kind == .identifier, returnType.asIdentifier.name == "void" {
+                flags.insert(.discardableResult)
+            }
+
             if lexer.peek()?.kind != .lbrace {
-                let functionType = AstNode.FunctionType(parameters: params, returnType: returnType, isVariadic: isVariadic)
+                let functionType = AstNode.FunctionType(parameters: params, returnType: returnType, flags: flags)
                 return AstNode(functionType, tokens: [fnToken, lparen, rparen, returnArrow])
             }
 
@@ -261,7 +270,7 @@ struct Parser {
                 reportError("Body of a function should be a block statement", at: body)
             }
 
-            let function = AstNode.Function(parameters: params, returnType: returnType, body: body, isVariadic: isVariadic)
+            let function = AstNode.Function(parameters: params, returnType: returnType, body: body, flags: flags)
 
             return AstNode(function, tokens: [fnToken, lparen, rparen, returnArrow])
 
@@ -411,10 +420,13 @@ struct Parser {
                 return AstNode.invalid
             }
 
+            let prevState = state
+            state.insert(.foreign)
             let stmt = expression()
+            state = prevState
 
             if stmt.kind == .declaration {
-                stmt.asDeclaration.isForeign = true
+                stmt.asDeclaration.flags.insert(.foreign)
             } else if stmt.kind == .block {
                 stmt.asBlock.isForeign = true
             } else {
@@ -422,6 +434,33 @@ struct Parser {
             }
 
             stmt.tokens.insert(directive, at: 0)
+
+            return stmt
+
+        case .directiveDiscardable:
+            let directive = advance()
+            let stmt = expression()
+
+            let isDeclaration = stmt.kind == .declaration
+            let decl = stmt.asDeclaration
+            let isFunction = decl.isFunction
+            let isForeignFunction = state.contains(.foreign) && decl.isFunctionType
+
+            guard isDeclaration && (isFunction || isForeignFunction) else {
+                reportError("#discardable is only valid only function declarations", at: stmt)
+                return stmt
+            }
+
+            if isFunction {
+                decl.value.asFunction.flags.insert(.discardableResult)
+            } else {
+                decl.value.asFunctionType.flags.insert(.discardableResult)
+            }
+
+            let fnReturnType = isFunction ? decl.value.asFunction.returnType : decl.value.asFunctionType.returnType
+            if fnReturnType.kind == .identifier, fnReturnType.asIdentifier.name == "void" {
+                reportError("#discardable on function returning void is superflous", at: directive)
+            }
 
             return stmt
 
@@ -486,7 +525,7 @@ struct Parser {
                 // matches `x: foo`
                 assert(type != nil)
                 let decl = AstNode.Declaration(identifier: lvalue, type: type, value: .empty,
-                                               isCompileTime: false, isForeign: false, linkName: nil)
+                                               linkName: nil, flags: [])
                 return AstNode(decl, tokens: [colon])
             }
 
@@ -497,8 +536,10 @@ struct Parser {
             let value = expression(Token.Kind.equals.lbp)
             state = prevState
 
+            let flags = token.kind == .colon ? DeclarationFlags.compileTime : []
+
             let decl = AstNode.Declaration(identifier: lvalue, type: type, value: value,
-                                           isCompileTime: token.kind == .colon, isForeign: false, linkName: nil)
+                                           linkName: nil, flags: flags)
             return AstNode(decl, tokens: [colon, token])
 
         case .directiveLinkname:
