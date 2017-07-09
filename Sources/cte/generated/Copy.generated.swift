@@ -128,6 +128,12 @@ extension AstValue {
                 symbol: value.symbol?.copy()
         )
 
+        case let value as AstNode.MemberAccess:
+            return AstNode.MemberAccess(
+                aggregate: value.aggregate.copy(),
+                member: value.member.copy()
+        )
+
         case let value as AstNode.Paren:
             return AstNode.Paren(
                 expr: value.expr.copy()
@@ -251,6 +257,13 @@ extension AstValue {
             return Checker.IntegerLiteral(
                 value: value.value,
                 type: value.type.copy()
+        )
+
+        case let value as Checker.MemberAccess:
+            return Checker.MemberAccess(
+                aggregate: value.aggregate.copy(),
+                member: value.member.copy(),
+                entity: value.entity.copy()
         )
 
         case let value as Checker.Paren:

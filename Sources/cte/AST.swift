@@ -43,6 +43,7 @@ enum AstKind {
     case assign
     case call
     case cast
+    case memberAccess
     case block
     case `if`
     case `for`
@@ -189,6 +190,17 @@ extension AstNode {
 
         let callee: AstNode
         let arguments: [AstNode]
+    }
+
+    struct MemberAccess: AstValue {
+        static let astKind = AstKind.memberAccess
+
+        let aggregate: AstNode
+        let member: AstNode
+
+        var memberName: String {
+            return member.asIdentifier.name
+        }
     }
 
     struct Block: AstValue {

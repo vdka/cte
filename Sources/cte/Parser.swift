@@ -386,7 +386,7 @@ struct Parser {
                 return AstNode.invalid(with: [directive, pathToken])
             }
 
-            let imp = AstNode.Import(path: pathToken.stringValue, symbol: symbol, includeSymbolsInParentScope: symbolToken != nil, file: importedFile)
+            let imp = AstNode.Import(path: pathToken.stringValue, symbol: symbol, includeSymbolsInParentScope: symbolToken?.kind == .dot, file: importedFile)
 
             var tokens = [directive, pathToken]
             if let symbolToken = symbolToken {
@@ -500,6 +500,17 @@ struct Parser {
             let exprCall = AstNode.Call(callee: lvalue, arguments: arguments)
             return AstNode(exprCall, tokens: [lparen, rparen])
 
+        case .dot:
+            let dot = advance()
+            let memberToken = advance(expecting: .ident)
+
+            let identifier = AstNode.Identifier(name: memberToken.stringValue)
+
+            let member = AstNode(identifier, tokens: [memberToken])
+
+            let memberAccess = AstNode.MemberAccess(aggregate: lvalue, member: member)
+            return AstNode(memberAccess, tokens: [dot])
+
         case .equals:
             let equals = advance()
 
@@ -605,7 +616,7 @@ extension Token.Kind {
         case .directiveLinkname:
             return 10
 
-        case .lparen:
+        case .lparen, .dot:
             return 80
 
         default:

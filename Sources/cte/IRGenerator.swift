@@ -237,6 +237,16 @@ struct IRGenerator {
             let val = emitExpr(node: cast.arguments.first!)
             return builder.buildCast(cast.cast, value: val, type: canonicalize(cast.type))
 
+        case .memberAccess:
+            let access = node.asCheckedMemberAccess
+            if access.entity.owningScope.isFile {
+                if access.entity.type!.isFunction {
+                    return access.entity.value!
+                }
+                return builder.buildLoad(access.entity.value!)
+            }
+            fatalError("Only file entities have child scopes currently")
+
         default:
             fatalError()
         }
@@ -619,5 +629,8 @@ func canonicalize(_ type: Type) -> IRType {
 
     case .metatype:
         fatalError() // these should not make it into IRGen (alternatively use these to gen typeinfo)
+
+    case .file:
+        fatalError()
     }
 }

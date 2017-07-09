@@ -57,6 +57,9 @@ class Type: Hashable, CustomStringConvertible {
         case .metatype:
             return "Metatype(" + (self.value as! Metatype).instanceType.description + ")"
 
+        case .file:
+            return "<file>"
+
         case .function:
             // fn ($T: type, a: T, b: T) -> T
             let fn = self.asFunction
@@ -143,6 +146,7 @@ enum TypeKind {
     case function
     case pointer
     case metatype
+    case file
 }
 
 protocol TypeValue {
@@ -188,6 +192,25 @@ extension Type {
         static let typeKind: TypeKind = .metatype
 
         let instanceType: Type
+    }
+
+    struct File: TypeValue {
+        static let typeKind: TypeKind = .file
+
+        let memberScope: Scope
+    }
+}
+
+extension Type {
+
+    var memberScope: Scope? {
+        switch self.kind {
+        case .file:
+            return asFile.memberScope
+
+        default:
+            return nil
+        }
     }
 }
 

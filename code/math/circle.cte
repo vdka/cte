@@ -1,8 +1,8 @@
 
-#import "constants.cte" .
+#import "constants.cte"
 
 // Yes. This is wrong. we don't have * yet.
 circumference :: fn (radius: f64) -> f64 {
-    return radius + tau
+    return radius + constants.tau
 }
 
