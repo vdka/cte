@@ -24,7 +24,7 @@ sub :: fn (foo: i64) -> i64 {
 
 forExample :: fn () -> i64 {
 
-    for i := 0; i < 5; i = i + 1 {
+    for i := 0; i < 5; i += 1 {
         printf("%d\n", i)
     }
 
