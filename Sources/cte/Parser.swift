@@ -72,7 +72,7 @@ struct Parser {
 
             let lparen = advance()
 
-            if let nextToken = lexer.peek(), case .rparen = nextToken.kind {
+            if lexer.peek()?.kind == .rparen {
                 let rparen = advance()
 
                 return AstNode(AstNode.Paren(expr: AstNode.empty), tokens: [lparen, rparen])
@@ -148,12 +148,12 @@ struct Parser {
 
             let body = expression()
 
-            guard let elseToken = lexer.peek(), case .keywordElse = elseToken.kind else {
+            guard lexer.peek()?.kind == .keywordElse else {
                 let stmtIf = AstNode.If(condition: cond, thenStmt: body, elseStmt: nil)
                 return AstNode(stmtIf, tokens: [ifToken])
             }
 
-            advance()
+            let elseToken = advance()
             let elseStmt = expression()
 
             let stmtIf = AstNode.If(condition: cond, thenStmt: body, elseStmt: elseStmt)
@@ -276,7 +276,7 @@ struct Parser {
                     reportError("`case` label in a `switch` must have exactly one executable statement, `fallthrough` or `break`", at: lexer)
                 }
             } else {
-                while let token = lexer.peek()?.kind, token != .keywordCase, token != .rbrace {
+                while let token = lexer.peek()?.kind, token != .keywordCase && token != .rbrace {
                     let expr = expression()
                     stmts.append(expr)
                     consumeNewlines()
@@ -305,36 +305,35 @@ struct Parser {
             // <string> <identifier> <newline>
             // <string> <dot> <newline>
 
-            let pathtok = advance(expecting: .string)
-            let symboltok = lexer.peek()
+            let pathToken = advance(expecting: .string)
+            let symbolToken = lexer.peek()
 
-            var dot: Token?
             var symbol: AstNode?
-            switch symboltok?.kind {
+            switch symbolToken?.kind {
             case .ident?:
                 symbol = expression()
 
             case .dot?:
-                dot = advance()
+                advance()
 
             case .newline?, nil:
                 symbol = nil
 
             default:
-                reportError("Expected identifier to bind imported entities to or '.' to import them into the current scope", at: symboltok!)
-                return AstNode.invalid(with: [directive, pathtok])
+                reportError("Expected identifier to bind imported entities to or '.' to import them into the current scope", at: symbolToken!)
+                return AstNode.invalid(with: [directive, pathToken])
             }
 
-            guard let importedFile = SourceFile.new(path: pathtok.stringValue, importedFrom: file) else {
-                reportError("Failed to open '\(pathtok.stringValue)' for reading", at: pathtok)
-                return AstNode.invalid(with: [directive, pathtok])
+            guard let importedFile = SourceFile.new(path: pathToken.stringValue, importedFrom: file) else {
+                reportError("Failed to open '\(pathToken.stringValue)' for reading", at: pathToken)
+                return AstNode.invalid(with: [directive, pathToken])
             }
 
-            let imp = AstNode.Import(path: pathtok.stringValue, symbol: symbol, includeSymbolsInParentScope: dot != nil, file: importedFile)
+            let imp = AstNode.Import(path: pathToken.stringValue, symbol: symbol, includeSymbolsInParentScope: symbolToken != nil, file: importedFile)
 
-            var tokens = [directive, pathtok]
-            if let dot = dot {
-                tokens.append(dot)
+            var tokens = [directive, pathToken]
+            if let symbolToken = symbolToken {
+                tokens.append(symbolToken)
             }
 
             let node = AstNode(imp, tokens: tokens)
@@ -345,15 +344,15 @@ struct Parser {
         case .directiveLibrary:
             let directive = advance()
 
-            let pathtok = advance(expecting: .string)
+            let pathToken = advance(expecting: .string)
 
             var symbol: AstNode?
-            if case .ident? = lexer.peek()?.kind {
+            if lexer.peek()?.kind == .ident {
                 symbol = expression()
             }
 
-            let lib = AstNode.Library(path: pathtok.stringValue, symbol: symbol)
-            return AstNode(lib, tokens: [directive, pathtok])
+            let lib = AstNode.Library(path: pathToken.stringValue, symbol: symbol)
+            return AstNode(lib, tokens: [directive, pathToken])
 
         case .directiveForeign:
             let directive = advance()
