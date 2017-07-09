@@ -110,7 +110,7 @@ extension AstNode: CustomStringConvertible {
             return "if " + cond + " " + then + elsé
 
         case .for:
-            //TODO(Brett): finishs
+            //TODO(Brett): finish
             return "for"
 
         case .switch:
