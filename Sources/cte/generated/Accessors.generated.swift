@@ -501,7 +501,7 @@ protocol CommonFloatLiteral: AstValue {
 
 protocol CommonFor: AstValue {
 
-    var initialiser: AstNode? { get }
+    var initializer: AstNode? { get }
     var condition: AstNode? { get }
     var step: AstNode? { get }
     var body: AstNode { get }

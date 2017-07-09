@@ -87,7 +87,7 @@ struct Parser {
             advance()
 
             let comment = AstNode.Comment(comment: token.stringValue)
-            return AstNode.init(comment, tokens: [token])
+            return AstNode(comment, tokens: [token])
 
         case .ident:
             advance()
@@ -162,53 +162,41 @@ struct Parser {
         case .keywordFor:
             let forToken = advance()
 
-            // Check for infinite loop
-            guard lexer.peek()?.kind != .lbrace else {
-                let body = expression()
-                let stmtFor = AstNode.For(initialiser: nil, condition: nil, step: nil, body: body)
-                return AstNode(stmtFor, tokens: [forToken])
-            }
-
+            var tokens: [Token] = [forToken]
             var exprs: [AstNode] =  []
-            while exprs.count <= 3 {
-                let token = lexer.peek()?.kind
-                guard token != .semicolon else {
-                    let semicolon = advance()
-                    exprs.append(AstNode(AstNode.Empty(), tokens: [semicolon]))
-                    continue
+            while let token = lexer.peek(), token.kind != .lbrace {
+
+                if token.kind == .semicolon {
+                    exprs.append(.empty)
+                } else {
+                    let expr = expression()
+                    exprs.append(expr)
                 }
 
-                guard token != .lbrace else {
-                    // Check if we have 2 cases already. If so, that means the
-                    // 3rd case is empty. If not, we unexpectedly hit an `{`
-                    if exprs.count == 2 {
-                        reportError("Unexpected `{` in `for` statement.", at: forToken)
-                        attachNote("`for` statements require 0, 1 or 3 statements joined by `;`")
-                        // try to recover from this error so we can continue diagnostics
-                        exprs.append(AstNode.empty)
+                if lexer.peek()?.kind != .lbrace {
+                    let semicolon = advance(expecting: .semicolon)
+                    tokens.append(semicolon)
+
+                    if lexer.peek()?.kind == .lbrace {
+                        exprs.append(.empty)
+                        break
                     }
-
-                    break
-                }
-
-                exprs.append(expression())
-
-                if token == .semicolon {
-                    advance()
                 }
             }
 
             let body = expression()
 
-            var initialiser: AstNode?
+            var initializer: AstNode?
             var condition: AstNode?
             var step: AstNode?
 
             switch exprs.count {
+            case 0:
+                break
             case 1:
                 condition = exprs[0]
             case 3:
-                initialiser = exprs[0]
+                initializer = exprs[0]
                 condition = exprs[1]
                 step = exprs[2]
             default:
@@ -216,8 +204,8 @@ struct Parser {
                 return AstNode.invalid(with: [forToken])
             }
 
-            let för = AstNode.For(initialiser: initialiser, condition: condition, step: step, body: body)
-            return AstNode(för, tokens: [forToken])
+            let fór = AstNode.For(initializer: initializer, condition: condition, step: step, body: body)
+            return AstNode(fór, tokens: tokens)
 
         case .keywordFn:
             let fnToken = advance()
@@ -537,9 +525,18 @@ struct Parser {
     }
 
     mutating func consumeNewlines() {
-        while let token = lexer.peek()?.kind, token == .newline || token == .semicolon {
+        while let token = lexer.peek()?.kind, token == .newline {
             advance()
         }
+    }
+
+    /// - Returns: The semicolon token consumed if there was one
+    @discardableResult
+    mutating func consumeSemicolon() -> Token? {
+        if lexer.peek()?.kind == .semicolon {
+            return advance()
+        }
+        return nil
     }
 
     @discardableResult

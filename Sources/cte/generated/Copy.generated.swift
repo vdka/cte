@@ -61,7 +61,7 @@ extension AstValue {
 
         case let value as AstNode.For:
             return AstNode.For(
-                initialiser: value.initialiser?.copy(),
+                initializer: value.initializer?.copy(),
                 condition: value.condition?.copy(),
                 step: value.step?.copy(),
                 body: value.body.copy()

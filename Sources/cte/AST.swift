@@ -208,7 +208,7 @@ extension AstNode {
     struct For: AstValue {
         static let astKind = AstKind.for
 
-        let initialiser: AstNode?
+        let initializer: AstNode?
         let condition: AstNode?
         let step: AstNode?
         let body: AstNode

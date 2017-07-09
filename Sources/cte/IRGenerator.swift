@@ -41,7 +41,7 @@ struct IRGenerator {
     func emit(node: AstNode) {
 
         switch node.kind {
-        case .comment, .import, .library:
+        case .comment, .import, .library, .empty:
             return
 
         case .declaration:
@@ -156,8 +156,8 @@ struct IRGenerator {
             builder.positionAtEnd(of: postBlock)
 
         case .for:
-            let för = node.asFor
-            emitFor(för)
+            let fór = node.asFor
+            emitFor(fór)
 
         case .return:
             let ret = node.asReturn
@@ -384,7 +384,7 @@ struct IRGenerator {
         }
     }
 
-    func emitFor(_ för: CommonFor) {
+    func emitFor(_ fór: CommonFor) {
         let currentFunc = builder.currentFunction!
 
         var loopBody: BasicBlock
@@ -392,13 +392,13 @@ struct IRGenerator {
         var loopCond: BasicBlock?
         var loopStep: BasicBlock?
 
-        if let initialiser = för.initialiser {
-            emit(node: initialiser)
+        if let initializer = fór.initializer {
+            emit(node: initializer)
         }
 
-        if let condition = för.condition {
+        if let condition = fór.condition {
             loopCond = currentFunc.appendBasicBlock(named: "for.cond")
-            if för.step != nil {
+            if fór.step != nil {
                 loopStep = currentFunc.appendBasicBlock(named: "for.step")
             }
 
@@ -411,7 +411,7 @@ struct IRGenerator {
             let condVal = emitExpr(node: condition)
             builder.buildCondBr(condition: condVal, then: loopBody, else: loopPost)
         } else {
-            if för.step != nil {
+            if fór.step != nil {
                 loopStep = currentFunc.appendBasicBlock(named: "for.step")
             }
 
@@ -424,11 +424,11 @@ struct IRGenerator {
         //TODO(Brett): escape points
         builder.positionAtEnd(of: loopBody)
 
-        emit(node: för.body)
+        emit(node: fór.body)
 
         let hasJump = builder.insertBlock?.terminator != nil
 
-        if let step = för.step {
+        if let step = fór.step {
             if !hasJump {
                 builder.buildBr(loopStep!)
             }

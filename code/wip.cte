@@ -4,7 +4,7 @@
 #import "math/circle.cte" .
 
 #foreign libc {
-    printf :: fn (fmt: string, args: ..f64) -> i32
+    printf :: fn (fmt: string, args: ..i64) -> i32
 }
 
 
@@ -22,7 +22,9 @@ sub :: fn (foo: i64) -> i64 {
 }
 
 forExample :: fn () -> i64 {
-    for i := 0; i < 1 {
+
+    for i := 0; i < 5; i = i + 1 {
+        e := printf("%d\n", i)
     }
 
     return 0
@@ -46,7 +48,6 @@ h = g(8)
 
 i := circumference(tau)
 
-p := printf("val: %f\n", 5.0)
 z := forExample()
 addrA := &a
 valA := <addrA
