@@ -50,11 +50,11 @@ g = sub
 
 h = g(8)
 
-// (call (sel circle circumference) (sel constants tau)) y
-// (sel circle (call circumference (sel constants tau))) n
 i := circle.circumference(constants.tau)
 
-printf("Tau is rounded to %f\n", circle.constants.tau)
+// NOTE(vdka): The behaviour of being able to peer into an imported files imports
+//  will go away
+printf("Tau is %f\n", circle.constants.tau)
 
 z := forExample()
 addrA := &a
