@@ -545,7 +545,7 @@ protocol CommonForeign: AstValue {
 protocol CommonFunction: AstValue {
 
     var parameters: [AstNode] { get set }
-    var returnType: AstNode { get set }
+    var returnTypes: [AstNode] { get set }
     var body: AstNode { get }
     var flags: FunctionFlags { get set }
 }
@@ -553,7 +553,7 @@ protocol CommonFunction: AstValue {
 protocol CommonFunctionType: AstValue {
 
     var parameters: [AstNode] { get }
-    var returnType: AstNode { get }
+    var returnTypes: [AstNode] { get }
     var flags: FunctionFlags { get set }
 }
 
@@ -624,7 +624,7 @@ protocol CommonPrefix: AstValue {
 
 protocol CommonReturn: AstValue {
 
-    var value: AstNode { get }
+    var values: [AstNode] { get }
 }
 
 protocol CommonStringLiteral: AstValue {
@@ -726,6 +726,10 @@ extension Type {
 
     var asPointer: Type.Pointer {
         return value as! Type.Pointer
+    }
+
+    var asTuple: Type.Tuple {
+        return value as! Type.Tuple
     }
 
     var asVoid: Type.Void {

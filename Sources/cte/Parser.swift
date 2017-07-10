@@ -243,15 +243,20 @@ struct Parser {
 
             let returnArrow = advance(expecting: .returnArrow)
 
-            let returnType = expression(Token.Kind.equals.lbp)
+            var returnTypes: [AstNode] = []
+            while lexer.peek()?.kind != .lbrace {
 
-            var flags: FunctionFlags = []
-            if returnType.kind == .identifier, returnType.asIdentifier.name == "void" {
-                flags.insert(.discardableResult)
+                let returnType = expression(Token.Kind.equals.lbp)
+
+                returnTypes.append(returnType)
+                if lexer.peek()?.kind != .comma {
+                    break
+                }
+                advance(expecting: .comma)
             }
 
             if lexer.peek()?.kind != .lbrace {
-                let functionType = AstNode.FunctionType(parameters: params, returnType: returnType, flags: flags)
+                let functionType = AstNode.FunctionType(parameters: params, returnTypes: returnTypes, flags: [])
                 return AstNode(functionType, tokens: [fnToken, lparen, rparen, returnArrow])
             }
 
@@ -261,7 +266,7 @@ struct Parser {
                 reportError("Body of a function should be a block statement", at: body)
             }
 
-            let function = AstNode.Function(parameters: params, returnType: returnType, body: body, flags: flags)
+            let function = AstNode.Function(parameters: params, returnTypes: returnTypes, body: body, flags: [])
 
             return AstNode(function, tokens: [fnToken, lparen, rparen, returnArrow])
 
@@ -339,9 +344,22 @@ struct Parser {
         case .keywordReturn:
             let ŕeturn = advance()
 
-            let expr = expression()
+            // FIXME(vdka): This currently requires return values to be on the same line as the return keyword
+            let terminators: [Token.Kind] = [.rparen, .rbrace, .keywordElse, .keywordCase, .newline]
 
-            let stmtReturn = AstNode.Return(value: expr)
+            var exprs: [AstNode] = []
+            while let tokenKind = lexer.peek()?.kind, !terminators.contains(tokenKind) {
+
+                let expr = expression()
+                exprs.append(expr)
+
+                if lexer.peek()?.kind != .comma {
+                    break
+                }
+                advance(expecting: .comma)
+            }
+
+            let stmtReturn = AstNode.Return(values: exprs)
 
             return AstNode(stmtReturn, tokens: [ŕeturn])
 
@@ -432,6 +450,8 @@ struct Parser {
             let directive = advance()
             let stmt = expression()
 
+            stmt.tokens.insert(directive, at: 0)
+
             let isDeclaration = stmt.kind == .declaration
             let decl = stmt.asDeclaration
             let isFunction = decl.isFunction
@@ -446,11 +466,6 @@ struct Parser {
                 decl.value.asFunction.flags.insert(.discardableResult)
             } else {
                 decl.value.asFunctionType.flags.insert(.discardableResult)
-            }
-
-            let fnReturnType = isFunction ? decl.value.asFunction.returnType : decl.value.asFunctionType.returnType
-            if fnReturnType.kind == .identifier, fnReturnType.asIdentifier.name == "void" {
-                reportError("#discardable on function returning void is superflous", at: directive)
             }
 
             return stmt

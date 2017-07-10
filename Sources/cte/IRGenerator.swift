@@ -161,8 +161,22 @@ struct IRGenerator {
 
         case .return:
             let ret = node.asReturn
-            let val = emitExpr(node: ret.value)
-            builder.buildRet(val)
+            var values: [IRValue] = []
+            for value in ret.values {
+                let irValue = emitExpr(node: value)
+                values.append(irValue)
+            }
+
+            switch values.count {
+            case 0:
+                builder.buildRetVoid()
+
+            case 1:
+                builder.buildRet(values[0])
+
+            default:
+                builder.buildRetAggregate(of: values)
+            }
 
         case .switch:
             let świtch = node.asCheckedSwitch
@@ -603,6 +617,21 @@ func canonicalize(_ type: Type) -> IRType {
         let retType = canonicalize(fn.returnType)
 
         return FunctionType(argTypes: paramTypes, returnType: retType, isVarArg: fn.isCVariadic)
+
+    case .tuple:
+        let tuple = type.asTuple
+        let types = tuple.types.map(canonicalize)
+        switch types.count {
+        case 0:
+            return VoidType()
+
+        case 1:
+            return types[0]
+
+        default:
+            let type = StructType(elementTypes: types, isPacked: true)
+            return type
+        }
 
     case .pointer:
         let pointer = type.asPointer

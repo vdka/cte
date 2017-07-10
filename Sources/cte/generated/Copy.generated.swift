@@ -75,7 +75,7 @@ extension AstValue {
         case let value as AstNode.Function:
             return AstNode.Function(
                 parameters: value.parameters.map({ $0.copy() }),
-                returnType: value.returnType.copy(),
+                returnTypes: value.returnTypes.map({ $0.copy() }),
                 body: value.body.copy(),
                 flags: value.flags
         )
@@ -83,7 +83,7 @@ extension AstValue {
         case let value as AstNode.FunctionType:
             return AstNode.FunctionType(
                 parameters: value.parameters.map({ $0.copy() }),
-                returnType: value.returnType.copy(),
+                returnTypes: value.returnTypes.map({ $0.copy() }),
                 flags: value.flags
         )
 
@@ -152,7 +152,7 @@ extension AstValue {
 
         case let value as AstNode.Return:
             return AstNode.Return(
-                value: value.value.copy()
+                values: value.values.map({ $0.copy() })
         )
 
         case let value as AstNode.StringLiteral:
@@ -227,7 +227,7 @@ extension AstValue {
         case let value as Checker.Function:
             return Checker.Function(
                 parameters: value.parameters.map({ $0.copy() }),
-                returnType: value.returnType.copy(),
+                returnTypes: value.returnTypes.map({ $0.copy() }),
                 body: value.body.copy(),
                 flags: value.flags,
                 scope: value.scope.copy(),
@@ -237,7 +237,7 @@ extension AstValue {
         case let value as Checker.FunctionType:
             return Checker.FunctionType(
                 parameters: value.parameters.map({ $0.copy() }),
-                returnType: value.returnType.copy(),
+                returnTypes: value.returnTypes.map({ $0.copy() }),
                 flags: value.flags,
                 type: value.type.copy()
         )
@@ -287,7 +287,7 @@ extension AstValue {
         case let value as Checker.PolymorphicFunction:
             return Checker.PolymorphicFunction(
                 parameters: value.parameters.map({ $0.copy() }),
-                returnType: value.returnType.copy(),
+                returnTypes: value.returnTypes.map({ $0.copy() }),
                 body: value.body.copy(),
                 flags: value.flags,
                 type: value.type.copy(),

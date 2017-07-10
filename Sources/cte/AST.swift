@@ -120,7 +120,7 @@ extension AstNode {
         static let astKind = AstKind.function
 
         var parameters: [AstNode]
-        var returnType: AstNode
+        var returnTypes: [AstNode]
         let body: AstNode
 
         var flags: FunctionFlags
@@ -130,7 +130,7 @@ extension AstNode {
         static let astKind = AstKind.functionType
 
         let parameters: [AstNode]
-        let returnType: AstNode
+        let returnTypes: [AstNode]
         var flags: FunctionFlags
     }
 
@@ -252,7 +252,7 @@ extension AstNode {
     struct Return: AstValue {
         static let astKind = AstKind.return
 
-        let value: AstNode
+        let values: [AstNode]
     }
 
     struct Library: AstValue {
