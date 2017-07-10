@@ -520,7 +520,9 @@ extension Checker {
 
         case .pointerType:
             let pointerType = node.asPointerType
-            let pointeeType = checkExpr(node: pointerType.pointee)
+            var pointeeType = checkExpr(node: pointerType.pointee)
+
+            pointeeType = lowerFromMetatype(pointeeType, atNode: pointerType.pointee)
 
             let instanceType = Type.makePointer(to: pointeeType)
             let type = Type.makeMetatype(instanceType)

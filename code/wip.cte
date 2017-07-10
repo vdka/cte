@@ -6,6 +6,9 @@
 #foreign libc {
     #discardable
     printf :: fn (fmt: string, args: #cvargs ..any) -> i32
+
+    #discardable
+    sprintf :: fn (buf: *u8, fmt: string, args: #cvargs ..any) -> i32
 }
 
 
