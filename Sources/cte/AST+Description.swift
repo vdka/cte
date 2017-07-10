@@ -46,6 +46,9 @@ extension AstNode: CustomStringConvertible {
 
             return "fn" + "(" + parameterList + ") -> " + returnType
 
+        case .variadic:
+            return ".." + asVariadic.type.description
+
         case .pointerType:
             return "*" + asPointerType.pointee.description
 

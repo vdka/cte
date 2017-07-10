@@ -184,6 +184,7 @@ struct Lexer {
                 case "#library":     kind = .directiveLibrary
                 case "#foreign":     kind = .directiveForeign
                 case "#discardable": kind = .directiveDiscardable
+                case "#cvargs":      kind = .directiveCvargs
                 default:
                     kind = .ident
                     value = string
@@ -410,6 +411,7 @@ extension Token {
         case directiveForeign
         case directiveLinkname
         case directiveDiscardable
+        case directiveCvargs
     }
 }
 
@@ -491,7 +493,8 @@ extension Token: CustomStringConvertible {
         case .directiveLibrary: fallthrough
         case .directiveForeign: fallthrough
         case .directiveLinkname: fallthrough
-        case .directiveDiscardable:
+        case .directiveDiscardable: fallthrough
+        case .directiveCvargs:
             return kind.description
         }
     }
@@ -537,6 +540,7 @@ extension Token.Kind: CustomStringConvertible {
         case .directiveForeign: return "#foreign"
         case .directiveLinkname: return "#linkname"
         case .directiveDiscardable: return "#discardable"
+        case .directiveCvargs: return "#cvargs"
         case .invalid, .comment, .ident, .float, .integer, .string:
             fatalError()
         }

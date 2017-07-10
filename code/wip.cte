@@ -5,7 +5,7 @@
 
 #foreign libc {
     #discardable
-    printf :: fn (fmt: string, args: ..i64) -> i32
+    printf :: fn (fmt: string, args: #cvargs ..any) -> i32
 }
 
 
@@ -51,7 +51,7 @@ h = g(8)
 // (sel circle (call circumference (sel constants tau))) n
 i := circle.circumference(constants.tau)
 
-printf("Tau is rounded to %d\n", i64(circle.constants.tau))
+printf("Tau is rounded to %f\n", circle.constants.tau)
 
 z := forExample()
 addrA := &a

@@ -274,6 +274,16 @@ extension AstNode {
         }
     }
 
+    var asVariadic: CommonVariadic {
+        get {
+            assert(kind == AstNode.Variadic.astKind)
+            return value as! CommonVariadic
+        }
+        set {
+            self.value = newValue
+        }
+    }
+
     var asCheckedAssign: Checker.Assign {
         get {
             assert(kind == Checker.Assign.astKind)
@@ -503,7 +513,7 @@ protocol CommonCompileTime: AstValue {
 protocol CommonDeclaration: AstValue {
 
     var identifier: AstNode { get }
-    var type: AstNode? { get }
+    var type: AstNode? { get set }
     var value: AstNode { get }
     var linkName: String? { get set }
     var flags: DeclarationFlags { get set }
@@ -628,6 +638,12 @@ protocol CommonSwitch: AstValue {
     var cases: [AstNode] { get }
 }
 
+protocol CommonVariadic: AstValue {
+
+    var type: AstNode { get }
+    var cCompatible: Bool { get set }
+}
+
 extension AstNode.Assign: CommonAssign {}
 extension AstNode.Block: CommonBlock {}
 extension AstNode.Call: CommonCall {}
@@ -655,6 +671,7 @@ extension AstNode.Prefix: CommonPrefix {}
 extension AstNode.Return: CommonReturn {}
 extension AstNode.StringLiteral: CommonStringLiteral {}
 extension AstNode.Switch: CommonSwitch {}
+extension AstNode.Variadic: CommonVariadic {}
 extension Checker.Assign: CommonAssign {}
 extension Checker.Block: CommonBlock {}
 extension Checker.Call: CommonCall {}
@@ -675,8 +692,16 @@ extension Checker.Switch: CommonSwitch {}
 
 extension Type {
 
+    var asAny: Type.`Any` {
+        return value as! Type.`Any`
+    }
+
     var asBoolean: Type.Boolean {
         return value as! Type.Boolean
+    }
+
+    var asCVargsAny: Type.CVargsAny {
+        return value as! Type.CVargsAny
     }
 
     var asFile: Type.File {

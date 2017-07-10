@@ -557,6 +557,12 @@ func canonicalize(_ type: Type) -> IRType {
     case .void:
         return VoidType()
 
+    case .any:
+        fatalError()
+
+    case .cvargsAny:
+        fatalError()
+
     case .integer:
         return IntType(width: type.width!)
 
@@ -589,12 +595,14 @@ func canonicalize(_ type: Type) -> IRType {
         let requiredParams = fn.isVariadic ? fn.params[..<fn.params.lastIndex] : ArraySlice(fn.params)
         for param in requiredParams {
 
-            paramTypes.append(canonicalize(param))
+            if !param.isCVargAny {
+                paramTypes.append(canonicalize(param))
+            }
         }
 
         let retType = canonicalize(fn.returnType)
 
-        return FunctionType(argTypes: paramTypes, returnType: retType, isVarArg: fn.isVariadic)
+        return FunctionType(argTypes: paramTypes, returnType: retType, isVarArg: fn.isCVariadic)
 
     case .pointer:
         let pointer = type.asPointer

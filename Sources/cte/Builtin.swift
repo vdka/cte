@@ -18,9 +18,10 @@ struct BuiltinType {
 
     static let void = BuiltinType(name: "void", width: 0,  flags: .none, type: Type.Void())
     static let type = BuiltinType(name: "type", width: 64, flags: .none, type: Type.Void())
+    static let any  = BuiltinType(name: "any", width: 128, flags: .none, type: Type.Any())
+
     static let bool = BuiltinType(name: "bool", width: 1,  flags: .none, type: Type.Boolean())
     static let rawptr = BuiltinType(name: "rawptr", width: 64, flags: .none, type: Type.makePointer(to: Type.u8).asPointer)
-
     static let string = BuiltinType(name: "string", width: 64, flags: .none, type: Type.rawptr.asPointer)
 
     static let f32 = BuiltinType(name: "f32", width: 32, flags: .none, type: Type.FloatingPoint())
@@ -37,4 +38,5 @@ extension Entity {
 
 extension Type {
     static let invalid = Type.makeBuiltin(Entity.anonymous, width: 0, value: Type.Void())
+    static let cvargsAny = Type(value: Type.CVargsAny())
 }

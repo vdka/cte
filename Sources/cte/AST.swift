@@ -36,6 +36,7 @@ enum AstKind {
     case litInteger
     case function
     case polymorphicFunction
+    case variadic
     case declaration
     case paren
     case prefix
@@ -133,6 +134,13 @@ extension AstNode {
         var flags: FunctionFlags
     }
 
+    struct Variadic: AstValue {
+        static let astKind = AstKind.variadic
+
+        let type: AstNode
+        var cCompatible: Bool
+    }
+
     struct PointerType: AstValue {
         static let astKind = AstKind.pointerType
 
@@ -149,7 +157,7 @@ extension AstNode {
         static let astKind = AstKind.declaration
 
         let identifier: AstNode
-        let type: AstNode?
+        var type: AstNode?
         let value: AstNode
 
         var linkName: String?
@@ -284,6 +292,7 @@ struct FunctionFlags: OptionSet {
     static let variadic          = FunctionFlags(rawValue: 0b0000_0001)
     static let discardableResult = FunctionFlags(rawValue: 0b0000_0010)
     static let specialization    = FunctionFlags(rawValue: 0b0000_0100)
+    static let cVariadic         = FunctionFlags(rawValue: 0b1000_0001) // implies variadic
 }
 
 extension CommonDeclaration {

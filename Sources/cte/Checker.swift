@@ -52,7 +52,7 @@ extension Checker {
 
             if decl.isForeign, decl.isCompileTime {
                 guard type.isMetatype else {
-                    reportError("A type is the expected rvalue for a foreign symbol", at: decl.value)
+                    reportError("Expected 'type' as rvalue for foreign symbol, got '\(type)'", at: decl.value)
                     type = Type.invalid
                     return
                 }
@@ -375,8 +375,16 @@ extension Checker {
             node.value = IntegerLiteral(value: lit.value, type: type)
             return type
 
+        case .variadic:
+            let variadic = node.asVariadic
+            var type = checkExpr(node: variadic.type, desiredType: desiredType)
+            if type.isMetatype && type.asMetatype.instanceType.isAny && variadic.cCompatible {
+                type = Type.makeMetatype(Type.cvargsAny)
+            }
+            return type
+
         case .function:
-            let fn = node.asFunction
+            var fn = node.asFunction
 
             let prevScope = currentScope
             currentScope = Scope(parent: currentScope)
@@ -386,8 +394,22 @@ extension Checker {
 
             var needsSpecialization = false
             var params: [Type] = []
-            for param in fn.parameters {
+            for var param in fn.parameters {
                 assert(param.kind == .declaration)
+
+                if param.asDeclaration.type!.kind == .variadic {
+                    guard param === fn.parameters.last! else {
+                        reportError("You can only use '..' with a functions final parameter", at: param)
+                        return Type.invalid
+                    }
+                    let variadic = param.asDeclaration.type!.asVariadic
+
+                    if variadic.cCompatible {
+                        node.asFunction.flags.insert(.cVariadic)
+                    } else {
+                        node.asFunction.flags.insert(.variadic)
+                    }
+                }
 
                 check(node: param)
 
@@ -399,6 +421,8 @@ extension Checker {
 
                 params.append(entity.type!)
             }
+
+            fn = node.asFunction
 
             var returnType = checkExpr(node: fn.returnType)
             returnType = lowerFromMetatype(returnType, atNode: fn.returnType)
@@ -414,7 +438,9 @@ extension Checker {
             }
 
             let isVariadic = fn.flags.contains(.variadic)
-            let functionType = Type.Function(node: node, params: params, returnType: returnType, isVariadic: isVariadic, needsSpecialization: needsSpecialization)
+            let functionType = Type.Function(node: node, params: params, returnType: returnType,
+                                             isVariadic: isVariadic, isCVariadic: fn.isCVariadic,
+                                             needsSpecialization: needsSpecialization)
 
             let type = Type(value: functionType, entity: Entity.anonymous)
 
@@ -431,16 +457,42 @@ extension Checker {
             return type
 
         case .functionType:
-            let fn = node.asFunctionType
+            var fn = node.asFunctionType
 
             var params: [Type] = []
             for param in fn.parameters {
 
                 var type: Type
                 if param.kind == .declaration {
+
+                    if param.asDeclaration.type!.kind == .variadic {
+                        guard param === fn.parameters.last! else {
+                            reportError("You can only use '..' with a functions final parameter", at: param)
+                            return Type.invalid
+                        }
+                        let variadic = param.asDeclaration.type!.asVariadic
+
+                        if variadic.cCompatible {
+                            node.asFunctionType.flags.insert(.cVariadic)
+                        }
+                        node.asFunctionType.flags.insert(.variadic)
+                    }
+
                     type = checkExpr(node: param.asDeclaration.type!)
                     type = lowerFromMetatype(type, atNode: param.asDeclaration.type!)
                 } else {
+                    if param.kind == .variadic {
+                        guard param === fn.parameters.last! else {
+                            reportError("You can only use '..' with a functions final parameter", at: param)
+                            return Type.invalid
+                        }
+                        let variadic = param.asVariadic
+
+                        if variadic.cCompatible {
+                            node.asFunctionType.flags.insert(.cVariadic)
+                        }
+                        node.asFunctionType.flags.insert(.variadic)
+                    }
                     type = checkExpr(node: param)
                     type = lowerFromMetatype(type, atNode: param)
                 }
@@ -448,10 +500,15 @@ extension Checker {
                 params.append(type)
             }
 
+            // reload this as the parameter check can modify the original node
+            fn = node.asFunctionType
+
             var returnType = checkExpr(node: fn.returnType)
             returnType = lowerFromMetatype(returnType, atNode: fn.returnType)
 
-            let functionType = Type.Function(node: node, params: params, returnType: returnType, isVariadic: fn.isVariadic, needsSpecialization: false)
+            let functionType = Type.Function(node: node, params: params, returnType: returnType,
+                                             isVariadic: fn.isVariadic, isCVariadic: fn.isCVariadic,
+                                             needsSpecialization: false)
 
             let instanceType = Type(value: functionType, entity: Entity.anonymous)
             let fnPointerType = Type.makePointer(to: instanceType)
@@ -610,7 +667,7 @@ extension Checker {
 
                 let argType = checkExpr(node: arg, desiredType: expectedType)
 
-                guard argType == expectedType else {
+                guard argType == expectedType || implicitlyConvert(argType, to: expectedType) else {
                     reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expectedType)'", at: arg)
                     continue
                 }
@@ -836,8 +893,9 @@ extension Checker {
         check(node: fn.body)
         currentSpecializationCall = nil
 
-        let strippedFunction = Type.Function(node: fnNode, params: strippedParamTypes,
-                                             returnType: returnType, isVariadic: fn.isSpecialization, needsSpecialization: false)
+        let strippedFunction = Type.Function(node: fnNode, params: strippedParamTypes, returnType: returnType,
+                                             isVariadic: fn.isSpecialization, isCVariadic: fn.isCVariadic,
+                                             needsSpecialization: false)
         let strippedType = Type(value: strippedFunction, entity: Entity.anonymous)
 
         var strippedParameters = fn.parameters
@@ -878,6 +936,21 @@ extension Checker {
 
         reportError("'\(type)' cannot be used as a type", at: node)
         return Type.invalid
+    }
+
+    /// - Returns: Was a conversion performed
+    func implicitlyConvert(_ type: Type, to targetType: Type) -> Bool {
+
+        if targetType.isAny {
+            fatalError("Implement this once we have an any type")
+        }
+
+        if targetType.isCVargAny {
+            // No actual conversion need be done.
+            return true
+        }
+
+        return false
     }
 }
 
@@ -1079,7 +1152,7 @@ extension Checker {
         typealias UncheckedValue = AstNode.Declaration
 
         let identifier: AstNode
-        let type: AstNode?
+        var type: AstNode?
         let value: AstNode
 
         var linkName: String?

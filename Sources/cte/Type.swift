@@ -42,6 +42,12 @@ class Type: Hashable, CustomStringConvertible {
         case .void:
             return entity!.name
 
+        case .any:
+            return "any"
+
+        case .cvargsAny:
+            return "#cvargs ..any"
+
         case .integer:
             return entity!.name
 
@@ -73,6 +79,14 @@ class Type: Hashable, CustomStringConvertible {
 
     var isVoid: Bool {
         return kind == .void
+    }
+
+    var isAny: Bool {
+        return kind == .any
+    }
+
+    var isCVargAny: Bool {
+        return kind == .cvargsAny
     }
 
     var isBoolean: Bool {
@@ -140,6 +154,8 @@ class Type: Hashable, CustomStringConvertible {
 
 enum TypeKind {
     case void
+    case any
+    case cvargsAny
     case integer
     case floatingPoint
     case boolean
@@ -157,6 +173,14 @@ extension Type {
 
     struct Void: TypeValue {
         static let typeKind: TypeKind = .void
+    }
+
+    struct `Any`: TypeValue {
+        static let typeKind: TypeKind = .any
+    }
+
+    struct CVargsAny: TypeValue {
+        static let typeKind: TypeKind = .cvargsAny
     }
 
     struct Integer: TypeValue {
@@ -179,6 +203,7 @@ extension Type {
         var params: [Type]
         var returnType: Type
         var isVariadic: Bool
+        var isCVariadic: Bool
         var needsSpecialization: Bool
     }
 

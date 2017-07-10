@@ -166,6 +166,12 @@ extension AstValue {
                 cases: value.cases.map({ $0.copy() })
         )
 
+        case let value as AstNode.Variadic:
+            return AstNode.Variadic(
+                type: value.type.copy(),
+                cCompatible: value.cCompatible
+        )
+
         case let value as Checker.Assign:
             return Checker.Assign(
                 lvalue: value.lvalue.copy(),

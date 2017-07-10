@@ -129,6 +129,14 @@ struct Parser {
             let stmtBlock = AstNode.Block(stmts: stmts, isForeign: false)
             return AstNode(stmtBlock, tokens: [lbrace, rbrace])
 
+        case .ellipsis:
+            let ellispsis = advance()
+
+            let type = expression()
+
+            let variadic = AstNode.Variadic(type: type, cCompatible: false)
+            return AstNode(variadic, tokens: [ellispsis])
+
         case .dollar:
             let dollar = advance()
             let stmt = expression()
@@ -214,18 +222,8 @@ struct Parser {
             let lparen = advance(expecting: .lparen)
             consumeNewlines()
 
-            var isVariadic: Bool = false
             var params: [AstNode] = []
             while lexer.peek()?.kind != .rparen {
-
-                if lexer.peek()?.kind == .ellipsis { // printf :: fn (fmt: string, ..any) -> i32
-                    advance()
-                    isVariadic = true
-                }
-                if lexer.peek(aheadBy: 2)?.kind == .ellipsis { // printf :: fn (fmt: string, args: ..any) -> i32
-                    isVariadic = true
-                    lexer.buffer.remove(at: 2)
-                }
 
                 let param = expression()
                 if state.contains(.isDeclarationValue), param.kind != .declaration {
@@ -238,10 +236,6 @@ struct Parser {
                 }
                 advance(expecting: .comma)
                 consumeNewlines()
-
-                if isVariadic {
-                    break
-                }
             }
 
             consumeNewlines()
@@ -252,9 +246,6 @@ struct Parser {
             let returnType = expression(Token.Kind.equals.lbp)
 
             var flags: FunctionFlags = []
-            if isVariadic {
-                flags.insert(.variadic)
-            }
             if returnType.kind == .identifier, returnType.asIdentifier.name == "void" {
                 flags.insert(.discardableResult)
             }
@@ -461,6 +452,19 @@ struct Parser {
             if fnReturnType.kind == .identifier, fnReturnType.asIdentifier.name == "void" {
                 reportError("#discardable on function returning void is superflous", at: directive)
             }
+
+            return stmt
+
+        case .directiveCvargs:
+            let directive = advance()
+            let stmt = expression()
+
+            guard stmt.kind == .variadic else {
+                reportError("#cvargs is only valid on variadics", at: directive)
+                return stmt
+            }
+
+            stmt.asVariadic.cCompatible = true
 
             return stmt
 

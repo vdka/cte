@@ -48,8 +48,8 @@ extension {{ type.name }}: Common{{ type.localName }} {}
 extension Type {
 {% for type in types.implementing.TypeValue %}
 
-    var as{{ type.localName }}: Type.{{ type.localName }} {
-        return value as! {{ type.name }}
+    var as{{ type.localName }}: Type.{{ type.localName|escapeReservedKeywords }} {
+        return value as! Type.{{ type.localName|escapeReservedKeywords }}
     }
 {% endfor %}
 }
