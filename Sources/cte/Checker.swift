@@ -755,11 +755,11 @@ extension Checker {
         if argType.compatibleWithExtOrTrunc(targetType) {
 
             if argType.isFloatingPoint {
-                cast = (argType.width! < targetType.width!) ? .fpTrunc : .fpext
+                cast = (argType.width! > targetType.width!) ? .fpTrunc : .fpext
             } else if targetType.isSignedInteger {
-                cast = (argType.width! < targetType.width!) ? .trunc : .sext
+                cast = (argType.width! > targetType.width!) ? .trunc : .sext
             } else if targetType.isUnsignedInteger {
-                cast = (argType.width! < targetType.width!) ? .trunc : .zext
+                cast = (argType.width! > targetType.width!) ? .trunc : .zext
             } else {
                 fatalError("This is should cover all bases where compatibleWithExtOrTrunc returns true")
             }

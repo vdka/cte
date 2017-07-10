@@ -54,7 +54,7 @@ i := circle.circumference(constants.tau)
 
 // NOTE(vdka): The behaviour of being able to peer into an imported files imports
 //  will go away
-printf("Tau is %f\n", circle.constants.tau)
+printf("Tau is %f\n", f32(circle.constants.tau))
 
 z := forExample()
 addrA := &a
