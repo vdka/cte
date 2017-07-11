@@ -737,7 +737,7 @@ extension Checker {
                 for arg in excessArgs {
                     let argType = checkExpr(node: arg, desiredType: expectedType)
 
-                    guard argType == expectedType else {
+                    guard argType == expectedType || implicitlyConvert(argType, to: expectedType) else {
                         reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expectedType)'", at: arg)
                         continue
                     }
