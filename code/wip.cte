@@ -64,3 +64,10 @@ swap :: fn (a: i32, b: i32) -> i32, i32 {
     return b, a
 }
 
+x := 1
+y := 2
+
+x, y = 3, 4
+
+printf("%d, %d\n", x, y)
+

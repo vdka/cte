@@ -749,8 +749,8 @@ extension AstNode {
 
 protocol CommonAssign: AstValue {
 
-    var lvalue: AstNode { get }
-    var rvalue: AstNode { get }
+    var lvalues: [AstNode] { get }
+    var rvalues: [AstNode] { get }
 }
 
 protocol CommonBlock: AstValue {

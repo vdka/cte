@@ -122,9 +122,23 @@ struct IRGenerator {
         case .assign:
             let assign = node.asCheckedAssign
 
-            let lvalue = emitExpr(node: assign.lvalue, returnAddress: true)
-            let rvalue = emitExpr(node: assign.rvalue)
-            builder.buildStore(rvalue, to: lvalue)
+            if assign.rvalueIsCall && assign.lvalues.count > 1 {
+                let aggregate = emitCall(assign.rvalues[0].asCheckedCall)
+
+                for (index, lvalue) in assign.lvalues.enumerated() {
+                    let lvalueAddress = emitExpr(node: lvalue, returnAddress: true)
+                    let rvalue = builder.buildStructGEP(aggregate, index: index)
+                    builder.buildStore(rvalue, to: lvalueAddress)
+                }
+
+                return
+            } else {
+                for (lvalue, rvalue) in zip(assign.lvalues, assign.rvalues) {
+                    let lvalueAddress = emitExpr(node: lvalue, returnAddress: true)
+                    let rvalue = emitExpr(node: rvalue)
+                    builder.buildStore(rvalue, to: lvalueAddress)
+                }
+            }
 
         case .block:
             let block = node.asCheckedBlock
@@ -632,9 +646,6 @@ func canonicalize(_ type: Type) -> IRType {
         let tuple = type.asTuple
         let types = tuple.types.map(canonicalize)
         switch types.count {
-        case 0:
-            return VoidType()
-
         case 1:
             return types[0]
 

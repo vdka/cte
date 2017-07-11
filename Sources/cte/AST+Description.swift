@@ -90,7 +90,9 @@ extension AstNode: CustomStringConvertible {
 
         case .assign:
             let a = asAssign
-            return a.lvalue.description + " = " + a.rvalue.description
+            let lvalue = a.lvalues.map({ $0.description }).joined(separator: ", ")
+            let rvalue = a.rvalues.map({ $0.description }).joined(separator: ", ")
+            return lvalue + " = " + rvalue
 
         case .call, .cast:
             let call = asCall

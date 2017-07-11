@@ -62,6 +62,10 @@ extension Checker {
 
             var type = (decl.value == .empty) ? expectedType! : checkExpr(node: decl.value, desiredType: expectedType)
 
+            if decl.rvalueIsCall {
+                type = type.asTuple.types[0]
+            }
+
             if decl.isForeign, decl.isCompileTime {
                 guard type.isMetatype else {
                     reportError("Expected 'type' as rvalue for foreign symbol, got '\(type)'", at: decl.value)
@@ -105,15 +109,41 @@ extension Checker {
         case .assign:
             let assign = node.asAssign
 
-            let lvalType = checkExpr(node: assign.lvalue)
-            let rvalType = checkExpr(node: assign.rvalue, desiredType: lvalType)
+            var lvalueTypes: [Type] = []
+            for lvalue in assign.lvalues {
+                let type = checkExpr(node: lvalue)
+                lvalueTypes.append(type)
 
-            guard lvalType == rvalType else {
-                reportError("Cannot assign value of type '\(rvalType)' to value of type '\(lvalType)'", at: node)
-                return
+                guard lvalue.isLvalue else {
+                    reportError("Cannot assign to '\(lvalue)'", at: lvalue)
+                    continue
+                }
+            }
+            var rvalueTypes: [Type] = []
+            if assign.rvalueIsCall, let call = assign.rvalues.first {
+                rvalueTypes = checkExpr(node: call).asTuple.types
+            } else if assign.lvalues.count != assign.rvalues.count {
+                reportError("Assignment count mismatch \(assign.lvalues.count) = \(assign.rvalues.count)", at: node)
+            } else {
+                var rvalueTypes: [Type] = []
+                for (expectedType, rvalue) in zip(lvalueTypes, assign.rvalues) {
+                    let type = checkExpr(node: rvalue, desiredType: expectedType)
+                    rvalueTypes.append(type)
+
+                    guard rvalue.isRvalue || type == .invalid else {
+                        reportError("Cannot use '\(rvalue)' as rvalue in assignment", at: rvalue)
+                        continue
+                    }
+                }
             }
 
-            node.value = Assign(lvalue: assign.lvalue, rvalue: assign.rvalue)
+            for (index, (lvalueType, rvalueType)) in zip(lvalueTypes, rvalueTypes).enumerated()
+                where rvalueType != lvalueType
+            {
+                reportError("Cannot assign value of type '\(lvalueType)' to value of type '\(rvalueType)'", at: assign.rvalues[index])
+            }
+
+            node.value = Assign(lvalues: assign.lvalues, rvalues: assign.rvalues)
 
         case .block:
             let block = node.asBlock
@@ -422,8 +452,13 @@ extension Checker {
 
             var needsSpecialization = false
             var params: [Type] = []
-            for var param in fn.parameters {
-                assert(param.kind == .declaration)
+            for (index, var param) in fn.parameters.enumerated() {
+                assert(param.kind == .declaration || param.kind == .compileTime)
+                if param.kind == .compileTime {
+                    param = param.asCompileTime.stmt
+                    param.asDeclaration.flags.insert(.compileTime)
+                    node.asFunction.parameters[index] = param
+                }
                 if param.kind != .declaration {
                     reportError("Procedure literals must provide parameter names in their function prototype", at: param)
                 }
@@ -753,17 +788,7 @@ extension Checker {
 
             node.value = Call(callee: call.callee, arguments: call.arguments, specialization: nil, type: calleeFn.returnType)
 
-            let returnTuple = calleeFn.returnType.asTuple
-            switch returnTuple.types.count {
-            case 0:
-                return Type.void.asMetatype.instanceType
-
-            case 1:
-                return returnTuple.types[0]
-
-            default:
-                return calleeFn.returnType
-            }
+            return calleeFn.returnType
 
         case .memberAccess:
             let access = node.asMemberAccess
@@ -994,17 +1019,7 @@ extension Checker {
 
         callNode.value = Call(callee: call.callee, arguments: strippedArguments, specialization: specialization, type: returnType)
 
-        let returnTuple = returnType.asTuple
-        switch returnTuple.types.count {
-        case 0:
-            return Type.void.asMetatype.instanceType
-
-        case 1:
-            return returnTuple.types[0]
-
-        default:
-            return returnType
-        }
+        return returnType
     }
 
     func lowerFromMetatype(_ type: Type, atNode node: AstNode) -> Type {
@@ -1069,18 +1084,12 @@ extension AstNode {
     var isRvalue: Bool {
 
         switch self.kind {
-        case _ where isStmt:
-            return false
-
         case .identifier:
             let entity = asCheckedIdentifier.entity
             return !(entity.flags.contains(.file) || entity.flags.contains(.library))
 
-        case .call, .function, .polymorphicFunction, .prefix, .infix, .paren, .litFloat, .litString, .pointerType:
-            return true
-
         default:
-            return false
+            return !isStmt
         }
     }
 
@@ -1273,8 +1282,8 @@ extension Checker {
     struct Assign: CheckedAstValue {
         typealias UncheckedValue = AstNode.Assign
 
-        let lvalue: AstNode
-        let rvalue: AstNode
+        let lvalues: [AstNode]
+        let rvalues: [AstNode]
     }
 
     struct Call: CheckedExpression, CheckedAstValue {
@@ -1352,6 +1361,20 @@ class FunctionSpecialization {
         self.strippedType = strippedType
         self.fnNode = fnNode
         self.llvm = llvm
+    }
+}
+
+extension CommonAssign {
+
+    var rvalueIsCall: Bool {
+        return rvalues.count == 1 && rvalues[0].kind == .call
+    }
+}
+
+extension CommonDeclaration {
+
+    var rvalueIsCall: Bool {
+        return value.kind == .call
     }
 }
 

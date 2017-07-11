@@ -196,8 +196,8 @@ extension AstNode {
     struct Assign: AstValue {
         static let astKind = AstKind.assign
 
-        let lvalue: AstNode
-        let rvalue: AstNode
+        let lvalues: [AstNode]
+        let rvalues: [AstNode]
     }
 
     struct Call: AstValue {

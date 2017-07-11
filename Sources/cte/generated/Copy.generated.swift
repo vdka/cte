@@ -9,8 +9,8 @@ extension AstValue {
 
         case let value as AstNode.Assign:
             return AstNode.Assign(
-                lvalue: value.lvalue.copy(),
-                rvalue: value.rvalue.copy()
+                lvalues: value.lvalues.map({ $0.copy() }),
+                rvalues: value.rvalues.map({ $0.copy() })
         )
 
         case let value as AstNode.Block:
@@ -179,8 +179,8 @@ extension AstValue {
 
         case let value as Checker.Assign:
             return Checker.Assign(
-                lvalue: value.lvalue.copy(),
-                rvalue: value.rvalue.copy()
+                lvalues: value.lvalues.map({ $0.copy() }),
+                rvalues: value.rvalues.map({ $0.copy() })
         )
 
         case let value as Checker.Block:

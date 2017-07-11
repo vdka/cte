@@ -40,12 +40,12 @@ struct Parser {
         case parseType
         case parseReturnType
         case parseSingle
-        case parseParamList
         case parseDeclValue
         case parseFuncBody
         case parseSwitchBody
         case parseDeferExpr
         case parseForeignDirectiveBody
+        case parseParamIdentifiers
     }
 
     mutating func pushContext(changingStateTo stateChange: StateChange) {
@@ -58,9 +58,7 @@ struct Parser {
         case .parseReturnType:
             state = [.permitExprList]
         case .parseSingle:
-            state = [.permitAssignOrDecl]
-        case .parseParamList:
-            state = [.permitExprList, .permitAssignOrDecl]
+            state = []
         case .parseDeclValue:
             state = [.permitExprList]
         case .parseFuncBody:
@@ -72,6 +70,8 @@ struct Parser {
             state = []
         case .parseForeignDirectiveBody:
             state = [.permitAssignOrDecl, .foreign]
+        case .parseParamIdentifiers:
+            state = [.permitExprList]
         }
 
         let newContext = Context(state: state, previous: context)
@@ -304,11 +304,40 @@ struct Parser {
 
             if lexer.peek()?.kind != .rparen {
 
-                pushContext(changingStateTo: .parseParamList)
-                let paramList = expression()
-                popContext()
+                while lexer.peek()?.kind != .rparen {
+                    pushContext(changingStateTo: .parseParamIdentifiers)
+                    let identifier = expression() // FIXME(vdka): Handle fn (x, y, z: int) -> foo
+                    popContext()
+                    if lexer.peek()?.kind != .colon {
+                        params.append(identifier)
+                        continue
+                    }
+                    let colon = advance()
+                    pushContext(changingStateTo: .parseType)
+                    let type = expression()
+                    popContext()
 
-                params = explode(paramList)
+                    var param: AstNode
+
+                    if identifier.kind == .compileTime {
+                        let decl = AstNode.Declaration(identifier: identifier.asCompileTime.stmt, type: type, value: .empty,
+                                                       linkName: nil, flags: [])
+
+                        let compileTimeStmt = AstNode.CompileTime(stmt: AstNode(decl, tokens: [colon]))
+                        param = AstNode(compileTimeStmt, tokens: [identifier.tokens[0]])
+                    } else {
+                        let decl = AstNode.Declaration(identifier: identifier, type: type, value: .empty,
+                                                       linkName: nil, flags: [])
+                        param = AstNode(decl, tokens: [colon])
+                    }
+
+                    params.append(param)
+
+                    if lexer.peek()?.kind != .comma {
+                        break
+                    }
+                    advance()
+                }
             }
 
             let rparen = advance(expecting: .rparen)
@@ -584,7 +613,7 @@ struct Parser {
 
         case .comma:
             let comma = advance()
-            let expr = expression(comma.kind.lbp - 1)
+            let expr = expression(comma.kind.lbp)
             let list = append(lvalue, expr)
             list.tokens.append(comma)
             return list
@@ -592,9 +621,9 @@ struct Parser {
         case .equals:
             let equals = advance()
 
-            let value = expression(Token.Kind.equals.lbp)
+            let rvalue = expression(Token.Kind.equals.lbp)
 
-            let assign = AstNode.Assign(lvalue: lvalue, rvalue: value)
+            let assign = AstNode.Assign(lvalues: explode(lvalue), rvalues: explode(rvalue))
 
             return AstNode(value: assign, tokens: [equals])
 
@@ -725,14 +754,14 @@ extension Token.Kind {
 
     var lbp: UInt8 {
         switch self {
-        case .comma:
-            return 5
-
         case .colon, .equals:
             return 10
-
+            
         case .directiveLinkname:
             return 10
+
+        case .comma:
+            return 15
 
         case .lparen, .dot:
             return 80
