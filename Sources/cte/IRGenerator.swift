@@ -88,8 +88,18 @@ struct IRGenerator {
             }
 
             if options.contains(.emitIr) {
-                if let endOfAlloca = builder.insertBlock!.instructions.first(where: { !$0.isAAllocaInst }) {
-                    builder.position(endOfAlloca, block: builder.insertBlock!)
+
+                // Somehow Xcode 9 beta 3 includes a Swift compiler which thinks this is ambiguous.
+                // if let endOfAlloca = builder.insertBlock!.instructions.first(where: { !$0.isAAllocaInst }) {
+                //     builder.position(endOfAlloca, block: builder.insertBlock!)
+                // }
+
+                for inst in builder.insertBlock!.instructions {
+                    guard !inst.isAAllocaInst else {
+                        continue
+                    }
+                    builder.position(inst, block: builder.insertBlock!)
+                    break
                 }
             }
 
