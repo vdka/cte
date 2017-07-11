@@ -40,12 +40,12 @@ struct Parser {
         case parseType
         case parseReturnType
         case parseSingle
-        case parseParamList
         case parseDeclValue
         case parseFuncBody
         case parseSwitchBody
         case parseDeferExpr
         case parseForeignDirectiveBody
+        case parseParamIdentifiers
     }
 
     mutating func pushContext(changingStateTo stateChange: StateChange) {
@@ -58,9 +58,7 @@ struct Parser {
         case .parseReturnType:
             state = [.permitExprList]
         case .parseSingle:
-            state = [.permitAssignOrDecl]
-        case .parseParamList:
-            state = [.permitExprList, .permitAssignOrDecl]
+            state = []
         case .parseDeclValue:
             state = [.permitExprList]
         case .parseFuncBody:
@@ -72,6 +70,8 @@ struct Parser {
             state = []
         case .parseForeignDirectiveBody:
             state = [.permitAssignOrDecl, .foreign]
+        case .parseParamIdentifiers:
+            state = [.permitExprList]
         }
 
         let newContext = Context(state: state, previous: context)
@@ -301,14 +301,32 @@ struct Parser {
             consumeNewlines()
 
             var params: [AstNode] = []
-
             if lexer.peek()?.kind != .rparen {
 
-                pushContext(changingStateTo: .parseParamList)
-                let paramList = expression()
-                popContext()
+                while lexer.peek()?.kind != .rparen {
+                    pushContext(changingStateTo: .parseParamIdentifiers)
+                    let identifiers = expression() // FIXME(vdka): Handle fn (x, y, z: int) -> foo
+                    popContext()
+                    if lexer.peek()?.kind != .colon {
+                        params.append(identifiers) // handles function signatures `fn (i8, i8, i8, i8) -> i32`
+                        continue
+                    }
+                    let colon = advance()
+                    pushContext(changingStateTo: .parseType)
+                    let type = expression()
+                    popContext()
 
-                params = explode(paramList)
+                    let sameTypeParams = explode(identifiers)
+                        .map({ AstNode.Parameter(name: $0, type: type) })
+                        .map({ AstNode($0, tokens: [colon]) })
+
+                    params.append(contentsOf: sameTypeParams)
+
+                    if lexer.peek()?.kind != .comma {
+                        break
+                    }
+                    advance()
+                }
             }
 
             let rparen = advance(expecting: .rparen)
@@ -323,6 +341,15 @@ struct Parser {
             if lexer.peek()?.kind != .lbrace {
                 let functionType = AstNode.FunctionType(parameters: params, returnTypes: returnTypes, flags: [])
                 return AstNode(functionType, tokens: [fnToken, lparen, rparen, returnArrow])
+            }
+
+            for param in params
+                where param.kind != .parameter
+            {
+                assert(param.kind == .identifier)
+                reportError("Expected named parameter", at: param)
+                attachNote("Function literals require all arguments be named")
+                attachNote("If don't use a parameter but need it in the function signature use '_: \(param)'")
             }
 
             pushContext(changingStateTo: .parseFuncBody)
@@ -521,9 +548,9 @@ struct Parser {
             }
 
             if isFunction {
-                decl.value.asFunction.flags.insert(.discardableResult)
+                decl.values[0].asFunction.flags.insert(.discardableResult)
             } else {
-                decl.value.asFunctionType.flags.insert(.discardableResult)
+                decl.values[0].asFunctionType.flags.insert(.discardableResult)
             }
 
             return stmt
@@ -584,7 +611,7 @@ struct Parser {
 
         case .comma:
             let comma = advance()
-            let expr = expression(comma.kind.lbp - 1)
+            let expr = expression(comma.kind.lbp)
             let list = append(lvalue, expr)
             list.tokens.append(comma)
             return list
@@ -592,9 +619,9 @@ struct Parser {
         case .equals:
             let equals = advance()
 
-            let value = expression(Token.Kind.equals.lbp)
+            let rvalue = expression(Token.Kind.equals.lbp)
 
-            let assign = AstNode.Assign(lvalue: lvalue, rvalue: value)
+            let assign = AstNode.Assign(lvalues: explode(lvalue), rvalues: explode(rvalue))
 
             return AstNode(value: assign, tokens: [equals])
 
@@ -615,9 +642,8 @@ struct Parser {
             }
 
             guard let nextToken = lexer.peek(), nextToken.kind == .equals || nextToken.kind == .colon else {
-                // matches `x: foo`
-                assert(type != nil)
-                let decl = AstNode.Declaration(identifier: lvalue, type: type, value: .empty,
+                assert(type != nil) // matches `x: foo`
+                let decl = AstNode.Declaration(names: explode(lvalue), type: type, values: [],
                                                linkName: nil, flags: [])
                 return AstNode(decl, tokens: [colon])
             }
@@ -628,9 +654,27 @@ struct Parser {
             let value = expression(colon.kind.lbp)
             popContext()
 
+            let values = explode(value)
+
+            if values.count > 1 {
+                assert(value.kind == .list)
+
+                let firstUnpermittedInList = values.enumerated()
+                    .first(where: { _, node in
+                        return node.kind == .function || (node.kind == .functionType && context.state.contains(.foreign))
+                    })
+
+                if let firstUnpermittedInList = firstUnpermittedInList {
+                    let comma = value.tokens[firstUnpermittedInList.offset]
+                    reportError("Unexpected comma", at: comma)
+                    attachNote("Multiple values with function literals are forbidden for reasons of code hygiene")
+                    attachNote("You should break this into multiple, separate declarations")
+                }
+            }
+
             let flags = token.kind == .colon ? DeclarationFlags.compileTime : []
 
-            let decl = AstNode.Declaration(identifier: lvalue, type: type, value: value,
+            let decl = AstNode.Declaration(names: explode(lvalue), type: type, values: values,
                                            linkName: nil, flags: flags)
             return AstNode(decl, tokens: [colon, token])
 
@@ -725,14 +769,14 @@ extension Token.Kind {
 
     var lbp: UInt8 {
         switch self {
-        case .comma:
-            return 5
-
         case .colon, .equals:
             return 10
-
+            
         case .directiveLinkname:
             return 10
+
+        case .comma:
+            return 15
 
         case .lparen, .dot:
             return 80

@@ -37,6 +37,7 @@ enum AstKind {
     case litInteger
     case function
     case polymorphicFunction
+    case parameter
     case variadic
     case declaration
     case paren
@@ -133,6 +134,13 @@ extension AstNode {
         var flags: FunctionFlags
     }
 
+    struct Parameter: AstValue {
+        static let astKind = AstKind.parameter
+
+        var name: AstNode
+        var type: AstNode
+    }
+
     struct FunctionType: AstValue {
         static let astKind = AstKind.functionType
 
@@ -163,12 +171,11 @@ extension AstNode {
     struct Declaration: AstValue {
         static let astKind = AstKind.declaration
 
-        let identifier: AstNode
+        var names: [AstNode]
         var type: AstNode?
-        let value: AstNode
+        var values: [AstNode]
 
         var linkName: String?
-
         var flags: DeclarationFlags
     }
 
@@ -196,8 +203,8 @@ extension AstNode {
     struct Assign: AstValue {
         static let astKind = AstKind.assign
 
-        let lvalue: AstNode
-        let rvalue: AstNode
+        let lvalues: [AstNode]
+        let rvalues: [AstNode]
     }
 
     struct Call: AstValue {
@@ -305,10 +312,10 @@ struct FunctionFlags: OptionSet {
 extension CommonDeclaration {
 
     var isFunction: Bool {
-        return value.kind == .function || value.kind == .polymorphicFunction
+        return values.first?.kind == .function || values.first?.kind == .polymorphicFunction
     }
 
     var isFunctionType: Bool {
-        return value.kind == .functionType
+        return values.first?.kind == .functionType
     }
 }

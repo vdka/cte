@@ -9,8 +9,8 @@ extension AstValue {
 
         case let value as AstNode.Assign:
             return AstNode.Assign(
-                lvalue: value.lvalue.copy(),
-                rvalue: value.rvalue.copy()
+                lvalues: value.lvalues.map({ $0.copy() }),
+                rvalues: value.rvalues.map({ $0.copy() })
         )
 
         case let value as AstNode.Block:
@@ -43,9 +43,9 @@ extension AstValue {
 
         case let value as AstNode.Declaration:
             return AstNode.Declaration(
-                identifier: value.identifier.copy(),
+                names: value.names.map({ $0.copy() }),
                 type: value.type?.copy(),
-                value: value.value.copy(),
+                values: value.values.map({ $0.copy() }),
                 linkName: value.linkName,
                 flags: value.flags
         )
@@ -139,6 +139,12 @@ extension AstValue {
                 member: value.member.copy()
         )
 
+        case let value as AstNode.Parameter:
+            return AstNode.Parameter(
+                name: value.name.copy(),
+                type: value.type.copy()
+        )
+
         case let value as AstNode.Paren:
             return AstNode.Paren(
                 expr: value.expr.copy()
@@ -177,12 +183,6 @@ extension AstValue {
                 cCompatible: value.cCompatible
         )
 
-        case let value as Checker.Assign:
-            return Checker.Assign(
-                lvalue: value.lvalue.copy(),
-                rvalue: value.rvalue.copy()
-        )
-
         case let value as Checker.Block:
             return Checker.Block(
                 stmts: value.stmts.map({ $0.copy() }),
@@ -215,12 +215,12 @@ extension AstValue {
 
         case let value as Checker.Declaration:
             return Checker.Declaration(
-                identifier: value.identifier.copy(),
+                names: value.names.map({ $0.copy() }),
                 type: value.type?.copy(),
-                value: value.value.copy(),
+                values: value.values.map({ $0.copy() }),
                 linkName: value.linkName,
                 flags: value.flags,
-                entity: value.entity.copy()
+                entities: value.entities.map({ $0.copy() })
         )
 
         case let value as Checker.FloatLiteral:
@@ -277,6 +277,14 @@ extension AstValue {
                 entity: value.entity.copy()
         )
 
+        case let value as Checker.Parameter:
+            return Checker.Parameter(
+                name: value.name.copy(),
+                type: value.type.copy(),
+                entity: value.entity.copy(),
+                implicitPolymorphicTypeEntity: value.implicitPolymorphicTypeEntity?.copy()
+        )
+
         case let value as Checker.Paren:
             return Checker.Paren(
                 expr: value.expr.copy(),
@@ -296,6 +304,7 @@ extension AstValue {
                 body: value.body.copy(),
                 flags: value.flags,
                 type: value.type.copy(),
+                declaringScope: value.declaringScope.copy(),
                 specializations: value.specializations
         )
 
@@ -310,12 +319,6 @@ extension AstValue {
             return Checker.StringLiteral(
                 value: value.value,
                 type: value.type.copy()
-        )
-
-        case let value as Checker.Switch:
-            return Checker.Switch(
-                subject: value.subject?.copy(),
-                cases: value.cases.map({ $0.copy() })
         )
 
         default:
@@ -350,10 +353,9 @@ extension FunctionSpecialization {
 
     func copy() -> FunctionSpecialization {
         return FunctionSpecialization(
-            specializationIndices: specializationIndices,
             specializedTypes: specializedTypes,
             strippedType: strippedType.copy(),
-            fnNode: fnNode.copy(),
+            generatedFunctionNode: generatedFunctionNode.copy(),
             llvm: llvm
         )
     }
@@ -377,15 +379,12 @@ extension Scope {
         )
     }
 }
+
 extension Type {
 
     func copy() -> Type {
-        return Type(
-            entity: entity?.copy(),
-            width: width,
-            flags: flags,
-            value: value
-        )
+        // no need to copy Types
+        return self
     }
 }
 

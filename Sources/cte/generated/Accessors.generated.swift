@@ -422,6 +422,25 @@ extension AstNode {
         }
     }
 
+    var asParameter: CommonParameter {
+        get {
+            assert(kind == AstNode.Parameter.astKind)
+            return value as! CommonParameter
+        }
+        set {
+            self.value = newValue
+        }
+    }
+    var asUncheckedParameter: AstNode.Parameter {
+        get {
+            assert(kind == AstNode.Parameter.astKind)
+            return value as! AstNode.Parameter
+        }
+        set {
+            value = newValue
+        }
+    }
+
     var asParen: CommonParen {
         get {
             assert(kind == AstNode.Paren.astKind)
@@ -685,6 +704,16 @@ extension AstNode {
         }
     }
 
+    var asCheckedParameter: Checker.Parameter {
+        get {
+            assert(kind == Checker.Parameter.astKind)
+            return value as! Checker.Parameter
+        }
+        set {
+            value = newValue
+        }
+    }
+
     var asCheckedParen: Checker.Paren {
         get {
             assert(kind == Checker.Paren.astKind)
@@ -749,8 +778,8 @@ extension AstNode {
 
 protocol CommonAssign: AstValue {
 
-    var lvalue: AstNode { get }
-    var rvalue: AstNode { get }
+    var lvalues: [AstNode] { get }
+    var rvalues: [AstNode] { get }
 }
 
 protocol CommonBlock: AstValue {
@@ -783,9 +812,9 @@ protocol CommonCompileTime: AstValue {
 
 protocol CommonDeclaration: AstValue {
 
-    var identifier: AstNode { get }
+    var names: [AstNode] { get set }
     var type: AstNode? { get set }
-    var value: AstNode { get }
+    var values: [AstNode] { get set }
     var linkName: String? { get set }
     var flags: DeclarationFlags { get set }
 }
@@ -882,6 +911,12 @@ protocol CommonMemberAccess: AstValue {
     var memberName: String { get }
 }
 
+protocol CommonParameter: AstValue {
+
+    var name: AstNode { get set }
+    var type: AstNode { get set }
+}
+
 protocol CommonParen: AstValue {
 
     var expr: AstNode { get }
@@ -942,6 +977,7 @@ extension AstNode.Invalid: CommonInvalid {}
 extension AstNode.Library: CommonLibrary {}
 extension AstNode.List: CommonList {}
 extension AstNode.MemberAccess: CommonMemberAccess {}
+extension AstNode.Parameter: CommonParameter {}
 extension AstNode.Paren: CommonParen {}
 extension AstNode.PointerType: CommonPointerType {}
 extension AstNode.Prefix: CommonPrefix {}
@@ -949,7 +985,6 @@ extension AstNode.Return: CommonReturn {}
 extension AstNode.StringLiteral: CommonStringLiteral {}
 extension AstNode.Switch: CommonSwitch {}
 extension AstNode.Variadic: CommonVariadic {}
-extension Checker.Assign: CommonAssign {}
 extension Checker.Block: CommonBlock {}
 extension Checker.Call: CommonCall {}
 extension Checker.Case: CommonCase {}
@@ -961,11 +996,11 @@ extension Checker.Identifier: CommonIdentifier {}
 extension Checker.Infix: CommonInfix {}
 extension Checker.IntegerLiteral: CommonIntegerLiteral {}
 extension Checker.MemberAccess: CommonMemberAccess {}
+extension Checker.Parameter: CommonParameter {}
 extension Checker.Paren: CommonParen {}
 extension Checker.PointerType: CommonPointerType {}
 extension Checker.Prefix: CommonPrefix {}
 extension Checker.StringLiteral: CommonStringLiteral {}
-extension Checker.Switch: CommonSwitch {}
 
 extension Type {
 
@@ -1003,6 +1038,10 @@ extension Type {
 
     var asPointer: Type.Pointer {
         return value as! Type.Pointer
+    }
+
+    var asPolymorphic: Type.Polymorphic {
+        return value as! Type.Polymorphic
     }
 
     var asTuple: Type.Tuple {

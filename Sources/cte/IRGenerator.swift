@@ -47,45 +47,144 @@ struct IRGenerator {
         case .declaration:
             let decl = node.asCheckedDeclaration
 
-            guard decl.entity.type!.kind != .metatype else {
+            guard !decl.isFunction || decl.isForeign else {
+                assert(decl.names.count == 1 && decl.entities.count == 1,
+                       "For non foreign function declarations multiple declaration should be a checker error")
+                decl.entities[0].value = emitExpr(node: decl.values[0], name: decl.entities[0].name)
                 return
             }
 
-            guard (decl.value.kind != .polymorphicFunction && decl.value.kind != .function) || decl.isForeign else {
-                decl.entity.value = emitExpr(node: decl.value, name: decl.entity.name)
+            if decl.rvalueIsCall && decl.entities.count > 1 {
+                let call = decl.values[0].asCheckedCall
+
+                let retType = canonicalize(call.type)
+                let stackAggregate = builder.buildAlloca(type: retType)
+                let aggregate = emitCall(call)
+                builder.buildStore(aggregate, to: stackAggregate)
+
+                for (index, entity) in decl.entities.enumerated()
+                    where entity !== Entity.anonymous
+                {
+                    let type = canonicalize(entity.type!)
+                    let stackValue = builder.buildAlloca(type: type, name: entity.name)
+                    let rvaluePtr = builder.buildStructGEP(stackAggregate, index: index)
+                    let rvalue = builder.buildLoad(rvaluePtr)
+
+                    builder.buildStore(rvalue, to: stackValue)
+
+                    entity.value = stackValue
+                }
                 return
             }
 
-            let type = canonicalize(decl.entity.type!)
+            assert(decl.entities.count == decl.values.count)
+            for (entity, value) in zip(decl.entities, decl.values)
+                where !entity.type!.isMetatype
+            {
+                let type = canonicalize(entity.type!)
 
-            if decl.isForeign {
-                let name = decl.linkName ?? decl.identifier.asIdentifier.name
-                if let type = type as? FunctionType {
-                    let function = builder.addFunction(name, type: type)
-                    decl.entity.value = function
+                if decl.isForeign {
+                    assert(decl.names.count == 1 && decl.entities.count == 1)
+                    let name = decl.linkName ?? entity.name
+                    if let type = type as? FunctionType {
+                        let function = builder.addFunction(name, type: type)
+                        entity.value = function
+                        return
+                    }
+
+                    var global = builder.addGlobal(name, type: type)
+                    global.isExternallyInitialized = true
+                    entity.value = global
                     return
                 }
 
-                var global = builder.addGlobal(name, type: type)
-                global.isExternallyInitialized = true
-                decl.entity.value = global
+                if entity.flags.contains(.compileTime) {
+                    let value = emitExpr(node: value)
+                    var globalValue = builder.addGlobal(entity.name, initializer: value)
+                    globalValue.isGlobalConstant = true
+                    entity.value = globalValue
+                    return
+                }
+
+                if let file = entity.owningScope.file, !file.isInitialFile {
+                    let value = emitExpr(node: value)
+                    let globalValue = builder.addGlobal(entity.name, initializer: value)
+                    entity.value = globalValue
+                    return
+                }
+
+                if options.contains(.emitIr) {
+
+                    // Somehow Xcode 9 beta 3 includes a Swift compiler which thinks this is ambiguous.
+                    // if let endOfAlloca = builder.insertBlock!.instructions.first(where: { !$0.isAAllocaInst }) {
+                    //     builder.position(endOfAlloca, block: builder.insertBlock!)
+                    // }
+
+                    for inst in builder.insertBlock!.instructions {
+                        guard !inst.isAAllocaInst else {
+                            continue
+                        }
+                        builder.position(inst, block: builder.insertBlock!)
+                        break
+                    }
+                }
+
+                let stackValue = builder.buildAlloca(type: type, name: entity.name)
+
+                if options.contains(.emitIr) {
+                    builder.positionAtEnd(of: builder.insertBlock!)
+                }
+
+                entity.value = stackValue
+
+                guard value != .empty else {
+                    return
+                }
+
+                let value = emitExpr(node: value, name: entity.name)
+
+                builder.buildStore(value, to: stackValue)
+            }
+
+        case .assign:
+            let assign = node.asAssign
+
+            if assign.rvalueIsCall && assign.lvalues.count > 1 {
+                let call = assign.rvalues[0].asCheckedCall
+
+                let retType = canonicalize(call.type)
+                let stackAggregate = builder.buildAlloca(type: retType)
+                let aggregate = emitCall(call)
+                builder.buildStore(aggregate, to: stackAggregate)
+
+                for (index, lvalue) in assign.lvalues.enumerated()
+                    where !lvalue.isDispose
+                {
+                    let lvalueAddress = emitExpr(node: lvalue, returnAddress: true)
+                    let rvaluePtr = builder.buildStructGEP(stackAggregate, index: index)
+                    let rvalue = builder.buildLoad(rvaluePtr)
+                    builder.buildStore(rvalue, to: lvalueAddress)
+                }
                 return
             }
 
-            if decl.entity.flags.contains(.ct) {
-                let value = emitExpr(node: decl.value)
-                var globalValue = builder.addGlobal(decl.entity.name, initializer: value)
-                globalValue.isGlobalConstant = true
-                decl.entity.value = globalValue
-                return
+            var rvalues: [IRValue] = []
+            for rvalue in assign.rvalues {
+                let rvalue = emitExpr(node: rvalue)
+                rvalues.append(rvalue)
             }
 
-            if let file = decl.entity.owningScope.file, !file.isInitialFile {
-                let value = emitExpr(node: decl.value)
-                let globalValue = builder.addGlobal(decl.entity.name, initializer: value)
-                decl.entity.value = globalValue
-                return
+            for (lvalue, rvalue) in zip(assign.lvalues, rvalues)
+                where !lvalue.isDispose
+            {
+                let lvalueAddress = emitExpr(node: lvalue, returnAddress: true)
+                builder.buildStore(rvalue, to: lvalueAddress)
             }
+
+        case .parameter:
+            let param = node.asCheckedParameter
+
+            let type = canonicalize(param.entity.type!)
 
             if options.contains(.emitIr) {
 
@@ -93,7 +192,6 @@ struct IRGenerator {
                 // if let endOfAlloca = builder.insertBlock!.instructions.first(where: { !$0.isAAllocaInst }) {
                 //     builder.position(endOfAlloca, block: builder.insertBlock!)
                 // }
-
                 for inst in builder.insertBlock!.instructions {
                     guard !inst.isAAllocaInst else {
                         continue
@@ -103,28 +201,13 @@ struct IRGenerator {
                 }
             }
 
-            let stackValue = builder.buildAlloca(type: type, name: decl.entity.name)
+            let stackValue = builder.buildAlloca(type: type, name: param.entity.name)
 
             if options.contains(.emitIr) {
                 builder.positionAtEnd(of: builder.insertBlock!)
             }
 
-            decl.entity.value = stackValue
-
-            guard decl.value != .empty else {
-                return
-            }
-
-            let value = emitExpr(node: decl.value, name: decl.entity.name)
-
-            builder.buildStore(value, to: stackValue)
-
-        case .assign:
-            let assign = node.asCheckedAssign
-
-            let lvalue = emitExpr(node: assign.lvalue, returnAddress: true)
-            let rvalue = emitExpr(node: assign.rvalue)
-            builder.buildStore(rvalue, to: lvalue)
+            param.entity.value = stackValue
 
         case .block:
             let block = node.asCheckedBlock
@@ -189,7 +272,7 @@ struct IRGenerator {
             }
 
         case .switch:
-            let świtch = node.asCheckedSwitch
+            let świtch = node.asSwitch
             if świtch.subject == nil {
                 emitBooleanesqueSwitch(świtch)
             } else {
@@ -294,6 +377,9 @@ struct IRGenerator {
         case .lt:
             return builder.buildLoad(expr)
 
+        case .not:
+            return builder.buildNeg(expr)
+
         default:
             fatalError()
         }
@@ -318,6 +404,8 @@ struct IRGenerator {
             case .gt:  pred = isSigned ? .signedGreaterThan : .unsignedGreaterThan
             case .lte: pred = isSigned ? .signedLessThanOrEqual : .unsignedLessThanOrEqual
             case .gte: pred = isSigned ? .signedGreaterThanOrEqual : .unsignedGreaterThanOrEqual
+            case .eq:  pred = .equal
+            case .neq: pred = .notEqual
             default:
                 fatalError()
             }
@@ -330,6 +418,8 @@ struct IRGenerator {
             case .gt:  pred = .orderedGreaterThan
             case .lte: pred = .orderedLessThanOrEqual
             case .gte: pred = .orderedGreaterThanOrEqual
+            case .eq:  pred = .orderedEqual
+            case .neq: pred = .orderedNotEqual
             default:
                 fatalError()
             }
@@ -373,7 +463,7 @@ struct IRGenerator {
 
         for (param, var irParam) in zip(fn.parameters, function.parameters) {
 
-            let entity = param.asCheckedDeclaration.entity
+            let entity = param.asCheckedParameter.entity
             irParam.name = entity.name
 
             emit(node: param)
@@ -389,7 +479,7 @@ struct IRGenerator {
     func emitPolymorphicFunction(named name: String, fn: Checker.PolymorphicFunction) {
 
         for specialization in fn.specializations {
-            let fn = specialization.fnNode.asCheckedFunction
+            let fn = specialization.generatedFunctionNode.asCheckedFunction
 
             let suffix = specialization.specializedTypes.reduce("", { $0 + "$" + $1.asMetatype.instanceType.description })
             specialization.llvm = emitFunction(named: name + suffix, fn)
@@ -463,7 +553,7 @@ struct IRGenerator {
         builder.positionAtEnd(of: loopPost)
     }
 
-    func emitSwitch(_ świtch: Checker.Switch) {
+    func emitSwitch(_ świtch: CommonSwitch) {
         let subject = świtch.subject!
 
         let switchLn = subject.tokens.first!.start.line
@@ -515,7 +605,7 @@ struct IRGenerator {
         builder.positionAtEnd(of: postBlock)
     }
 
-    func emitBooleanesqueSwitch(_ świtch: Checker.Switch) {
+    func emitBooleanesqueSwitch(_ świtch: CommonSwitch) {
         let switchLn = świtch.cases.first!.tokens.first!.start.line
 
         let currentFunc = builder.currentFunction!
@@ -632,9 +722,6 @@ func canonicalize(_ type: Type) -> IRType {
         let tuple = type.asTuple
         let types = tuple.types.map(canonicalize)
         switch types.count {
-        case 0:
-            return VoidType()
-
         case 1:
             return types[0]
 
@@ -648,10 +735,8 @@ func canonicalize(_ type: Type) -> IRType {
 
         return PointerType(pointee: canonicalize(pointer.pointeeType))
 
-    case .metatype:
-        fatalError() // these should not make it into IRGen (alternatively use these to gen typeinfo)
-
-    case .file:
+    // these should not make it into IRGen (alternatively use these to gen typeinfo)
+    case .polymorphic, .metatype, .file:
         fatalError()
     }
 }

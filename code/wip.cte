@@ -11,9 +11,25 @@
     sprintf :: fn (buf: *u8, fmt: string, args: #cvargs ..any) -> i32
 }
 
+sum :: fn (a: $T, b: $U) -> T {
 
-min :: fn ($T: type, a: T, b: T) -> T {
+  total : T = a
+  total = total + T(b)
+  return total
+}
+
+this := sum(1, 2.5)
+printf("total: %d\n", this)
+that := sum(1, 5.5)
+printf("total: %d\n", that)
+
+min :: fn ($U: type, a: U, b: U) -> U {
   if a < b return a
+  else return b
+}
+
+max :: fn (a: $T, b: T) -> T {
+  if a > b return a
   else return b
 }
 
@@ -27,7 +43,7 @@ sub :: fn (foo: i64) -> i64 {
 
 forExample :: fn () -> void {
 
-    for i := 0; i < 5; i = i + 1 {
+    for i := 0; i < 5; i += 1 {
         printf("%d\n", i)
     }
 
@@ -37,8 +53,9 @@ forExample :: fn () -> void {
 a : f64 = 5.0
 b : i64 = 3
 c := min(f64, a, 4)
-d := min(i64, b, 4)
+d := max(b, 4)
 e := min(i64, b, d)
+j := max(a, 4)
 
 f := f64(b)
 
@@ -60,7 +77,21 @@ forExample()
 addrA := &a
 valA := <addrA
 
-swap :: fn (a: i32, b: i32) -> i32, i32 {
+swap :: fn (a: $T, b: T) -> T, T {
     return b, a
 }
+
+x, y := 1, 2
+
+x, y = 3, 4
+
+x, y = y, x
+
+x, y = swap(x, y)
+
+printf("%d, %d\n", x, y)
+
+x1, y1 := swap(x, y)
+
+printf("%d, %d\n", x1, y1)
 
