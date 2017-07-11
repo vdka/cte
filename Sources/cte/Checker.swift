@@ -35,6 +35,18 @@ extension Checker {
                 reportError("Expression of type '\(type)' is unused", at: node)
             }
 
+        case .compileTime:
+            let stmt = node.asCompileTime.stmt
+            switch stmt.kind {
+            case .declaration:
+                var decl = stmt.asUncheckedDeclaration
+                decl.flags.insert(.compileTime)
+                node.value = decl
+
+            default:
+                reportError("'$' is not valid on '\(stmt)'", at: node)
+            }
+
         case .declaration:
             let decl = node.asDeclaration
             var expectedType: Type?
@@ -412,6 +424,9 @@ extension Checker {
             var params: [Type] = []
             for var param in fn.parameters {
                 assert(param.kind == .declaration)
+                if param.kind != .declaration {
+                    reportError("Procedure literals must provide parameter names in their function prototype", at: param)
+                }
 
                 if param.asDeclaration.type!.kind == .variadic {
                     guard param === fn.parameters.last! else {

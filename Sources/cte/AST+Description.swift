@@ -10,6 +10,9 @@ extension AstNode: CustomStringConvertible {
         case .empty:
             return ""
 
+        case .list:
+            return asList.values.map({ $0.description }).joined(separator: ", ")
+
         case .comment:
             return "//" + asComment.comment
 

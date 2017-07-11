@@ -13,6 +13,17 @@ extension AstNode {
         }
     }
     {% endif %}
+    {% if type.parentName|contains:"AstNode" %}
+    var asUnchecked{{ type.localName }}: {{ type.name }} {
+        get {
+            assert(kind == {{ type.name }}.astKind)
+            return value as! {{ type.name }}
+        }
+        set {
+            value = newValue
+        }
+    }
+    {% endif %}
     {% if type.parentName|contains:"Checker" %}
     var asChecked{{ type.localName }}: {{ type.name }} {
         get {

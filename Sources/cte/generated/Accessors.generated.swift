@@ -13,6 +13,15 @@ extension AstNode {
             self.value = newValue
         }
     }
+    var asUncheckedAssign: AstNode.Assign {
+        get {
+            assert(kind == AstNode.Assign.astKind)
+            return value as! AstNode.Assign
+        }
+        set {
+            value = newValue
+        }
+    }
 
     var asBlock: CommonBlock {
         get {
@@ -21,6 +30,15 @@ extension AstNode {
         }
         set {
             self.value = newValue
+        }
+    }
+    var asUncheckedBlock: AstNode.Block {
+        get {
+            assert(kind == AstNode.Block.astKind)
+            return value as! AstNode.Block
+        }
+        set {
+            value = newValue
         }
     }
 
@@ -33,6 +51,15 @@ extension AstNode {
             self.value = newValue
         }
     }
+    var asUncheckedCall: AstNode.Call {
+        get {
+            assert(kind == AstNode.Call.astKind)
+            return value as! AstNode.Call
+        }
+        set {
+            value = newValue
+        }
+    }
 
     var asCase: CommonCase {
         get {
@@ -41,6 +68,15 @@ extension AstNode {
         }
         set {
             self.value = newValue
+        }
+    }
+    var asUncheckedCase: AstNode.Case {
+        get {
+            assert(kind == AstNode.Case.astKind)
+            return value as! AstNode.Case
+        }
+        set {
+            value = newValue
         }
     }
 
@@ -53,6 +89,15 @@ extension AstNode {
             self.value = newValue
         }
     }
+    var asUncheckedComment: AstNode.Comment {
+        get {
+            assert(kind == AstNode.Comment.astKind)
+            return value as! AstNode.Comment
+        }
+        set {
+            value = newValue
+        }
+    }
 
     var asCompileTime: CommonCompileTime {
         get {
@@ -61,6 +106,15 @@ extension AstNode {
         }
         set {
             self.value = newValue
+        }
+    }
+    var asUncheckedCompileTime: AstNode.CompileTime {
+        get {
+            assert(kind == AstNode.CompileTime.astKind)
+            return value as! AstNode.CompileTime
+        }
+        set {
+            value = newValue
         }
     }
 
@@ -73,6 +127,15 @@ extension AstNode {
             self.value = newValue
         }
     }
+    var asUncheckedDeclaration: AstNode.Declaration {
+        get {
+            assert(kind == AstNode.Declaration.astKind)
+            return value as! AstNode.Declaration
+        }
+        set {
+            value = newValue
+        }
+    }
 
     var asEmpty: CommonEmpty {
         get {
@@ -81,6 +144,15 @@ extension AstNode {
         }
         set {
             self.value = newValue
+        }
+    }
+    var asUncheckedEmpty: AstNode.Empty {
+        get {
+            assert(kind == AstNode.Empty.astKind)
+            return value as! AstNode.Empty
+        }
+        set {
+            value = newValue
         }
     }
 
@@ -93,6 +165,15 @@ extension AstNode {
             self.value = newValue
         }
     }
+    var asUncheckedFloatLiteral: AstNode.FloatLiteral {
+        get {
+            assert(kind == AstNode.FloatLiteral.astKind)
+            return value as! AstNode.FloatLiteral
+        }
+        set {
+            value = newValue
+        }
+    }
 
     var asFor: CommonFor {
         get {
@@ -101,6 +182,15 @@ extension AstNode {
         }
         set {
             self.value = newValue
+        }
+    }
+    var asUncheckedFor: AstNode.For {
+        get {
+            assert(kind == AstNode.For.astKind)
+            return value as! AstNode.For
+        }
+        set {
+            value = newValue
         }
     }
 
@@ -113,6 +203,15 @@ extension AstNode {
             self.value = newValue
         }
     }
+    var asUncheckedForeign: AstNode.Foreign {
+        get {
+            assert(kind == AstNode.Foreign.astKind)
+            return value as! AstNode.Foreign
+        }
+        set {
+            value = newValue
+        }
+    }
 
     var asFunction: CommonFunction {
         get {
@@ -121,6 +220,15 @@ extension AstNode {
         }
         set {
             self.value = newValue
+        }
+    }
+    var asUncheckedFunction: AstNode.Function {
+        get {
+            assert(kind == AstNode.Function.astKind)
+            return value as! AstNode.Function
+        }
+        set {
+            value = newValue
         }
     }
 
@@ -133,6 +241,15 @@ extension AstNode {
             self.value = newValue
         }
     }
+    var asUncheckedFunctionType: AstNode.FunctionType {
+        get {
+            assert(kind == AstNode.FunctionType.astKind)
+            return value as! AstNode.FunctionType
+        }
+        set {
+            value = newValue
+        }
+    }
 
     var asIdentifier: CommonIdentifier {
         get {
@@ -141,6 +258,15 @@ extension AstNode {
         }
         set {
             self.value = newValue
+        }
+    }
+    var asUncheckedIdentifier: AstNode.Identifier {
+        get {
+            assert(kind == AstNode.Identifier.astKind)
+            return value as! AstNode.Identifier
+        }
+        set {
+            value = newValue
         }
     }
 
@@ -153,6 +279,15 @@ extension AstNode {
             self.value = newValue
         }
     }
+    var asUncheckedIf: AstNode.If {
+        get {
+            assert(kind == AstNode.If.astKind)
+            return value as! AstNode.If
+        }
+        set {
+            value = newValue
+        }
+    }
 
     var asImport: CommonImport {
         get {
@@ -161,6 +296,15 @@ extension AstNode {
         }
         set {
             self.value = newValue
+        }
+    }
+    var asUncheckedImport: AstNode.Import {
+        get {
+            assert(kind == AstNode.Import.astKind)
+            return value as! AstNode.Import
+        }
+        set {
+            value = newValue
         }
     }
 
@@ -173,6 +317,15 @@ extension AstNode {
             self.value = newValue
         }
     }
+    var asUncheckedInfix: AstNode.Infix {
+        get {
+            assert(kind == AstNode.Infix.astKind)
+            return value as! AstNode.Infix
+        }
+        set {
+            value = newValue
+        }
+    }
 
     var asIntegerLiteral: CommonIntegerLiteral {
         get {
@@ -181,6 +334,15 @@ extension AstNode {
         }
         set {
             self.value = newValue
+        }
+    }
+    var asUncheckedIntegerLiteral: AstNode.IntegerLiteral {
+        get {
+            assert(kind == AstNode.IntegerLiteral.astKind)
+            return value as! AstNode.IntegerLiteral
+        }
+        set {
+            value = newValue
         }
     }
 
@@ -193,6 +355,15 @@ extension AstNode {
             self.value = newValue
         }
     }
+    var asUncheckedInvalid: AstNode.Invalid {
+        get {
+            assert(kind == AstNode.Invalid.astKind)
+            return value as! AstNode.Invalid
+        }
+        set {
+            value = newValue
+        }
+    }
 
     var asLibrary: CommonLibrary {
         get {
@@ -201,6 +372,34 @@ extension AstNode {
         }
         set {
             self.value = newValue
+        }
+    }
+    var asUncheckedLibrary: AstNode.Library {
+        get {
+            assert(kind == AstNode.Library.astKind)
+            return value as! AstNode.Library
+        }
+        set {
+            value = newValue
+        }
+    }
+
+    var asList: CommonList {
+        get {
+            assert(kind == AstNode.List.astKind)
+            return value as! CommonList
+        }
+        set {
+            self.value = newValue
+        }
+    }
+    var asUncheckedList: AstNode.List {
+        get {
+            assert(kind == AstNode.List.astKind)
+            return value as! AstNode.List
+        }
+        set {
+            value = newValue
         }
     }
 
@@ -213,6 +412,15 @@ extension AstNode {
             self.value = newValue
         }
     }
+    var asUncheckedMemberAccess: AstNode.MemberAccess {
+        get {
+            assert(kind == AstNode.MemberAccess.astKind)
+            return value as! AstNode.MemberAccess
+        }
+        set {
+            value = newValue
+        }
+    }
 
     var asParen: CommonParen {
         get {
@@ -221,6 +429,15 @@ extension AstNode {
         }
         set {
             self.value = newValue
+        }
+    }
+    var asUncheckedParen: AstNode.Paren {
+        get {
+            assert(kind == AstNode.Paren.astKind)
+            return value as! AstNode.Paren
+        }
+        set {
+            value = newValue
         }
     }
 
@@ -233,6 +450,15 @@ extension AstNode {
             self.value = newValue
         }
     }
+    var asUncheckedPointerType: AstNode.PointerType {
+        get {
+            assert(kind == AstNode.PointerType.astKind)
+            return value as! AstNode.PointerType
+        }
+        set {
+            value = newValue
+        }
+    }
 
     var asPrefix: CommonPrefix {
         get {
@@ -241,6 +467,15 @@ extension AstNode {
         }
         set {
             self.value = newValue
+        }
+    }
+    var asUncheckedPrefix: AstNode.Prefix {
+        get {
+            assert(kind == AstNode.Prefix.astKind)
+            return value as! AstNode.Prefix
+        }
+        set {
+            value = newValue
         }
     }
 
@@ -253,6 +488,15 @@ extension AstNode {
             self.value = newValue
         }
     }
+    var asUncheckedReturn: AstNode.Return {
+        get {
+            assert(kind == AstNode.Return.astKind)
+            return value as! AstNode.Return
+        }
+        set {
+            value = newValue
+        }
+    }
 
     var asStringLiteral: CommonStringLiteral {
         get {
@@ -261,6 +505,15 @@ extension AstNode {
         }
         set {
             self.value = newValue
+        }
+    }
+    var asUncheckedStringLiteral: AstNode.StringLiteral {
+        get {
+            assert(kind == AstNode.StringLiteral.astKind)
+            return value as! AstNode.StringLiteral
+        }
+        set {
+            value = newValue
         }
     }
 
@@ -273,6 +526,15 @@ extension AstNode {
             self.value = newValue
         }
     }
+    var asUncheckedSwitch: AstNode.Switch {
+        get {
+            assert(kind == AstNode.Switch.astKind)
+            return value as! AstNode.Switch
+        }
+        set {
+            value = newValue
+        }
+    }
 
     var asVariadic: CommonVariadic {
         get {
@@ -281,6 +543,15 @@ extension AstNode {
         }
         set {
             self.value = newValue
+        }
+    }
+    var asUncheckedVariadic: AstNode.Variadic {
+        get {
+            assert(kind == AstNode.Variadic.astKind)
+            return value as! AstNode.Variadic
+        }
+        set {
+            value = newValue
         }
     }
 
@@ -599,6 +870,11 @@ protocol CommonLibrary: AstValue {
     var symbol: AstNode? { get }
 }
 
+protocol CommonList: AstValue {
+
+    var values: [AstNode] { get }
+}
+
 protocol CommonMemberAccess: AstValue {
 
     var aggregate: AstNode { get }
@@ -664,6 +940,7 @@ extension AstNode.Infix: CommonInfix {}
 extension AstNode.IntegerLiteral: CommonIntegerLiteral {}
 extension AstNode.Invalid: CommonInvalid {}
 extension AstNode.Library: CommonLibrary {}
+extension AstNode.List: CommonList {}
 extension AstNode.MemberAccess: CommonMemberAccess {}
 extension AstNode.Paren: CommonParen {}
 extension AstNode.PointerType: CommonPointerType {}

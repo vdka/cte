@@ -128,6 +128,11 @@ extension AstValue {
                 symbol: value.symbol?.copy()
         )
 
+        case let value as AstNode.List:
+            return AstNode.List(
+                values: value.values.map({ $0.copy() })
+        )
+
         case let value as AstNode.MemberAccess:
             return AstNode.MemberAccess(
                 aggregate: value.aggregate.copy(),
@@ -350,6 +355,15 @@ extension FunctionSpecialization {
             strippedType: strippedType.copy(),
             fnNode: fnNode.copy(),
             llvm: llvm
+        )
+    }
+}
+extension Parser.Context {
+
+    func copy() -> Parser.Context {
+        return Parser.Context(
+            state: state,
+            previous: previous?.copy()
         )
     }
 }
