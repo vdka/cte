@@ -13,6 +13,17 @@ extension AstNode {
         }
     }
     {% endif %}
+    {% if type.parentName|contains:"AstNode" %}
+    var asUnchecked{{ type.localName }}: {{ type.name }} {
+        get {
+            assert(kind == {{ type.name }}.astKind)
+            return value as! {{ type.name }}
+        }
+        set {
+            value = newValue
+        }
+    }
+    {% endif %}
     {% if type.parentName|contains:"Checker" %}
     var asChecked{{ type.localName }}: {{ type.name }} {
         get {
@@ -48,8 +59,8 @@ extension {{ type.name }}: Common{{ type.localName }} {}
 extension Type {
 {% for type in types.implementing.TypeValue %}
 
-    var as{{ type.localName }}: Type.{{ type.localName }} {
-        return value as! {{ type.name }}
+    var as{{ type.localName }}: Type.{{ type.localName|escapeReservedKeywords }} {
+        return value as! Type.{{ type.localName|escapeReservedKeywords }}
     }
 {% endfor %}
 }

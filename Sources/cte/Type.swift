@@ -42,6 +42,12 @@ class Type: Hashable, CustomStringConvertible {
         case .void:
             return entity!.name
 
+        case .any:
+            return "any"
+
+        case .cvargsAny:
+            return "#cvargs ..any"
+
         case .integer:
             return entity!.name
 
@@ -64,6 +70,9 @@ class Type: Hashable, CustomStringConvertible {
             // fn ($T: type, a: T, b: T) -> T
             let fn = self.asFunction
             return "fn(" + fn.params.map({ $0.description }).joined(separator: ", ") + ")" + " -> " + fn.returnType.description
+
+        case .tuple:
+            return "(" + asTuple.types.map({ $0.description }).joined(separator: ", ") + ")"
         }
     }
 
@@ -72,7 +81,15 @@ class Type: Hashable, CustomStringConvertible {
     }
 
     var isVoid: Bool {
-        return kind == .void
+        return kind == .void || (kind == .tuple && (asTuple.types.isEmpty || asTuple.types[0].isVoid))
+    }
+
+    var isAny: Bool {
+        return kind == .any
+    }
+
+    var isCVargAny: Bool {
+        return kind == .cvargsAny
     }
 
     var isBoolean: Bool {
@@ -111,6 +128,10 @@ class Type: Hashable, CustomStringConvertible {
         return kind == .pointer && asPointer.pointeeType.isFunction
     }
 
+    var isTuple: Bool {
+        return kind == .tuple
+    }
+
     var isMetatype: Bool {
         return kind == .metatype
     }
@@ -140,10 +161,13 @@ class Type: Hashable, CustomStringConvertible {
 
 enum TypeKind {
     case void
+    case any
+    case cvargsAny
     case integer
     case floatingPoint
     case boolean
     case function
+    case tuple
     case pointer
     case metatype
     case file
@@ -157,6 +181,14 @@ extension Type {
 
     struct Void: TypeValue {
         static let typeKind: TypeKind = .void
+    }
+
+    struct `Any`: TypeValue {
+        static let typeKind: TypeKind = .any
+    }
+
+    struct CVargsAny: TypeValue {
+        static let typeKind: TypeKind = .cvargsAny
     }
 
     struct Integer: TypeValue {
@@ -177,9 +209,17 @@ extension Type {
 
         var node: AstNode
         var params: [Type]
+        /// - Note: Always a tuple type.
         var returnType: Type
         var isVariadic: Bool
+        var isCVariadic: Bool
         var needsSpecialization: Bool
+    }
+
+    struct Tuple: TypeValue {
+        static let typeKind: TypeKind = .tuple
+
+        var types: [Type]
     }
 
     struct Pointer: TypeValue {
@@ -224,6 +264,13 @@ extension Type {
     static func makeBuiltin(_ entity: Entity, width: Int, value: TypeValue) -> Type {
         let type = Type(entity: entity, width: width, flags: .none, value: value)
         type.width = width
+        return type
+    }
+
+    static func makeTuple(_ types: [Type]) -> Type {
+        let tuple = Tuple(types: types)
+        let type = Type(value: tuple)
+        type.width = types.reduce(0, { $0 + $1.width! })
         return type
     }
 

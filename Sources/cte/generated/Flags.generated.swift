@@ -37,6 +37,10 @@ extension AstNode.Function {
     var isSpecialization: Bool {
         return flags.contains(.specialization) 
     }
+
+    var isCVariadic: Bool {
+        return flags.contains(.cVariadic) 
+    }
 }
 extension CommonFunction {
 
@@ -50,6 +54,10 @@ extension CommonFunction {
 
     var isSpecialization: Bool {
         return flags.contains(.specialization) 
+    }
+
+    var isCVariadic: Bool {
+        return flags.contains(.cVariadic) 
     }
 }
 
@@ -66,6 +74,10 @@ extension AstNode.FunctionType {
     var isSpecialization: Bool {
         return flags.contains(.specialization) 
     }
+
+    var isCVariadic: Bool {
+        return flags.contains(.cVariadic) 
+    }
 }
 extension CommonFunctionType {
 
@@ -79,6 +91,10 @@ extension CommonFunctionType {
 
     var isSpecialization: Bool {
         return flags.contains(.specialization) 
+    }
+
+    var isCVariadic: Bool {
+        return flags.contains(.cVariadic) 
     }
 }
 
@@ -106,6 +122,10 @@ extension Checker.Function {
     var isSpecialization: Bool {
         return flags.contains(.specialization) 
     }
+
+    var isCVariadic: Bool {
+        return flags.contains(.cVariadic) 
+    }
 }
 
 extension Checker.FunctionType {
@@ -121,6 +141,10 @@ extension Checker.FunctionType {
     var isSpecialization: Bool {
         return flags.contains(.specialization) 
     }
+
+    var isCVariadic: Bool {
+        return flags.contains(.cVariadic) 
+    }
 }
 
 extension Checker.PolymorphicFunction {
@@ -135,6 +159,10 @@ extension Checker.PolymorphicFunction {
 
     var isSpecialization: Bool {
         return flags.contains(.specialization) 
+    }
+
+    var isCVariadic: Bool {
+        return flags.contains(.cVariadic) 
     }
 }
 

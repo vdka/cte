@@ -29,6 +29,7 @@ class AstNode: Hashable {
 enum AstKind {
     case invalid
     case empty
+    case list
     case comment
     case identifier
     case litString
@@ -36,6 +37,7 @@ enum AstKind {
     case litInteger
     case function
     case polymorphicFunction
+    case variadic
     case declaration
     case paren
     case prefix
@@ -84,6 +86,12 @@ extension AstNode {
         static let astKind = AstKind.empty
     }
 
+    struct List: AstValue {
+        static let astKind = AstKind.list
+
+        let values: [AstNode]
+    }
+
     struct Comment: AstValue {
         static let astKind = AstKind.comment
 
@@ -119,7 +127,7 @@ extension AstNode {
         static let astKind = AstKind.function
 
         var parameters: [AstNode]
-        var returnType: AstNode
+        var returnTypes: [AstNode]
         let body: AstNode
 
         var flags: FunctionFlags
@@ -129,8 +137,15 @@ extension AstNode {
         static let astKind = AstKind.functionType
 
         let parameters: [AstNode]
-        let returnType: AstNode
+        let returnTypes: [AstNode]
         var flags: FunctionFlags
+    }
+
+    struct Variadic: AstValue {
+        static let astKind = AstKind.variadic
+
+        let type: AstNode
+        var cCompatible: Bool
     }
 
     struct PointerType: AstValue {
@@ -149,7 +164,7 @@ extension AstNode {
         static let astKind = AstKind.declaration
 
         let identifier: AstNode
-        let type: AstNode?
+        var type: AstNode?
         let value: AstNode
 
         var linkName: String?
@@ -244,7 +259,7 @@ extension AstNode {
     struct Return: AstValue {
         static let astKind = AstKind.return
 
-        let value: AstNode
+        let values: [AstNode]
     }
 
     struct Library: AstValue {
@@ -284,6 +299,7 @@ struct FunctionFlags: OptionSet {
     static let variadic          = FunctionFlags(rawValue: 0b0000_0001)
     static let discardableResult = FunctionFlags(rawValue: 0b0000_0010)
     static let specialization    = FunctionFlags(rawValue: 0b0000_0100)
+    static let cVariadic         = FunctionFlags(rawValue: 0b1000_0001) // implies variadic
 }
 
 extension CommonDeclaration {

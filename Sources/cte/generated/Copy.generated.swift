@@ -75,7 +75,7 @@ extension AstValue {
         case let value as AstNode.Function:
             return AstNode.Function(
                 parameters: value.parameters.map({ $0.copy() }),
-                returnType: value.returnType.copy(),
+                returnTypes: value.returnTypes.map({ $0.copy() }),
                 body: value.body.copy(),
                 flags: value.flags
         )
@@ -83,7 +83,7 @@ extension AstValue {
         case let value as AstNode.FunctionType:
             return AstNode.FunctionType(
                 parameters: value.parameters.map({ $0.copy() }),
-                returnType: value.returnType.copy(),
+                returnTypes: value.returnTypes.map({ $0.copy() }),
                 flags: value.flags
         )
 
@@ -128,6 +128,11 @@ extension AstValue {
                 symbol: value.symbol?.copy()
         )
 
+        case let value as AstNode.List:
+            return AstNode.List(
+                values: value.values.map({ $0.copy() })
+        )
+
         case let value as AstNode.MemberAccess:
             return AstNode.MemberAccess(
                 aggregate: value.aggregate.copy(),
@@ -152,7 +157,7 @@ extension AstValue {
 
         case let value as AstNode.Return:
             return AstNode.Return(
-                value: value.value.copy()
+                values: value.values.map({ $0.copy() })
         )
 
         case let value as AstNode.StringLiteral:
@@ -164,6 +169,12 @@ extension AstValue {
             return AstNode.Switch(
                 subject: value.subject?.copy(),
                 cases: value.cases.map({ $0.copy() })
+        )
+
+        case let value as AstNode.Variadic:
+            return AstNode.Variadic(
+                type: value.type.copy(),
+                cCompatible: value.cCompatible
         )
 
         case let value as Checker.Assign:
@@ -221,7 +232,7 @@ extension AstValue {
         case let value as Checker.Function:
             return Checker.Function(
                 parameters: value.parameters.map({ $0.copy() }),
-                returnType: value.returnType.copy(),
+                returnTypes: value.returnTypes.map({ $0.copy() }),
                 body: value.body.copy(),
                 flags: value.flags,
                 scope: value.scope.copy(),
@@ -231,7 +242,7 @@ extension AstValue {
         case let value as Checker.FunctionType:
             return Checker.FunctionType(
                 parameters: value.parameters.map({ $0.copy() }),
-                returnType: value.returnType.copy(),
+                returnTypes: value.returnTypes.map({ $0.copy() }),
                 flags: value.flags,
                 type: value.type.copy()
         )
@@ -281,7 +292,7 @@ extension AstValue {
         case let value as Checker.PolymorphicFunction:
             return Checker.PolymorphicFunction(
                 parameters: value.parameters.map({ $0.copy() }),
-                returnType: value.returnType.copy(),
+                returnTypes: value.returnTypes.map({ $0.copy() }),
                 body: value.body.copy(),
                 flags: value.flags,
                 type: value.type.copy(),
@@ -344,6 +355,15 @@ extension FunctionSpecialization {
             strippedType: strippedType.copy(),
             fnNode: fnNode.copy(),
             llvm: llvm
+        )
+    }
+}
+extension Parser.Context {
+
+    func copy() -> Parser.Context {
+        return Parser.Context(
+            state: state,
+            previous: previous?.copy()
         )
     }
 }

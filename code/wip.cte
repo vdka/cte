@@ -5,7 +5,10 @@
 
 #foreign libc {
     #discardable
-    printf :: fn (fmt: string, args: ..i64) -> i32
+    printf :: fn (fmt: string, args: #cvargs ..any) -> i32
+
+    #discardable
+    sprintf :: fn (buf: *u8, fmt: string, args: #cvargs ..any) -> i32
 }
 
 
@@ -22,13 +25,13 @@ sub :: fn (foo: i64) -> i64 {
     return foo - 1
 }
 
-forExample :: fn () -> i64 {
+forExample :: fn () -> void {
 
     for i := 0; i < 5; i += 1 {
         printf("%d\n", i)
     }
 
-    return 0
+    return
 }
 
 a : f64 = 5.0
@@ -47,13 +50,17 @@ g = sub
 
 h = g(8)
 
-// (call (sel circle circumference) (sel constants tau)) y
-// (sel circle (call circumference (sel constants tau))) n
 i := circle.circumference(constants.tau)
 
-printf("Tau is rounded to %d\n", i64(circle.constants.tau))
+// NOTE(vdka): The behaviour of being able to peer into an imported files imports
+//  will go away
+printf("Tau is %f\n", f32(circle.constants.tau))
 
-z := forExample()
+forExample()
 addrA := &a
 valA := <addrA
+
+swap :: fn (a: i32, b: i32) -> i32, i32 {
+    return b, a
+}
 

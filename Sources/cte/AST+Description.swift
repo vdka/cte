@@ -10,6 +10,9 @@ extension AstNode: CustomStringConvertible {
         case .empty:
             return ""
 
+        case .list:
+            return asList.values.map({ $0.description }).joined(separator: ", ")
+
         case .comment:
             return "//" + asComment.comment
 
@@ -32,7 +35,7 @@ extension AstNode: CustomStringConvertible {
                 .map({ $0.description })
                 .joined(separator: ", ")
 
-            let returnType = fn.returnType.description
+            let returnType = fn.returnTypes.map({ $0.description }).joined(separator: ", ")
 
             return "fn" + "(" + parameterList + ") -> " + returnType + " " + fn.body.description
 
@@ -42,9 +45,12 @@ extension AstNode: CustomStringConvertible {
                 .map({ $0.description })
                 .joined(separator: ", ")
 
-            let returnType = fn.returnType.description
+            let returnType = fn.returnTypes.map({ $0.description }).joined(separator: ", ")
 
             return "fn" + "(" + parameterList + ") -> " + returnType
+
+        case .variadic:
+            return ".." + asVariadic.type.description
 
         case .pointerType:
             return "*" + asPointerType.pointee.description
@@ -113,23 +119,33 @@ extension AstNode: CustomStringConvertible {
             return "if " + cond + " " + then + elsé
 
         case .for:
-            //TODO(Brett): finish
-            return "for"
+            let fór = asFor
+
+            if fór.initializer == nil && fór.condition == nil && fór.step == nil {
+                return "for " + fór.body.description
+            }
+            if let cond = fór.condition, fór.initializer == nil && fór.step == nil {
+                return "for " + cond.description + fór.body.description
+            }
+
+            let initializer = fór.initializer?.description ?? ""
+            let condition = fór.condition?.description ?? ""
+            let post = fór.condition?.description ?? ""
+            return "for " + initializer + "; " + condition + "; " + post + " " + fór.body.description
 
         case .switch:
             let świtch = asSwitch
-
             let subject = świtch.subject?.description ?? ""
             let cases = świtch.cases.map({ $0.description }).joined(separator: "\n")
             return "switch \(subject){\n" + cases + "\n}"
 
         case .case:
             let ćase = asCase
-
             return "case \(ćase.condition?.description ?? ""):"
+
         case .return:
             let ret = asReturn
-            return "return " + ret.value.description
+            return "return " + ret.values.map({ $0.description }).joined(separator: ", ")
 
         case .import:
             let imp = asImport

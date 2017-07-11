@@ -5,6 +5,7 @@
 extension Entity {
     static let void = BuiltinType.void.entity
     static let type = BuiltinType.type.entity
+    static let any = BuiltinType.any.entity
     static let bool = BuiltinType.bool.entity
     static let rawptr = BuiltinType.rawptr.entity
     static let string = BuiltinType.string.entity
@@ -18,6 +19,7 @@ extension Entity {
 extension Type {
     static let void = BuiltinType.void.type
     static let type = BuiltinType.type.type
+    static let any = BuiltinType.any.type
     static let bool = BuiltinType.bool.type
     static let rawptr = BuiltinType.rawptr.type
     static let string = BuiltinType.string.type
@@ -32,6 +34,7 @@ extension Type {
 let builtinTypes = [
     BuiltinType.void,
     BuiltinType.type,
+    BuiltinType.any,
     BuiltinType.bool,
     BuiltinType.rawptr,
     BuiltinType.string,

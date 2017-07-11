@@ -31,8 +31,20 @@ extension Checker {
 
         case .identifier, .call, .paren, .prefix, .infix:
             let type = checkExpr(node: node)
-            if !node.isDiscardable {
+            if !(node.isDiscardable || type.isVoid) {
                 reportError("Expression of type '\(type)' is unused", at: node)
+            }
+
+        case .compileTime:
+            let stmt = node.asCompileTime.stmt
+            switch stmt.kind {
+            case .declaration:
+                var decl = stmt.asUncheckedDeclaration
+                decl.flags.insert(.compileTime)
+                node.value = decl
+
+            default:
+                reportError("'$' is not valid on '\(stmt)'", at: node)
             }
 
         case .declaration:
@@ -52,7 +64,7 @@ extension Checker {
 
             if decl.isForeign, decl.isCompileTime {
                 guard type.isMetatype else {
-                    reportError("A type is the expected rvalue for a foreign symbol", at: decl.value)
+                    reportError("Expected 'type' as rvalue for foreign symbol, got '\(type)'", at: decl.value)
                     type = Type.invalid
                     return
                 }
@@ -232,11 +244,27 @@ extension Checker {
 
         case .return:
             let ret = node.asReturn
-            let type = checkExpr(node: ret.value, desiredType: currentExpectedReturnType!)
 
-            if type != currentExpectedReturnType! {
-                reportError("Cannot convert type '\(type)' to expected type '\(currentExpectedReturnType!)'", at: ret.value)
+            let expectedTypes = currentExpectedReturnType!.isTuple ? currentExpectedReturnType!.asTuple.types : [currentExpectedReturnType!]
+
+            var types: [Type] = []
+            for (value, expectedType) in zip(ret.values, expectedTypes) {
+                let type = checkExpr(node: value, desiredType: expectedType)
+                types.append(type)
+
+                if type != expectedType {
+                    reportError("Cannot convert type '\(type)' to expected type '\(expectedType)'", at: value)
+                }
             }
+
+            if ret.values.count < expectedTypes.count && !currentExpectedReturnType!.isVoid {
+                reportError("Not enough arguments to return", at: node)
+                return
+            }
+            if ret.values.count > expectedTypes.count {
+                reportError("Too many arguments to return", at: node)
+                return
+            }            
 
         case .import:
             let imp = node.asImport
@@ -375,8 +403,16 @@ extension Checker {
             node.value = IntegerLiteral(value: lit.value, type: type)
             return type
 
+        case .variadic:
+            let variadic = node.asVariadic
+            var type = checkExpr(node: variadic.type, desiredType: desiredType)
+            if type.isMetatype && type.asMetatype.instanceType.isAny && variadic.cCompatible {
+                type = Type.makeMetatype(Type.cvargsAny)
+            }
+            return type
+
         case .function:
-            let fn = node.asFunction
+            var fn = node.asFunction
 
             let prevScope = currentScope
             currentScope = Scope(parent: currentScope)
@@ -386,8 +422,25 @@ extension Checker {
 
             var needsSpecialization = false
             var params: [Type] = []
-            for param in fn.parameters {
+            for var param in fn.parameters {
                 assert(param.kind == .declaration)
+                if param.kind != .declaration {
+                    reportError("Procedure literals must provide parameter names in their function prototype", at: param)
+                }
+
+                if param.asDeclaration.type!.kind == .variadic {
+                    guard param === fn.parameters.last! else {
+                        reportError("You can only use '..' with a functions final parameter", at: param)
+                        return Type.invalid
+                    }
+                    let variadic = param.asDeclaration.type!.asVariadic
+
+                    if variadic.cCompatible {
+                        node.asFunction.flags.insert(.cVariadic)
+                    } else {
+                        node.asFunction.flags.insert(.variadic)
+                    }
+                }
 
                 check(node: param)
 
@@ -400,8 +453,20 @@ extension Checker {
                 params.append(entity.type!)
             }
 
-            var returnType = checkExpr(node: fn.returnType)
-            returnType = lowerFromMetatype(returnType, atNode: fn.returnType)
+            fn = node.asFunction
+
+            var returnTypes: [Type] = []
+            for returnType in fn.returnTypes {
+                var type = checkExpr(node: returnType)
+                type = lowerFromMetatype(type, atNode: returnType)
+                returnTypes.append(type)
+            }
+
+            let returnType = Type.makeTuple(returnTypes)
+
+            if returnType.isVoid && fn.isDiscardableResult {
+                reportError("#discardable on void returning function is superflous", at: node.tokens[0])
+            }
 
             let prevExpectedReturnType = currentExpectedReturnType
             currentExpectedReturnType = returnType
@@ -414,33 +479,61 @@ extension Checker {
             }
 
             let isVariadic = fn.flags.contains(.variadic)
-            let functionType = Type.Function(node: node, params: params, returnType: returnType, isVariadic: isVariadic, needsSpecialization: needsSpecialization)
+            let functionType = Type.Function(node: node, params: params, returnType: returnType,
+                                             isVariadic: isVariadic, isCVariadic: fn.isCVariadic,
+                                             needsSpecialization: needsSpecialization)
 
             let type = Type(value: functionType, entity: Entity.anonymous)
 
             if needsSpecialization {
 
-                node.value = PolymorphicFunction(parameters: fn.parameters, returnType: fn.returnType, body: fn.body, flags: fn.flags, type: type, specializations: [])
+                node.value = PolymorphicFunction(parameters: fn.parameters, returnTypes: fn.returnTypes, body: fn.body, flags: fn.flags, type: type, specializations: [])
             } else {
 
                 node.value = Function(
-                    parameters: fn.parameters, returnType: fn.returnType, body: fn.body, flags: fn.flags,
+                    parameters: fn.parameters, returnTypes: fn.returnTypes, body: fn.body, flags: fn.flags,
                     scope: currentScope, type: type)
             }
 
             return type
 
         case .functionType:
-            let fn = node.asFunctionType
+            var fn = node.asFunctionType
 
             var params: [Type] = []
             for param in fn.parameters {
 
                 var type: Type
                 if param.kind == .declaration {
+
+                    if param.asDeclaration.type!.kind == .variadic {
+                        guard param === fn.parameters.last! else {
+                            reportError("You can only use '..' with a functions final parameter", at: param)
+                            return Type.invalid
+                        }
+                        let variadic = param.asDeclaration.type!.asVariadic
+
+                        if variadic.cCompatible {
+                            node.asFunctionType.flags.insert(.cVariadic)
+                        }
+                        node.asFunctionType.flags.insert(.variadic)
+                    }
+
                     type = checkExpr(node: param.asDeclaration.type!)
                     type = lowerFromMetatype(type, atNode: param.asDeclaration.type!)
                 } else {
+                    if param.kind == .variadic {
+                        guard param === fn.parameters.last! else {
+                            reportError("You can only use '..' with a functions final parameter", at: param)
+                            return Type.invalid
+                        }
+                        let variadic = param.asVariadic
+
+                        if variadic.cCompatible {
+                            node.asFunctionType.flags.insert(.cVariadic)
+                        }
+                        node.asFunctionType.flags.insert(.variadic)
+                    }
                     type = checkExpr(node: param)
                     type = lowerFromMetatype(type, atNode: param)
                 }
@@ -448,22 +541,39 @@ extension Checker {
                 params.append(type)
             }
 
-            var returnType = checkExpr(node: fn.returnType)
-            returnType = lowerFromMetatype(returnType, atNode: fn.returnType)
+            // reload this as the parameter check can modify the original node
+            fn = node.asFunctionType
 
-            let functionType = Type.Function(node: node, params: params, returnType: returnType, isVariadic: fn.isVariadic, needsSpecialization: false)
+            var returnTypes: [Type] = []
+            for returnType in fn.returnTypes {
+                var type = checkExpr(node: returnType)
+                type = lowerFromMetatype(type, atNode: returnType)
+                returnTypes.append(type)
+            }
+
+            let returnType = Type.makeTuple(returnTypes)
+
+            if returnType.isVoid && fn.isDiscardableResult {
+                reportError("#discardable on void returning function is superflous", at: node.tokens[0])
+            }
+
+            let functionType = Type.Function(node: node, params: params, returnType: returnType,
+                                             isVariadic: fn.isVariadic, isCVariadic: fn.isCVariadic,
+                                             needsSpecialization: false)
 
             let instanceType = Type(value: functionType, entity: Entity.anonymous)
             let fnPointerType = Type.makePointer(to: instanceType)
             let type = Type.makeMetatype(fnPointerType)
 
-            node.value = FunctionType(parameters: fn.parameters, returnType: fn.returnType, flags: fn.flags, type: type)
+            node.value = FunctionType(parameters: fn.parameters, returnTypes: fn.returnTypes, flags: fn.flags, type: type)
 
             return type
 
         case .pointerType:
             let pointerType = node.asPointerType
-            let pointeeType = checkExpr(node: pointerType.pointee)
+            var pointeeType = checkExpr(node: pointerType.pointee)
+
+            pointeeType = lowerFromMetatype(pointeeType, atNode: pointerType.pointee)
 
             let instanceType = Type.makePointer(to: pointeeType)
             let type = Type.makeMetatype(instanceType)
@@ -610,7 +720,7 @@ extension Checker {
 
                 let argType = checkExpr(node: arg, desiredType: expectedType)
 
-                guard argType == expectedType else {
+                guard argType == expectedType || implicitlyConvert(argType, to: expectedType) else {
                     reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expectedType)'", at: arg)
                     continue
                 }
@@ -643,7 +753,17 @@ extension Checker {
 
             node.value = Call(callee: call.callee, arguments: call.arguments, specialization: nil, type: calleeFn.returnType)
 
-            return calleeFn.returnType
+            let returnTuple = calleeFn.returnType.asTuple
+            switch returnTuple.types.count {
+            case 0:
+                return Type.void.asMetatype.instanceType
+
+            case 1:
+                return returnTuple.types[0]
+
+            default:
+                return calleeFn.returnType
+            }
 
         case .memberAccess:
             let access = node.asMemberAccess
@@ -696,11 +816,11 @@ extension Checker {
         if argType.compatibleWithExtOrTrunc(targetType) {
 
             if argType.isFloatingPoint {
-                cast = (argType.width! < targetType.width!) ? .fpTrunc : .fpext
+                cast = (argType.width! > targetType.width!) ? .fpTrunc : .fpext
             } else if targetType.isSignedInteger {
-                cast = (argType.width! < targetType.width!) ? .trunc : .sext
+                cast = (argType.width! > targetType.width!) ? .trunc : .sext
             } else if targetType.isUnsignedInteger {
-                cast = (argType.width! < targetType.width!) ? .trunc : .zext
+                cast = (argType.width! > targetType.width!) ? .trunc : .zext
             } else {
                 fatalError("This is should cover all bases where compatibleWithExtOrTrunc returns true")
             }
@@ -809,8 +929,14 @@ extension Checker {
             paramsEntities.append(entity)
         }
 
-        var returnType = checkExpr(node: fn.returnType)
-        returnType = lowerFromMetatype(returnType, atNode: fn.returnType)
+        var returnTypes: [Type] = []
+        for returnType in fn.returnTypes {
+            var type = checkExpr(node: returnType)
+            type = lowerFromMetatype(type, atNode: returnType)
+            returnTypes.append(type)
+        }
+
+        let returnType = Type.makeTuple(returnTypes)
 
         let prevExpectedReturnType = currentExpectedReturnType
         currentExpectedReturnType = returnType
@@ -836,8 +962,9 @@ extension Checker {
         check(node: fn.body)
         currentSpecializationCall = nil
 
-        let strippedFunction = Type.Function(node: fnNode, params: strippedParamTypes,
-                                             returnType: returnType, isVariadic: fn.isSpecialization, needsSpecialization: false)
+        let strippedFunction = Type.Function(node: fnNode, params: strippedParamTypes, returnType: returnType,
+                                             isVariadic: fn.isSpecialization, isCVariadic: fn.isCVariadic,
+                                             needsSpecialization: false)
         let strippedType = Type(value: strippedFunction, entity: Entity.anonymous)
 
         var strippedParameters = fn.parameters
@@ -848,7 +975,7 @@ extension Checker {
         let flags = fn.flags.union(.specialization)
 
         fnNode.value = Function(
-            parameters: strippedParameters, returnType: fn.returnType, body: fn.body, flags: flags,
+            parameters: strippedParameters, returnTypes: fn.returnTypes, body: fn.body, flags: flags,
             scope: currentScope, type: strippedType)
 
         let specialization = FunctionSpecialization(specializationIndices: specializationIndices, specializedTypes: specializations,
@@ -867,7 +994,17 @@ extension Checker {
 
         callNode.value = Call(callee: call.callee, arguments: strippedArguments, specialization: specialization, type: returnType)
 
-        return returnType
+        let returnTuple = returnType.asTuple
+        switch returnTuple.types.count {
+        case 0:
+            return Type.void.asMetatype.instanceType
+
+        case 1:
+            return returnTuple.types[0]
+
+        default:
+            return returnType
+        }
     }
 
     func lowerFromMetatype(_ type: Type, atNode node: AstNode) -> Type {
@@ -878,6 +1015,21 @@ extension Checker {
 
         reportError("'\(type)' cannot be used as a type", at: node)
         return Type.invalid
+    }
+
+    /// - Returns: Was a conversion performed
+    func implicitlyConvert(_ type: Type, to targetType: Type) -> Bool {
+
+        if targetType.isAny {
+            fatalError("Implement this once we have an any type")
+        }
+
+        if targetType.isCVargAny {
+            // No actual conversion need be done.
+            return true
+        }
+
+        return false
     }
 }
 
@@ -1032,7 +1184,7 @@ extension Checker {
         typealias UncheckedValue = AstNode.Function
 
         var parameters: [AstNode]
-        var returnType: AstNode
+        var returnTypes: [AstNode]
         let body: AstNode
 
         var flags: FunctionFlags
@@ -1049,13 +1201,23 @@ extension Checker {
         typealias UncheckedValue = AstNode.Function
 
         let parameters: [AstNode]
-        let returnType: AstNode
+        let returnTypes: [AstNode]
         let body: AstNode
         let flags: FunctionFlags
 
         let type: Type
 
         var specializations: [FunctionSpecialization] = []
+    }
+
+    struct FunctionType: CheckedAstValue {
+        typealias UncheckedValue = AstNode.FunctionType
+
+        let parameters: [AstNode]
+        let returnTypes: [AstNode]
+        var flags: FunctionFlags
+
+        let type: Type
     }
 
     struct PointerType: CheckedAstValue {
@@ -1065,21 +1227,11 @@ extension Checker {
         let type: Type
     }
 
-    struct FunctionType: CheckedAstValue {
-        typealias UncheckedValue = AstNode.FunctionType
-
-        let parameters: [AstNode]
-        let returnType: AstNode
-        var flags: FunctionFlags
-
-        let type: Type
-    }
-
     struct Declaration: CheckedAstValue {
         typealias UncheckedValue = AstNode.Declaration
 
         let identifier: AstNode
-        let type: AstNode?
+        var type: AstNode?
         let value: AstNode
 
         var linkName: String?

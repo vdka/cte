@@ -1,25 +1,85 @@
 
 struct Parser {
 
-    var lexer: Lexer
-
     var file: SourceFile
 
-    var state: State
+    var lexer: Lexer
+
+    var context: Context
 
     init(file: SourceFile) {
         self.file = file
-        self.state = []
         self.lexer = file.lexer
+        self.context = Context(state: .default, previous: nil)
+    }
+
+    class Context {
+        let state: State
+        var previous: Context?
+
+        init(state: State, previous: Context?) {
+            self.state = state
+            self.previous = previous
+        }
     }
 
     struct State: OptionSet {
         let rawValue: UInt8
 
-        static let parseList            = State(rawValue: 0b0000_0001)
-        static let isDeclarationValue   = State(rawValue: 0b0000_0010)
-        static let permitCase           = State(rawValue: 0b0000_0100)
-        static let foreign              = State(rawValue: 0b0000_1000)
+        static let permitExprList       = State(rawValue: 0b0000_0001)
+        static let permitAssignOrDecl   = State(rawValue: 0b0000_0010)
+        static let permitReturn         = State(rawValue: 0b0000_0100)
+        static let permitCase           = State(rawValue: 0b0000_1000)
+
+        static let foreign              = State(rawValue: 0b0001_0000)
+
+        static let `default`            = [.permitExprList, .permitAssignOrDecl] as State
+    }
+
+    enum StateChange {
+        case parseType
+        case parseReturnType
+        case parseSingle
+        case parseParamList
+        case parseDeclValue
+        case parseFuncBody
+        case parseSwitchBody
+        case parseDeferExpr
+        case parseForeignDirectiveBody
+    }
+
+    mutating func pushContext(changingStateTo stateChange: StateChange) {
+
+        var state = context.state
+
+        switch stateChange {
+        case .parseType:
+            state = []
+        case .parseReturnType:
+            state = [.permitExprList]
+        case .parseSingle:
+            state = [.permitAssignOrDecl]
+        case .parseParamList:
+            state = [.permitExprList, .permitAssignOrDecl]
+        case .parseDeclValue:
+            state = [.permitExprList]
+        case .parseFuncBody:
+            state = .default
+            state.insert(.permitReturn)
+        case .parseSwitchBody:
+            state.insert(.permitCase)
+        case .parseDeferExpr:
+            state = []
+        case .parseForeignDirectiveBody:
+            state = [.permitAssignOrDecl, .foreign]
+        }
+
+        let newContext = Context(state: state, previous: context)
+        context = newContext
+    }
+
+    mutating func popContext() {
+        context = context.previous!
     }
 
     mutating func parse() -> [AstNode] {
@@ -56,7 +116,20 @@ struct Parser {
     }
 
     mutating func lbp(for token: Token) -> UInt8? {
-        return InfixOperator.lookup(token.kind)?.lbp ?? token.kind.lbp
+
+        if let lbp = InfixOperator.lookup(token.kind)?.lbp {
+            return lbp
+        }
+
+        let lbp = token.kind.lbp
+        if !context.state.contains(.permitExprList), token.kind == .comma {
+            return 0
+        }
+        if !context.state.contains(.permitAssignOrDecl), token.kind == .colon || token.kind == .equals {
+            return 0
+        }
+
+        return lbp
     }
 
     mutating func nud(for token: Token) -> AstNode {
@@ -129,9 +202,22 @@ struct Parser {
             let stmtBlock = AstNode.Block(stmts: stmts, isForeign: false)
             return AstNode(stmtBlock, tokens: [lbrace, rbrace])
 
+        case .ellipsis:
+            let ellispsis = advance()
+
+            pushContext(changingStateTo: .parseType)
+            let type = expression()
+            popContext()
+
+            let variadic = AstNode.Variadic(type: type, cCompatible: false)
+            return AstNode(variadic, tokens: [ellispsis])
+
         case .dollar:
             let dollar = advance()
+
+            pushContext(changingStateTo: .parseSingle)
             let stmt = expression()
+            popContext()
 
             if stmt.kind == .declaration {
                 stmt.tokens.insert(dollar, at: 0)
@@ -214,63 +300,40 @@ struct Parser {
             let lparen = advance(expecting: .lparen)
             consumeNewlines()
 
-            var isVariadic: Bool = false
             var params: [AstNode] = []
-            while lexer.peek()?.kind != .rparen {
 
-                if lexer.peek()?.kind == .ellipsis { // printf :: fn (fmt: string, ..any) -> i32
-                    advance()
-                    isVariadic = true
-                }
-                if lexer.peek(aheadBy: 2)?.kind == .ellipsis { // printf :: fn (fmt: string, args: ..any) -> i32
-                    isVariadic = true
-                    lexer.buffer.remove(at: 2)
-                }
+            if lexer.peek()?.kind != .rparen {
 
-                let param = expression()
-                if state.contains(.isDeclarationValue), param.kind != .declaration {
-                    reportError("Procedure literals must provide parameter names in their function prototype", at: param)
-                }
+                pushContext(changingStateTo: .parseParamList)
+                let paramList = expression()
+                popContext()
 
-                params.append(param)
-                if lexer.peek()?.kind != .comma {
-                    break
-                }
-                advance(expecting: .comma)
-                consumeNewlines()
-
-                if isVariadic {
-                    break
-                }
+                params = explode(paramList)
             }
 
-            consumeNewlines()
             let rparen = advance(expecting: .rparen)
-
             let returnArrow = advance(expecting: .returnArrow)
 
-            let returnType = expression(Token.Kind.equals.lbp)
+            pushContext(changingStateTo: .parseReturnType)
+            let returnTypeList = expression()
+            popContext()
 
-            var flags: FunctionFlags = []
-            if isVariadic {
-                flags.insert(.variadic)
-            }
-            if returnType.kind == .identifier, returnType.asIdentifier.name == "void" {
-                flags.insert(.discardableResult)
-            }
+            let returnTypes = explode(returnTypeList)
 
             if lexer.peek()?.kind != .lbrace {
-                let functionType = AstNode.FunctionType(parameters: params, returnType: returnType, flags: flags)
+                let functionType = AstNode.FunctionType(parameters: params, returnTypes: returnTypes, flags: [])
                 return AstNode(functionType, tokens: [fnToken, lparen, rparen, returnArrow])
             }
 
+            pushContext(changingStateTo: .parseFuncBody)
             let body = expression()
+            popContext()
 
             if body.kind != .block {
                 reportError("Body of a function should be a block statement", at: body)
             }
 
-            let function = AstNode.Function(parameters: params, returnType: returnType, body: body, flags: flags)
+            let function = AstNode.Function(parameters: params, returnTypes: returnTypes, body: body, flags: [])
 
             return AstNode(function, tokens: [fnToken, lparen, rparen, returnArrow])
 
@@ -288,17 +351,14 @@ struct Parser {
 
             let lbrace = advance(expecting: .lbrace)
 
-            let prevState = state
-            defer { state = prevState }
-            state.insert(.permitCase)
-
+            pushContext(changingStateTo: .parseSwitchBody)
             var cases: [AstNode] = []
-
             while lexer.peek()?.kind != .rbrace {
                 let expr = expression()
                 cases.append(expr)
                 consumeNewlines()
             }
+            popContext()
 
             let rbrace = advance(expecting: .rbrace)
 
@@ -309,7 +369,7 @@ struct Parser {
             let startToken = advance()
             let isDefault = lexer.peek()?.kind == .colon
 
-            guard state.contains(.permitCase) else {
+            guard context.state.contains(.permitCase) else {
                 reportError("Unexpected case outside of switch", at: startToken)
                 if lexer.peek()?.kind == .colon { advance() }
                 return AstNode.invalid
@@ -348,9 +408,17 @@ struct Parser {
         case .keywordReturn:
             let ŕeturn = advance()
 
-            let expr = expression()
+            // FIXME(vdka): This currently requires return values to be on the same line as the return keyword
+            let terminators: [Token.Kind] = [.rparen, .rbrace, .keywordElse, .keywordCase, .newline]
 
-            let stmtReturn = AstNode.Return(value: expr)
+            var exprs: [AstNode] = []
+            if let tokenKind = lexer.peek()?.kind, !terminators.contains(tokenKind) {
+
+                let exprList = expression()
+                exprs = explode(exprList)
+            }
+
+            let stmtReturn = AstNode.Return(values: exprs)
 
             return AstNode(stmtReturn, tokens: [ŕeturn])
 
@@ -420,10 +488,9 @@ struct Parser {
                 return AstNode.invalid
             }
 
-            let prevState = state
-            state.insert(.foreign)
+            pushContext(changingStateTo: .parseForeignDirectiveBody)
             let stmt = expression()
-            state = prevState
+            popContext()
 
             if stmt.kind == .declaration {
                 stmt.asDeclaration.flags.insert(.foreign)
@@ -441,10 +508,12 @@ struct Parser {
             let directive = advance()
             let stmt = expression()
 
+            stmt.tokens.insert(directive, at: 0)
+
             let isDeclaration = stmt.kind == .declaration
             let decl = stmt.asDeclaration
             let isFunction = decl.isFunction
-            let isForeignFunction = state.contains(.foreign) && decl.isFunctionType
+            let isForeignFunction = context.state.contains(.foreign) && decl.isFunctionType
 
             guard isDeclaration && (isFunction || isForeignFunction) else {
                 reportError("#discardable is only valid only function declarations", at: stmt)
@@ -457,10 +526,18 @@ struct Parser {
                 decl.value.asFunctionType.flags.insert(.discardableResult)
             }
 
-            let fnReturnType = isFunction ? decl.value.asFunction.returnType : decl.value.asFunctionType.returnType
-            if fnReturnType.kind == .identifier, fnReturnType.asIdentifier.name == "void" {
-                reportError("#discardable on function returning void is superflous", at: directive)
+            return stmt
+
+        case .directiveCvargs:
+            let directive = advance()
+            let stmt = expression()
+
+            guard stmt.kind == .variadic else {
+                reportError("#cvargs is only valid on variadics", at: directive)
+                return stmt
             }
+
+            stmt.asVariadic.cCompatible = true
 
             return stmt
 
@@ -484,15 +561,9 @@ struct Parser {
             consumeNewlines()
 
             var arguments: [AstNode] = []
-            while lexer.peek()?.kind != .rparen {
-
-                let argument = expression()
-                arguments.append(argument)
-
-                if lexer.peek()?.kind != .comma {
-                    break
-                }
-                advance(expecting: .comma)
+            if lexer.peek()?.kind != .rparen {
+                let argumentList = expression()
+                arguments = explode(argumentList)
             }
 
             let rparen = advance(expecting: .rparen)
@@ -510,6 +581,13 @@ struct Parser {
 
             let memberAccess = AstNode.MemberAccess(aggregate: lvalue, member: member)
             return AstNode(memberAccess, tokens: [dot])
+
+        case .comma:
+            let comma = advance()
+            let expr = expression(comma.kind.lbp - 1)
+            let list = append(lvalue, expr)
+            list.tokens.append(comma)
+            return list
 
         case .equals:
             let equals = advance()
@@ -529,7 +607,11 @@ struct Parser {
                 break
 
             default:
-                type = expression(Token.Kind.equals.lbp)
+                assert(colon.kind.lbp == Token.Kind.equals.lbp)
+
+                pushContext(changingStateTo: .parseType)
+                type = expression(colon.kind.lbp)
+                popContext()
             }
 
             guard let nextToken = lexer.peek(), nextToken.kind == .equals || nextToken.kind == .colon else {
@@ -542,10 +624,9 @@ struct Parser {
 
             let token = advance()
 
-            let prevState = state
-            state.insert(.isDeclarationValue)
-            let value = expression(Token.Kind.equals.lbp)
-            state = prevState
+            pushContext(changingStateTo: .parseDeclValue)
+            let value = expression(colon.kind.lbp)
+            popContext()
 
             let flags = token.kind == .colon ? DeclarationFlags.compileTime : []
 
@@ -604,12 +685,49 @@ struct Parser {
 
         return lexer.pop()
     }
+
+    func append(_ l: AstNode, _ r: AstNode) -> AstNode {
+        switch (l.kind, r.kind) {
+        case (.list, .list):
+            let list = AstNode.List(values: l.asList.values + r.asList.values)
+            return AstNode(list, tokens: l.tokens + r.tokens)
+
+        case (_, .list):
+            let list = AstNode.List(values: [l] + r.asList.values)
+            return AstNode(list, tokens: l.tokens + r.tokens)
+
+        case (.list, _):
+            let list = AstNode.List(values: l.asList.values + [r])
+            return AstNode(list, tokens: l.tokens + r.tokens)
+
+        default:
+            let list = AstNode.List(values: [l, r])
+            return AstNode(list, tokens: l.tokens + r.tokens)
+        }
+    }
+
+    func explode(_ node: AstNode) -> [AstNode] {
+        switch node.kind {
+        case .empty:
+            return []
+
+        case .list:
+            return node.asList.values
+
+        default:
+            return [node]
+        }
+    }
+
 }
 
 extension Token.Kind {
 
     var lbp: UInt8 {
         switch self {
+        case .comma:
+            return 5
+
         case .colon, .equals:
             return 10
 

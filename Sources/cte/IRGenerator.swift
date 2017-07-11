@@ -88,8 +88,18 @@ struct IRGenerator {
             }
 
             if options.contains(.emitIr) {
-                if let endOfAlloca = builder.insertBlock!.instructions.first(where: { !$0.isAAllocaInst }) {
-                    builder.position(endOfAlloca, block: builder.insertBlock!)
+
+                // Somehow Xcode 9 beta 3 includes a Swift compiler which thinks this is ambiguous.
+                // if let endOfAlloca = builder.insertBlock!.instructions.first(where: { !$0.isAAllocaInst }) {
+                //     builder.position(endOfAlloca, block: builder.insertBlock!)
+                // }
+
+                for inst in builder.insertBlock!.instructions {
+                    guard !inst.isAAllocaInst else {
+                        continue
+                    }
+                    builder.position(inst, block: builder.insertBlock!)
+                    break
                 }
             }
 
@@ -161,8 +171,22 @@ struct IRGenerator {
 
         case .return:
             let ret = node.asReturn
-            let val = emitExpr(node: ret.value)
-            builder.buildRet(val)
+            var values: [IRValue] = []
+            for value in ret.values {
+                let irValue = emitExpr(node: value)
+                values.append(irValue)
+            }
+
+            switch values.count {
+            case 0:
+                builder.buildRetVoid()
+
+            case 1:
+                builder.buildRet(values[0])
+
+            default:
+                builder.buildRetAggregate(of: values)
+            }
 
         case .switch:
             let świtch = node.asCheckedSwitch
@@ -557,6 +581,12 @@ func canonicalize(_ type: Type) -> IRType {
     case .void:
         return VoidType()
 
+    case .any:
+        fatalError()
+
+    case .cvargsAny:
+        fatalError()
+
     case .integer:
         return IntType(width: type.width!)
 
@@ -589,12 +619,29 @@ func canonicalize(_ type: Type) -> IRType {
         let requiredParams = fn.isVariadic ? fn.params[..<fn.params.lastIndex] : ArraySlice(fn.params)
         for param in requiredParams {
 
-            paramTypes.append(canonicalize(param))
+            if !param.isCVargAny {
+                paramTypes.append(canonicalize(param))
+            }
         }
 
         let retType = canonicalize(fn.returnType)
 
-        return FunctionType(argTypes: paramTypes, returnType: retType, isVarArg: fn.isVariadic)
+        return FunctionType(argTypes: paramTypes, returnType: retType, isVarArg: fn.isCVariadic)
+
+    case .tuple:
+        let tuple = type.asTuple
+        let types = tuple.types.map(canonicalize)
+        switch types.count {
+        case 0:
+            return VoidType()
+
+        case 1:
+            return types[0]
+
+        default:
+            let type = StructType(elementTypes: types, isPacked: true)
+            return type
+        }
 
     case .pointer:
         let pointer = type.asPointer
