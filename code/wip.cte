@@ -12,8 +12,13 @@
 }
 
 
-min :: fn ($T: type, a: T, b: T) -> T {
+min :: fn ($U: type, a: U, b: U) -> U {
   if a < b return a
+  else return b
+}
+
+max :: fn (a: $T, b: T) -> T {
+  if a > b return a
   else return b
 }
 
@@ -37,7 +42,7 @@ forExample :: fn () -> void {
 a : f64 = 5.0
 b : i64 = 3
 c := min(f64, a, 4)
-d := min(i64, b, 4)
+d := max(b, 4)
 e := min(i64, b, d)
 
 f := f64(b)

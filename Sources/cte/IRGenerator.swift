@@ -702,10 +702,8 @@ func canonicalize(_ type: Type) -> IRType {
 
         return PointerType(pointee: canonicalize(pointer.pointeeType))
 
-    case .metatype:
-        fatalError() // these should not make it into IRGen (alternatively use these to gen typeinfo)
-
-    case .file:
+    // these should not make it into IRGen (alternatively use these to gen typeinfo)
+    case .polymorphic, .metatype, .file:
         fatalError()
     }
 }

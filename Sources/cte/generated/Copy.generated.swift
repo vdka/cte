@@ -287,7 +287,8 @@ extension AstValue {
             return Checker.Parameter(
                 name: value.name.copy(),
                 type: value.type.copy(),
-                entity: value.entity.copy()
+                entity: value.entity.copy(),
+                implicitPolymorphicTypeEntity: value.implicitPolymorphicTypeEntity?.copy()
         )
 
         case let value as Checker.Paren:
@@ -390,15 +391,12 @@ extension Scope {
         )
     }
 }
+
 extension Type {
 
     func copy() -> Type {
-        return Type(
-            entity: entity?.copy(),
-            width: width,
-            flags: flags,
-            value: value
-        )
+        // no need to copy Types
+        return self
     }
 }
 

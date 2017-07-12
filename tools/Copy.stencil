@@ -25,7 +25,7 @@ extension AstValue {
     }
 }
 
-{% for type in types.classes where type.name != "SourceFile" %}
+{% for type in types.classes where type.name != "SourceFile" and type.name != "Type" %}
 extension {{ type.name }} {
 
     func copy() -> {{ type.name }} {
@@ -37,6 +37,14 @@ extension {{ type.name }} {
     }
 }
 {% endfor %}
+
+extension Type {
+
+    func copy() -> Type {
+        // no need to copy Types
+        return self
+    }
+}
 
 extension SourceFile {
 

@@ -39,13 +39,14 @@ class Entity: CustomStringConvertible {
 
     struct Flag: OptionSet {
         let rawValue: UInt8
-        static let none     = Flag(rawValue: 0b0000_0000)
-        static let used     = Flag(rawValue: 0b0000_0001)
-        static let file     = Flag(rawValue: 0b0000_0010)
-        static let library  = Flag(rawValue: 0b0000_0100)
-        static let type     = Flag(rawValue: 0b0001_0000)
-        static let compileTime       = Flag(rawValue: 0b0010_0000)
-        static let foreign  = Flag(rawValue: 0b0100_0000)
+        static let none         = Flag(rawValue: 0b0000_0000)
+        static let used         = Flag(rawValue: 0b0000_0001)
+        static let file         = Flag(rawValue: 0b0000_0010)
+        static let library      = Flag(rawValue: 0b0000_0100)
+        static let type         = Flag(rawValue: 0b0001_0000)
+        static let compileTime  = Flag(rawValue: 0b0010_0000)
+        static let implicitType = Flag(rawValue: 0b0111_0000)
+        static let foreign      = Flag(rawValue: 0b1000_0000)
     }
 
     var description: String {

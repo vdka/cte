@@ -35,18 +35,6 @@ extension Checker {
                 reportError("Expression of type '\(type)' is unused", at: node)
             }
 
-        case .compileTime:
-            let stmt = node.asCompileTime.stmt
-            switch stmt.kind {
-            case .declaration:
-                var decl = stmt.asUncheckedDeclaration
-                decl.flags.insert(.compileTime)
-                node.value = decl
-
-            default:
-                reportError("'$' is not valid on '\(stmt)'", at: node)
-            }
-
         case .declaration:
             let decl = node.asDeclaration
             var expectedType: Type?
@@ -175,22 +163,40 @@ extension Checker {
 
         case .parameter:
             let param = node.asParameter
-            var type = checkExpr(node: param.type)
+
+            if param.isImplicitPolymorphic {
+                let compileTime = param.type.asCompileTime
+                guard compileTime.stmt.kind == .identifier else {
+                    reportError("Expected identifier", at: compileTime.stmt)
+                    return
+                }
+
+                let entity = Entity(ident: compileTime.stmt.tokens[0])
+                entity.flags = .implicitType
+
+                let type = Type.makePolymorphicMetatype(entity)
+
+                currentScope.insert(entity)
+            }
+
+            var type = checkExpr(node: param.isImplicitPolymorphic ? param.type.asCompileTime.stmt : param.type)
 
             let identifierToken: Token
             var flags: Entity.Flag = []
-            if !param.isExplicitPolymorphic {
-                type = lowerFromMetatype(type, atNode: param.type)
-                identifierToken = param.name.tokens[0]
-            } else {
+
+            var implicitTypeEntity: Entity?
+            if param.isExplicitPolymorphic {
                 identifierToken = param.name.asCompileTime.stmt.tokens[0]
                 flags.insert(.compileTime)
+            } else {
+                type = lowerFromMetatype(type, atNode: param.type)
+                identifierToken = param.name.tokens[0]
             }
 
             let entity = Entity(ident: identifierToken, type: type, flags: flags)
             currentScope.insert(entity)
 
-            node.value = Parameter(name: param.name, type: param.type, entity: entity)
+            node.value = Parameter(name: param.name, type: param.type, entity: entity, implicitPolymorphicTypeEntity: implicitTypeEntity)
 
         case .block:
             let block = node.asBlock
@@ -492,37 +498,37 @@ extension Checker {
             var fn = node.asFunction
 
             let prevScope = currentScope
-            currentScope = Scope(parent: currentScope)
+            if !fn.isSpecialization {
+                currentScope = Scope(parent: currentScope)
+            }
             defer {
                 currentScope = prevScope
             }
 
             var needsSpecialization = false
             var params: [Type] = []
-            for (index, var param) in fn.parameters.enumerated() {
+            for (index, param) in fn.parameters.enumerated() {
                 assert(param.kind == .parameter)
-                needsSpecialization = needsSpecialization || param.asParameter.isExplicitPolymorphic
+                needsSpecialization = needsSpecialization || param.asParameter.isExplicitPolymorphic || param.asParameter.isImplicitPolymorphic
 
-                if param.asParameter.type.kind == .variadic {
+                if param.asParameter.isVariadic {
                     guard param === fn.parameters.last! else {
                         reportError("You can only use '..' with a functions final parameter", at: param)
                         return Type.invalid
                     }
-                    let variadic = param.asDeclaration.type!.asVariadic
 
-                    if variadic.cCompatible {
-                        node.asFunction.flags.insert(.cVariadic)
+                    if param.asParameter.isCVariadic {
+                        fn.flags.insert(.cVariadic)
                     } else {
-                        node.asFunction.flags.insert(.variadic)
+                        fn.flags.insert(.variadic)
                     }
                 }
 
                 check(node: param)
 
-                params.append(param.asCheckedParameter.entity.type!)
+                let type = param.asCheckedParameter.entity.type!
+                params.append(type)
             }
-
-            fn = node.asFunction
 
             var returnTypes: [Type] = []
             for returnType in fn.returnTypes {
@@ -789,6 +795,69 @@ extension Checker {
         }
     }
 
+    mutating func checkCall(_ node: AstNode) -> Type {
+        let call = node.asCall
+        var calleeType = checkExpr(node: call.callee)
+
+        if calleeType.isMetatype {
+            return checkCast(callNode: node)
+        }
+
+        if calleeType.isFunctionPointer {
+            calleeType = calleeType.asPointer.pointeeType
+        }
+
+        guard calleeType.isFunction else {
+            reportError("Cannot call value of non-function type '\(calleeType)'", at: node)
+            return Type.invalid
+        }
+
+        let calleeFn = calleeType.asFunction
+
+        if call.arguments.count > calleeFn.params.count {
+            let excessArgs = call.arguments[calleeFn.params.count...]
+            guard calleeType.asFunction.isVariadic else {
+                reportError("Too many arguments in call to \(call.callee)", at: excessArgs.first!)
+                return calleeType.asFunction.returnType
+            }
+
+            let expectedType = calleeFn.params.last!
+            for arg in excessArgs {
+                let argType = checkExpr(node: arg, desiredType: expectedType)
+
+                guard argType == expectedType || implicitlyConvert(argType, to: expectedType) else {
+                    reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expectedType)'", at: arg)
+                    continue
+                }
+            }
+        }
+
+        if call.arguments.count < calleeType.asFunction.params.count {
+            guard calleeFn.isVariadic, call.arguments.count + 1 == calleeFn.params.count else {
+                reportError("Not enough arguments in call to '\(call.callee)", at: node)
+                return calleeFn.returnType
+            }
+        }
+
+        if calleeFn.needsSpecialization {
+            return checkPolymorphicCall(callNode: node, calleeType: calleeType)
+        }
+
+        for (arg, expectedType) in zip(call.arguments, calleeFn.params) {
+
+            let argType = checkExpr(node: arg, desiredType: expectedType)
+
+            guard argType == expectedType || implicitlyConvert(argType, to: expectedType) else {
+                reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expectedType)'", at: arg)
+                continue
+            }
+        }
+
+        node.value = Call(callee: call.callee, arguments: call.arguments, specialization: nil, type: calleeFn.returnType)
+
+        return calleeFn.returnType
+    }
+
     mutating func checkCast(callNode: AstNode) -> Type {
         let call = callNode.asCall
 
@@ -840,32 +909,79 @@ extension Checker {
         return targetType
     }
 
-    mutating func checkCall(_ node: AstNode) -> Type {
-        let call = node.asCall
-        var calleeType = checkExpr(node: call.callee)
+    mutating func checkPolymorphicCall(callNode: AstNode, calleeType: Type) -> Type {
+        let call = callNode.asCall
+        let functionLiteralNode = calleeType.asFunction.node
 
-        if calleeType.isMetatype {
-            return checkCast(callNode: node)
+        let functionLiteralNodeCopy = functionLiteralNode.copy()
+        var generatedFunction = functionLiteralNodeCopy.asCheckedPolymorphicFunction.toUnchecked()
+        generatedFunction = AstNode.Function(parameters: generatedFunction.parameters, returnTypes: generatedFunction.returnTypes,
+                                     body: generatedFunction.body, flags: generatedFunction.flags)
+
+        var specializationTypes: [Type] = []
+
+        let functionScope = Scope(parent: currentScope) // FIXME: Use the original function declarations parent scope
+
+        var explicitIndices: [Int] = []
+        for (index, (arg, param)) in zip(call.arguments, generatedFunction.parameters).enumerated()
+            where param.asCheckedParameter.isExplicitPolymorphic || param.asCheckedParameter.isImplicitPolymorphic
+        {
+            let polymorphicParameter = param.asCheckedParameter
+            let expectedType = polymorphicParameter.entity.type! // NOTE: This can only be relivant for explicit parameters.
+            let argType = checkExpr(node: arg, desiredType: expectedType)
+
+            if polymorphicParameter.isExplicitPolymorphic {
+
+                guard argType == expectedType || argType.isMetatype && expectedType == Type.type else {
+                    reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expectedType)'", at: arg)
+                    return Type.invalid // Don't even bother trying to recover from specialized function checking
+                }
+                explicitIndices.append(index)
+                specializationTypes.append(argType)
+
+                polymorphicParameter.entity.type = argType
+
+                functionScope.insert(polymorphicParameter.entity)
+            } else if polymorphicParameter.isImplicitPolymorphic {
+
+                // set the type of the polymorphic type entity to the type of the argument provided for it.
+                let polymorphicType = Type.makeMetatype(argType)
+                polymorphicParameter.entity.type!.entity!.type = polymorphicType
+                specializationTypes.append(polymorphicType)
+
+                param.asCheckedParameter.type = param.asCheckedParameter.type.asCompileTime.stmt
+
+                functionScope.insert(polymorphicParameter.entity.type!.entity!)
+            } else {
+
+                guard argType == expectedType else {
+                    reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expectedType)'", at: arg)
+                    return Type.invalid // Don't even bother trying to recover from specialized function checking
+                }
+            }
         }
 
-        if calleeType.isFunctionPointer {
-            calleeType = calleeType.asPointer.pointeeType
+        var strippedArguments = call.arguments
+        for index in explicitIndices.reversed() {
+            generatedFunction.parameters.remove(at: index)
+            strippedArguments.remove(at: index)
         }
 
-        guard calleeType.isFunction else {
-            reportError("Cannot call value of non-function type '\(calleeType)'", at: node)
-            return Type.invalid
-        }
+        generatedFunction.flags.insert(.specialization)
+        functionLiteralNodeCopy.value = generatedFunction
 
-        let calleeFn = calleeType.asFunction
+        let prevScope = currentScope
+        currentScope = functionScope
 
-        if calleeFn.needsSpecialization {
+        currentSpecializationCall = callNode
+        let type = checkExpr(node: functionLiteralNodeCopy)
+        currentSpecializationCall = nil
 
-            return checkPolymorphicCall(callNode: node, calleeType: calleeType)
-        }
+        currentScope = prevScope
 
-        for (arg, expectedType) in zip(call.arguments, calleeFn.params) {
-
+        for (arg, expectedType) in zip(strippedArguments, type.asFunction.params)
+            where !(arg.value is CheckedExpression)
+        {
             let argType = checkExpr(node: arg, desiredType: expectedType)
 
             guard argType == expectedType || implicitlyConvert(argType, to: expectedType) else {
@@ -874,188 +990,15 @@ extension Checker {
             }
         }
 
-        if call.arguments.count > calleeFn.params.count {
-            let excessArgs = call.arguments[calleeFn.params.count...]
-            guard calleeType.asFunction.isVariadic else {
-                reportError("Too many arguments in call to \(call.callee)", at: excessArgs.first!)
-                return calleeType.asFunction.returnType
-            }
+        let specialization = FunctionSpecialization(specializationIndices: [], specializedTypes: specializationTypes,
+                                                    strippedType: type, fnNode: functionLiteralNodeCopy)
 
-            let expectedType = calleeFn.params.last!
-            for arg in excessArgs {
-                let argType = checkExpr(node: arg, desiredType: expectedType)
-
-                guard argType == expectedType || implicitlyConvert(argType, to: expectedType) else {
-                    reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expectedType)'", at: arg)
-                    continue
-                }
-            }
-        }
-
-        if call.arguments.count < calleeType.asFunction.params.count {
-            guard calleeFn.isVariadic, call.arguments.count + 1 == calleeFn.params.count else {
-                reportError("Not enough arguments in call to '\(call.callee)", at: node)
-                return calleeFn.returnType
-            }
-        }
-
-        node.value = Call(callee: call.callee, arguments: call.arguments, specialization: nil, type: calleeFn.returnType)
-
-        return calleeFn.returnType
-    }
-
-    mutating func checkPolymorphicCall(callNode: AstNode, calleeType: Type) -> Type {
-        let call = callNode.asCall
-        var fnNode = calleeType.asFunction.node
-        var fn = fnNode.asCheckedPolymorphicFunction
-
-        var specializations: [Type] = []
-
-        let paramEntities = fn.parameters.map({ $0.asCheckedParameter.entity })
-        for (arg, expected) in zip(call.arguments, paramEntities).filter({ $0.1.flags.contains(.compileTime) }) {
-
-            // TODO(vdka): Desired type
-            let argType = checkExpr(node: arg)
-
-            guard argType == expected.type! || argType.isMetatype && expected.type == Type.type else {
-                reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expected.type!)'", at: arg)
-                return Type.invalid // Don't even bother trying to recover from specialized function checking
-            }
-
-            specializations.append(argType)
-        }
-
-        // If there is already a matching specialization no need to recheck
-        if let specialization = fn.specializations.firstMatching(specializations) {
-
-            let runtimeArguments = zip(call.arguments, paramEntities)
-                .filter({ !$0.1.flags.contains(.compileTime) })
-                .map({ $0.0 })
-            // check runtime arguments
-            for (arg, expectedType) in zip(runtimeArguments, specialization.strippedType.asFunction.params) {
-
-                let argType = checkExpr(node: arg, desiredType: expectedType)
-                guard argType == expectedType else {
-                    reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expectedType)'", at: arg)
-                    continue
-                }
-            }
-
-            let returnType = specialization.strippedType.asFunction.returnType
-
-            var strippedArguments = call.arguments
-            for index in specialization.specializationIndices.reversed() {
-                // remove arguments no longer needed at runtime
-                strippedArguments.remove(at: index)
-            }
-            callNode.value = Call(callee: call.callee, arguments: strippedArguments, specialization: specialization, type: returnType)
-            return returnType
-        }
-
-        let originalFnNode = fnNode
-
-        fnNode = fnNode.copy()
-        fn = fnNode.asCheckedPolymorphicFunction
-
-        let prevScope = currentScope
-        currentScope = Scope(parent: currentScope)
-        defer {
-            currentScope = prevScope
-        }
-
-        var specializedTypeIterator = specializations.makeIterator()
-        var paramsEntities: [Entity] = []
-        var strippedParamTypes: [Type] = []
-        var specializationIndices: [Int] = []
-        for (index, param) in fn.parameters.enumerated() {
-            assert(param.kind == .parameter)
-
-            // Changed the param node value back to being unchecked
-            param.value = param.asCheckedParameter.toUnchecked()
-
-            // check the declaration as usual.
-            check(node: param)
-
-            let entity = currentScope.members.last!
-
-            if entity.flags.contains(.compileTime) {
-
-                // Inject the type we are specializing to.
-                entity.type = specializedTypeIterator.next()!
-                specializationIndices.append(index)
-            } else {
-                strippedParamTypes.append(entity.type!)
-            }
-
-            paramsEntities.append(entity)
-        }
-
-        var returnTypes: [Type] = []
-        for returnType in fn.returnTypes {
-            var type = checkExpr(node: returnType)
-            type = lowerFromMetatype(type, atNode: returnType)
-            returnTypes.append(type)
-        }
-
-        let returnType = Type.makeTuple(returnTypes)
-
-        let prevExpectedReturnType = currentExpectedReturnType
-        currentExpectedReturnType = returnType
-        defer {
-            currentExpectedReturnType = prevExpectedReturnType
-        }
-
-        // Return to the calling scope to check the validity of the argument expressions
-        // Once done return to the function scope to check the body
-        let fnScope = currentScope
-        currentScope = prevScope
-        for (arg, expected) in zip(call.arguments, paramsEntities) {
-
-            let argType = checkExpr(node: arg, desiredType: expected.type!)
-            guard argType == expected.type! else {
-                reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expected.type!)'", at: arg)
-                continue
-            }
-        }
-        currentScope = fnScope
-
-        currentSpecializationCall = callNode
-        check(node: fn.body)
-        currentSpecializationCall = nil
-
-        let strippedFunction = Type.Function(node: fnNode, params: strippedParamTypes, returnType: returnType,
-                                             isVariadic: fn.isSpecialization, isCVariadic: fn.isCVariadic,
-                                             needsSpecialization: false)
-        let strippedType = Type(value: strippedFunction, entity: Entity.anonymous)
-
-        var strippedParameters = fn.parameters
-        for index in specializationIndices.reversed() {
-            strippedParameters.remove(at: index)
-        }
-
-        let flags = fn.flags.union(.specialization)
-
-        fnNode.value = Function(
-            parameters: strippedParameters, returnTypes: fn.returnTypes, body: fn.body, flags: flags,
-            scope: currentScope, type: strippedType)
-
-        let specialization = FunctionSpecialization(specializationIndices: specializationIndices, specializedTypes: specializations,
-                                                    strippedType: strippedType, fnNode: fnNode)
-
-        // write the added specialization back to the original function declaration
-        var originalPolymorphicFunction = originalFnNode.asCheckedPolymorphicFunction
-        originalPolymorphicFunction.specializations.append(specialization)
-        originalFnNode.value = originalPolymorphicFunction
-
-        var strippedArguments = call.arguments
-        for index in specializationIndices.reversed() {
-            // remove arguments no longer needed at runtime
-            strippedArguments.remove(at: index)
-        }
-
+        let returnType = type.asFunction.returnType
         callNode.value = Call(callee: call.callee, arguments: strippedArguments, specialization: specialization, type: returnType)
 
-        return returnType
+        functionLiteralNode.asCheckedPolymorphicFunction.specializations.append(specialization)
+
+        return type.asFunction.returnType
     }
 
     func lowerFromMetatype(_ type: Type, atNode node: AstNode) -> Type {
@@ -1240,15 +1183,15 @@ extension Checker {
         var type: Type
     }
 
-    struct PolymorphicFunction: CheckedExpression, CheckedAstValue {
+    struct PolymorphicFunction: CheckedExpression, CheckedAstValue, CommonFunction {
         static let astKind = AstKind.polymorphicFunction
 
         typealias UncheckedValue = AstNode.Function
 
-        let parameters: [AstNode]
-        let returnTypes: [AstNode]
+        var parameters: [AstNode]
+        var returnTypes: [AstNode]
         let body: AstNode
-        let flags: FunctionFlags
+        var flags: FunctionFlags
 
         let type: Type
 
@@ -1262,6 +1205,8 @@ extension Checker {
         var type: AstNode
 
         let entity: Entity
+
+        let implicitPolymorphicTypeEntity: Entity?
     }
 
     struct FunctionType: CheckedAstValue {
@@ -1392,7 +1337,7 @@ extension Checker {
 }
 
 class FunctionSpecialization {
-    let specializationIndices: [Int]
+    let specializationIndices: [Int] // FIXME: remove
     let specializedTypes: [Type]
     let strippedType: Type
     let fnNode: AstNode
@@ -1424,8 +1369,20 @@ extension CommonDeclaration {
 
 extension CommonParameter {
 
+    var isVariadic: Bool {
+        return type.kind == .variadic
+    }
+
+    var isCVariadic: Bool {
+        return isVariadic && type.asVariadic.cCompatible
+    }
+
     var isExplicitPolymorphic: Bool {
         return name.kind == .compileTime
+    }
+
+    var isImplicitPolymorphic: Bool {
+        return type.kind == .compileTime
     }
 }
 

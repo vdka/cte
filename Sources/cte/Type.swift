@@ -60,6 +60,9 @@ class Type: Hashable, CustomStringConvertible {
         case .pointer:
             return "*" + (self.value as! Pointer).pointeeType.description
 
+        case .polymorphic:
+            return "$" + entity!.name
+
         case .metatype:
             return "Metatype(" + (self.value as! Metatype).instanceType.description + ")"
 
@@ -69,7 +72,9 @@ class Type: Hashable, CustomStringConvertible {
         case .function:
             // fn ($T: type, a: T, b: T) -> T
             let fn = self.asFunction
-            return "fn(" + fn.params.map({ $0.description }).joined(separator: ", ") + ")" + " -> " + fn.returnType.description
+            let params = fn.params.map({ $0.description }).joined(separator: ", ")
+            let returns = fn.returnType.asTuple.types.map({ $0.description }).joined(separator: ", ")
+            return "fn(" + params + ")" + " -> " + returns
 
         case .tuple:
             return "(" + asTuple.types.map({ $0.description }).joined(separator: ", ") + ")"
@@ -132,6 +137,10 @@ class Type: Hashable, CustomStringConvertible {
         return kind == .tuple
     }
 
+    var isPolymorhpic: Bool {
+        return kind == .polymorphic
+    }
+
     var isMetatype: Bool {
         return kind == .metatype
     }
@@ -169,6 +178,7 @@ enum TypeKind {
     case function
     case tuple
     case pointer
+    case polymorphic
     case metatype
     case file
 }
@@ -228,6 +238,10 @@ extension Type {
         let pointeeType: Type
     }
 
+    struct Polymorphic: TypeValue {
+        static let typeKind: TypeKind = .polymorphic
+    }
+
     struct Metatype: TypeValue {
         static let typeKind: TypeKind = .metatype
 
@@ -270,8 +284,24 @@ extension Type {
     static func makeTuple(_ types: [Type]) -> Type {
         let tuple = Tuple(types: types)
         let type = Type(value: tuple)
-        type.width = types.reduce(0, { $0 + $1.width! })
+
+        type.width = 0
+        for memberType in types {
+            guard let typeWidth = memberType.width else {
+                type.width = nil
+                break
+            }
+
+            type.width! += typeWidth
+        }
         return type
+    }
+
+    static func makePolymorphicMetatype(_ entity: Entity) -> Type {
+        let polymorphic = Polymorphic()
+        let type = Type(value: polymorphic, entity: entity)
+        entity.type = Type.makeMetatype(type)
+        return entity.type!
     }
 
     static func makeMetatype(_ type: Type) -> Type {

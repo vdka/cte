@@ -29,7 +29,7 @@ extension AstNode: CustomStringConvertible {
             return asIntegerLiteral.value.description
 
         case .function, .polymorphicFunction:
-            let fn = asFunction
+            let fn = value as! CommonFunction
             let parameterList = fn.parameters
                 .map({ $0.description })
                 .joined(separator: ", ")

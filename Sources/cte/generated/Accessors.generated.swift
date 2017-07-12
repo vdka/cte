@@ -1042,6 +1042,10 @@ extension Type {
         return value as! Type.Pointer
     }
 
+    var asPolymorphic: Type.Polymorphic {
+        return value as! Type.Polymorphic
+    }
+
     var asTuple: Type.Tuple {
         return value as! Type.Tuple
     }
