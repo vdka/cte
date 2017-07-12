@@ -44,7 +44,7 @@ class Entity: CustomStringConvertible {
         static let file     = Flag(rawValue: 0b0000_0010)
         static let library  = Flag(rawValue: 0b0000_0100)
         static let type     = Flag(rawValue: 0b0001_0000)
-        static let ct       = Flag(rawValue: 0b0010_0000)
+        static let compileTime       = Flag(rawValue: 0b0010_0000)
         static let foreign  = Flag(rawValue: 0b0100_0000)
     }
 
@@ -59,7 +59,7 @@ extension Entity {
         let tok = Token(kind: .ident, value: name, location: .unknown)
         let entity = Entity(ident: tok)
         entity.type = type
-        entity.flags.insert(.ct)
+        entity.flags.insert(.compileTime)
         return entity
     }
 }

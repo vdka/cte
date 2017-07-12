@@ -60,12 +60,11 @@ forExample()
 addrA := &a
 valA := <addrA
 
-swap :: fn (a: i32, b: i32) -> i32, i32 {
+swap :: fn (a, b: i32) -> i32, i32 {
     return b, a
 }
 
-x := 1
-y := 2
+x, y := 1, 2
 
 x, y = 3, 4
 

@@ -43,9 +43,9 @@ extension AstValue {
 
         case let value as AstNode.Declaration:
             return AstNode.Declaration(
-                identifier: value.identifier.copy(),
+                names: value.names.map({ $0.copy() }),
                 type: value.type?.copy(),
-                value: value.value.copy(),
+                values: value.values.map({ $0.copy() }),
                 linkName: value.linkName,
                 flags: value.flags
         )
@@ -139,6 +139,12 @@ extension AstValue {
                 member: value.member.copy()
         )
 
+        case let value as AstNode.Parameter:
+            return AstNode.Parameter(
+                name: value.name.copy(),
+                type: value.type.copy()
+        )
+
         case let value as AstNode.Paren:
             return AstNode.Paren(
                 expr: value.expr.copy()
@@ -215,12 +221,12 @@ extension AstValue {
 
         case let value as Checker.Declaration:
             return Checker.Declaration(
-                identifier: value.identifier.copy(),
+                names: value.names.map({ $0.copy() }),
                 type: value.type?.copy(),
-                value: value.value.copy(),
+                values: value.values.map({ $0.copy() }),
                 linkName: value.linkName,
                 flags: value.flags,
-                entity: value.entity.copy()
+                entities: value.entities.map({ $0.copy() })
         )
 
         case let value as Checker.FloatLiteral:
@@ -274,6 +280,13 @@ extension AstValue {
             return Checker.MemberAccess(
                 aggregate: value.aggregate.copy(),
                 member: value.member.copy(),
+                entity: value.entity.copy()
+        )
+
+        case let value as Checker.Parameter:
+            return Checker.Parameter(
+                name: value.name.copy(),
+                type: value.type.copy(),
                 entity: value.entity.copy()
         )
 

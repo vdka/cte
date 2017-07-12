@@ -29,7 +29,6 @@ extension AstNode: CustomStringConvertible {
             return asIntegerLiteral.value.description
 
         case .function, .polymorphicFunction:
-
             let fn = asFunction
             let parameterList = fn.parameters
                 .map({ $0.description })
@@ -38,6 +37,10 @@ extension AstNode: CustomStringConvertible {
             let returnType = fn.returnTypes.map({ $0.description }).joined(separator: ", ")
 
             return "fn" + "(" + parameterList + ") -> " + returnType + " " + fn.body.description
+
+        case .parameter:
+            let param = asParameter
+            return param.name.description + ": " + param.type.description
 
         case .functionType:
             let fn = asFunctionType
@@ -60,17 +63,17 @@ extension AstNode: CustomStringConvertible {
 
         case .declaration:
             let d = asDeclaration
-            let ident = d.identifier.description
+            let names = d.names.map({ $0.description }).joined(separator: ", ")
 
-            var value = ""
-            if d.value.kind != .empty {
-                value = " = " + d.value.description
+            var values = ""
+            if !d.values.isEmpty {
+                values = d.values.map({ $0.description }).joined(separator: ", ")
             }
 
             if let type = d.type {
-                return (d.isCompileTime ? "$" : "") + ident + ": " + type.description + value
+                return (d.isCompileTime ? "$" : "") + names + ": " + type.description + " = " + values
             }
-            return ident + (d.isCompileTime ? " :: " : " := ") + d.value.description
+            return names + (d.isCompileTime ? " :: " : " := ") + values
 
         case .paren:
             return "(" + asParen.expr.description + ")"

@@ -47,77 +47,92 @@ struct IRGenerator {
         case .declaration:
             let decl = node.asCheckedDeclaration
 
-            guard decl.entity.type!.kind != .metatype else {
+            guard !decl.isFunction || decl.isForeign else {
+                assert(decl.names.count == 1 && decl.entities.count == 1,
+                       "For non foreign function declarations multiple declaration should be a checker error")
+                decl.entities[0].value = emitExpr(node: decl.values[0], name: decl.entities[0].name)
                 return
             }
 
-            guard (decl.value.kind != .polymorphicFunction && decl.value.kind != .function) || decl.isForeign else {
-                decl.entity.value = emitExpr(node: decl.value, name: decl.entity.name)
+            if decl.rvalueIsCall && decl.entities.count > 1 {
+                let aggregate = emitCall(decl.values[0].asCheckedCall)
+
+                for (index, entity) in decl.entities.enumerated() {
+                    let rvalue = builder.buildStructGEP(aggregate, index: index)
+                    builder.buildStore(rvalue, to: entity.value!)
+                }
+
                 return
             }
 
-            let type = canonicalize(decl.entity.type!)
+            assert(decl.entities.count == decl.values.count)
+            for (entity, value) in zip(decl.entities, decl.values)
+                where !entity.type!.isMetatype
+            {
+                let type = canonicalize(entity.type!)
 
-            if decl.isForeign {
-                let name = decl.linkName ?? decl.identifier.asIdentifier.name
-                if let type = type as? FunctionType {
-                    let function = builder.addFunction(name, type: type)
-                    decl.entity.value = function
+                if decl.isForeign {
+                    assert(decl.names.count == 1 && decl.entities.count == 1)
+                    let name = decl.linkName ?? entity.name
+                    if let type = type as? FunctionType {
+                        let function = builder.addFunction(name, type: type)
+                        entity.value = function
+                        return
+                    }
+
+                    var global = builder.addGlobal(name, type: type)
+                    global.isExternallyInitialized = true
+                    entity.value = global
                     return
                 }
 
-                var global = builder.addGlobal(name, type: type)
-                global.isExternallyInitialized = true
-                decl.entity.value = global
-                return
-            }
-
-            if decl.entity.flags.contains(.ct) {
-                let value = emitExpr(node: decl.value)
-                var globalValue = builder.addGlobal(decl.entity.name, initializer: value)
-                globalValue.isGlobalConstant = true
-                decl.entity.value = globalValue
-                return
-            }
-
-            if let file = decl.entity.owningScope.file, !file.isInitialFile {
-                let value = emitExpr(node: decl.value)
-                let globalValue = builder.addGlobal(decl.entity.name, initializer: value)
-                decl.entity.value = globalValue
-                return
-            }
-
-            if options.contains(.emitIr) {
-
-                // Somehow Xcode 9 beta 3 includes a Swift compiler which thinks this is ambiguous.
-                // if let endOfAlloca = builder.insertBlock!.instructions.first(where: { !$0.isAAllocaInst }) {
-                //     builder.position(endOfAlloca, block: builder.insertBlock!)
-                // }
-
-                for inst in builder.insertBlock!.instructions {
-                    guard !inst.isAAllocaInst else {
-                        continue
-                    }
-                    builder.position(inst, block: builder.insertBlock!)
-                    break
+                if entity.flags.contains(.compileTime) {
+                    let value = emitExpr(node: value)
+                    var globalValue = builder.addGlobal(entity.name, initializer: value)
+                    globalValue.isGlobalConstant = true
+                    entity.value = globalValue
+                    return
                 }
+
+                if let file = entity.owningScope.file, !file.isInitialFile {
+                    let value = emitExpr(node: value)
+                    let globalValue = builder.addGlobal(entity.name, initializer: value)
+                    entity.value = globalValue
+                    return
+                }
+
+                if options.contains(.emitIr) {
+
+                    // Somehow Xcode 9 beta 3 includes a Swift compiler which thinks this is ambiguous.
+                    // if let endOfAlloca = builder.insertBlock!.instructions.first(where: { !$0.isAAllocaInst }) {
+                    //     builder.position(endOfAlloca, block: builder.insertBlock!)
+                    // }
+
+                    for inst in builder.insertBlock!.instructions {
+                        guard !inst.isAAllocaInst else {
+                            continue
+                        }
+                        builder.position(inst, block: builder.insertBlock!)
+                        break
+                    }
+                }
+
+                let stackValue = builder.buildAlloca(type: type, name: entity.name)
+
+                if options.contains(.emitIr) {
+                    builder.positionAtEnd(of: builder.insertBlock!)
+                }
+
+                entity.value = stackValue
+
+                guard value != .empty else {
+                    return
+                }
+
+                let value = emitExpr(node: value, name: entity.name)
+
+                builder.buildStore(value, to: stackValue)
             }
-
-            let stackValue = builder.buildAlloca(type: type, name: decl.entity.name)
-
-            if options.contains(.emitIr) {
-                builder.positionAtEnd(of: builder.insertBlock!)
-            }
-
-            decl.entity.value = stackValue
-
-            guard decl.value != .empty else {
-                return
-            }
-
-            let value = emitExpr(node: decl.value, name: decl.entity.name)
-
-            builder.buildStore(value, to: stackValue)
 
         case .assign:
             let assign = node.asCheckedAssign
@@ -132,13 +147,41 @@ struct IRGenerator {
                 }
 
                 return
-            } else {
-                for (lvalue, rvalue) in zip(assign.lvalues, assign.rvalues) {
-                    let lvalueAddress = emitExpr(node: lvalue, returnAddress: true)
-                    let rvalue = emitExpr(node: rvalue)
-                    builder.buildStore(rvalue, to: lvalueAddress)
+            }
+
+            for (lvalue, rvalue) in zip(assign.lvalues, assign.rvalues) {
+                let lvalueAddress = emitExpr(node: lvalue, returnAddress: true)
+                let rvalue = emitExpr(node: rvalue)
+                builder.buildStore(rvalue, to: lvalueAddress)
+            }
+
+        case .parameter:
+            let param = node.asCheckedParameter
+
+            let type = canonicalize(param.entity.type!)
+
+            if options.contains(.emitIr) {
+
+                // Somehow Xcode 9 beta 3 includes a Swift compiler which thinks this is ambiguous.
+                // if let endOfAlloca = builder.insertBlock!.instructions.first(where: { !$0.isAAllocaInst }) {
+                //     builder.position(endOfAlloca, block: builder.insertBlock!)
+                // }
+                for inst in builder.insertBlock!.instructions {
+                    guard !inst.isAAllocaInst else {
+                        continue
+                    }
+                    builder.position(inst, block: builder.insertBlock!)
+                    break
                 }
             }
+
+            let stackValue = builder.buildAlloca(type: type, name: param.entity.name)
+
+            if options.contains(.emitIr) {
+                builder.positionAtEnd(of: builder.insertBlock!)
+            }
+
+            param.entity.value = stackValue
 
         case .block:
             let block = node.asCheckedBlock
@@ -387,7 +430,7 @@ struct IRGenerator {
 
         for (param, var irParam) in zip(fn.parameters, function.parameters) {
 
-            let entity = param.asCheckedDeclaration.entity
+            let entity = param.asCheckedParameter.entity
             irParam.name = entity.name
 
             emit(node: param)
