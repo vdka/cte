@@ -75,6 +75,10 @@ extension Checker {
 
                     entities.append(entity)
                 }
+
+                node.value = Declaration(names: decl.names, type: decl.type, values: decl.values,
+                                         linkName: decl.linkName, flags: decl.flags, entities: entities)
+
                 return
             }
 
