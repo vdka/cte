@@ -574,16 +574,6 @@ extension AstNode {
         }
     }
 
-    var asCheckedAssign: Checker.Assign {
-        get {
-            assert(kind == Checker.Assign.astKind)
-            return value as! Checker.Assign
-        }
-        set {
-            value = newValue
-        }
-    }
-
     var asCheckedBlock: Checker.Block {
         get {
             assert(kind == Checker.Block.astKind)
@@ -758,16 +748,6 @@ extension AstNode {
         get {
             assert(kind == Checker.StringLiteral.astKind)
             return value as! Checker.StringLiteral
-        }
-        set {
-            value = newValue
-        }
-    }
-
-    var asCheckedSwitch: Checker.Switch {
-        get {
-            assert(kind == Checker.Switch.astKind)
-            return value as! Checker.Switch
         }
         set {
             value = newValue
