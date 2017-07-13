@@ -898,7 +898,7 @@ extension Checker {
         }
 
         if argType == targetType {
-            reportError("Unnecissary cast to same type", at: callNode)
+            reportError("Unnecessary cast to same type", at: callNode)
             return targetType
         }
 

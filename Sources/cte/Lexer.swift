@@ -82,10 +82,30 @@ struct Lexer {
         case ";":  kind = .semicolon
         case ",":  kind = .comma
         case "$":  kind = .dollar
-        case "+":  kind = .plus
-        case "*":  kind = .asterix
         case "&":  kind = .ampersand
-        case "=":  kind = .equals
+        case "*":
+            guard !scanner.hasPrefix("*=") else {
+                charactersToPop = 2
+                kind = .asterixEquals
+                break
+            }
+            kind = .asterix
+
+        case "+":
+            guard !scanner.hasPrefix("+=") else {
+                charactersToPop = 2
+                kind = .plusEquals
+                break
+            }
+            kind = .plus
+        case "=":
+            guard !scanner.hasPrefix("==") else {
+                charactersToPop = 2
+                kind = .equalsEquals
+                break
+            }
+            kind = .equals
+
         case ".":
             guard !scanner.hasPrefix("..") else {
                 charactersToPop = 2
@@ -110,6 +130,12 @@ struct Lexer {
             kind = .gt
 
         case "-":
+            guard !scanner.hasPrefix("-=") else {
+                charactersToPop = 2
+                kind = .minusEquals
+                break
+            }
+
             guard !scanner.hasPrefix("->") else {
                 charactersToPop = 2
                 kind = .returnArrow
@@ -126,6 +152,10 @@ struct Lexer {
                 isBlockComment = false
             } else if nextChar == "*" {
                 isBlockComment = true
+            } else if nextChar == "=" {
+                charactersToPop = 2
+                kind = .divideEquals
+                break
             } else {
                 scanner.pop()
                 kind = .divide
@@ -378,18 +408,26 @@ extension Token {
 
         case dollar
 
-        case equals
+        // Punctuation
+        case comma
+        case semicolon
+
+        // Operators
         case plus
         case minus
         case asterix
         case divide
         case ampersand
 
-        // Punctuation
-        case comma
-        case semicolon
+        // Assignment Operators
+        case equals
+        case plusEquals
+        case minusEquals
+        case asterixEquals
+        case divideEquals
 
-        // Operators
+        // Comparison Operators
+        case equalsEquals
         case lt
         case gt
         case lte
@@ -464,18 +502,23 @@ extension Token: CustomStringConvertible {
         case .rparen: fallthrough
         case .lbrace: fallthrough
         case .rbrace: fallthrough
+        case .comma: fallthrough
         case .colon: fallthrough
         case .semicolon: fallthrough
         case .dot: fallthrough
         case .ellipsis: fallthrough
         case .dollar: fallthrough
-        case .equals: fallthrough
         case .plus: fallthrough
         case .minus: fallthrough
         case .asterix: fallthrough
         case .divide: fallthrough
         case .ampersand: fallthrough
-        case .comma: fallthrough
+        case .equals: fallthrough
+        case .plusEquals: fallthrough
+        case .minusEquals: fallthrough
+        case .asterixEquals: fallthrough
+        case .divideEquals: fallthrough
+        case .equalsEquals: fallthrough
         case .lt: fallthrough
         case .gt: fallthrough
         case .lte: fallthrough
@@ -522,6 +565,11 @@ extension Token.Kind: CustomStringConvertible {
         case .divide: return "/"
         case .ampersand: return "&"
         case .comma: return ","
+        case .equalsEquals: return "=="
+        case .plusEquals: return "+="
+        case .minusEquals: return "-="
+        case .asterixEquals: return "*="
+        case .divideEquals: return "/="
         case .lt: return "<"
         case .gt: return ">"
         case .lte: return "<="
