@@ -145,13 +145,17 @@ struct IRGenerator {
                     let rvalue = builder.buildStructGEP(aggregate, index: index)
                     builder.buildStore(rvalue, to: lvalueAddress)
                 }
-
                 return
             }
 
-            for (lvalue, rvalue) in zip(assign.lvalues, assign.rvalues) {
-                let lvalueAddress = emitExpr(node: lvalue, returnAddress: true)
+            var rvalues: [IRValue] = []
+            for rvalue in assign.rvalues {
                 let rvalue = emitExpr(node: rvalue)
+                rvalues.append(rvalue)
+            }
+
+            for (lvalue, rvalue) in zip(assign.lvalues, rvalues) {
+                let lvalueAddress = emitExpr(node: lvalue, returnAddress: true)
                 builder.buildStore(rvalue, to: lvalueAddress)
             }
 
