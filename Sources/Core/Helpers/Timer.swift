@@ -11,10 +11,10 @@ func gettime() -> Double {
 
 
 fileprivate var currentTiming: (name: String, start: Double)?
-var timings: [(name: String, duration: Double)] = []
+public var timings: [(name: String, duration: Double)] = []
 
 // TODO(vdka): Support multithreading
-func startTiming(_ name: String) {
+public func startTiming(_ name: String) {
     let currTime = gettime()
 
     guard let lastTiming = currentTiming else {
@@ -28,7 +28,7 @@ func startTiming(_ name: String) {
     currentTiming = (name, currTime)
 }
 
-func endTiming() {
+public func endTiming() {
     let currTime = gettime()
 
     guard let lastTiming = currentTiming else {

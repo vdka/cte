@@ -1448,7 +1448,7 @@ extension Checker {
 
     func reportError(_ message: String, at node: AstNode, file: StaticString = #file, line: UInt = #line) {
 
-        cte.reportError(message, at: node, file: file, line: line)
+        Core.reportError(message, at: node, file: file, line: line)
         if let currentSpecializationCall = currentSpecializationCall {
             attachNote("Called from: " + currentSpecializationCall.tokens.first!.start.description)
         }
@@ -1456,7 +1456,7 @@ extension Checker {
 
     func reportError(_ message: String, at token: Token, file: StaticString = #file, line: UInt = #line) {
 
-        cte.reportError(message, at: token, file: file, line: line)
+        Core.reportError(message, at: token, file: file, line: line)
         if let currentSpecializationCall = currentSpecializationCall {
             attachNote("Called from: " + currentSpecializationCall.tokens.first!.start.description)
         }

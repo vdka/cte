@@ -8,7 +8,8 @@ let package = Package(
        .package(url: "https://github.com/vdka/LLVMSwift.git", .branch("master")),
     ],
     targets: [
-        .target(name: "cte", dependencies: ["LLVM"]),
+        .target(name: "cte", dependencies: ["Core"]),
+        .target(name: "Core", dependencies: ["LLVM"])
     ],
     swiftLanguageVersions: [4]
 )
