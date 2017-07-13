@@ -83,7 +83,21 @@ struct Lexer {
         case ",":  kind = .comma
         case "$":  kind = .dollar
         case "+":  kind = .plus
-        case "*":  kind = .asterix
+			guard !scanner.hasPrefix("+=") else {
+                charactersToPop = 2
+                kind = .plusEquals
+                break
+            }
+            kind = .plus
+
+        case "*":
+			guard !scanner.hasPrefix("*=") else {
+                charactersToPop = 2
+                kind = .asterixEquals
+                break
+            }
+            kind = .asterix
+
         case "&":  kind = .ampersand
         case "!":
             guard !scanner.hasPrefix("!=") else {
@@ -125,6 +139,12 @@ struct Lexer {
             kind = .gt
 
         case "-":
+			guard !scanner.hasPrefix("-=") else {
+                charactersToPop = 2
+                kind = .minusEquals
+                break
+            }
+
             guard !scanner.hasPrefix("->") else {
                 charactersToPop = 2
                 kind = .returnArrow
@@ -141,6 +161,10 @@ struct Lexer {
                 isBlockComment = false
             } else if nextChar == "*" {
                 isBlockComment = true
+            } else if nextChar == "=" {
+            	charactersToPop = 2
+                kind = .divideEquals
+                break  
             } else {
                 scanner.pop()
                 kind = .divide
@@ -393,7 +417,13 @@ extension Token {
 
         case dollar
 
+        // Assignment Operators
         case equals
+        case plusEquals
+        case minusEquals
+        case asterixEquals
+        case divideEquals
+
         case plus
         case minus
         case asterix
@@ -488,6 +518,10 @@ extension Token: CustomStringConvertible {
         case .ellipsis: fallthrough
         case .dollar: fallthrough
         case .equals: fallthrough
+		case .plusEquals: fallthrough
+		case .minusEquals: fallthrough
+		case .asterixEquals: fallthrough
+		case .divideEquals: fallthrough
         case .plus: fallthrough
         case .minus: fallthrough
         case .asterix: fallthrough
@@ -537,6 +571,10 @@ extension Token.Kind: CustomStringConvertible {
         case .ellipsis: return ".."
         case .dollar: return "$"
         case .equals: return "="
+        case .plusEquals: return "+="
+        case .minusEquals: return "-="
+        case .asterixEquals: return "*="
+        case .divideEquals: return "/="
         case .plus: return "+"
         case .minus: return "-"
         case .asterix: return "*"
