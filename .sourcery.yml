@@ -3,4 +3,4 @@ sources:
 templates:
     - tools/
 output:
-    Sources/cte/generated/
+    Sources/Core/generated/
