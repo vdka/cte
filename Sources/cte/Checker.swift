@@ -880,12 +880,17 @@ extension Checker {
 
         let argType = checkExpr(node: arg, desiredType: targetType)
 
+        var cast: OpCode.Cast = .bitCast
+
+        defer {
+            callNode.value = Cast(callee: call.callee, arguments: call.arguments, type: targetType, cast: cast)
+        }
+
         if argType == targetType {
             reportError("Unnecissary cast to same type", at: callNode)
             return targetType
         }
 
-        let cast: OpCode.Cast
         if argType.compatibleWithExtOrTrunc(targetType) {
 
             if argType.isFloatingPoint {
@@ -910,7 +915,6 @@ extension Checker {
             return Type.invalid
         }
 
-        callNode.value = Cast(callee: call.callee, arguments: call.arguments, type: targetType, cast: cast)
         return targetType
     }
 
@@ -1434,12 +1438,16 @@ extension Array where Element == FunctionSpecialization {
 
     func firstMatching(_ specializationTypes: [Type]) -> FunctionSpecialization? {
 
-        for specialization in self {
+        outer: for specialization in self {
 
-            if zip(specialization.specializedTypes, specializationTypes).reduce(true, { $0 && $1.0 === $1.1 }) {
-                return specialization
+            for (theirs, ours) in zip(specialization.specializedTypes, specializationTypes) {
+                if theirs != ours {
+                    continue outer
+                }
             }
+            return specialization
         }
         return nil
     }
 }
+

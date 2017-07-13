@@ -324,6 +324,15 @@ extension Type {
         if rhs === Type.type {
             return lhs.isMetatype || lhs === Type.type
         }
+        if lhs.isMetatype && rhs.isMetatype {
+            return lhs.asMetatype.instanceType == rhs.asMetatype.instanceType
+        }
+        if lhs.isTuple, lhs.asTuple.types.count == 1 {
+            return lhs.asTuple.types[0] == rhs
+        }
+        if rhs.isTuple, rhs.asTuple.types.count == 1 {
+            return rhs.asTuple.types[0] == lhs
+        }
         return lhs.entity === rhs.entity
     }
 }

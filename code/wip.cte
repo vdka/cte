@@ -55,6 +55,7 @@ b : i64 = 3
 c := min(f64, a, 4)
 d := max(b, 4)
 e := min(i64, b, d)
+j := max(a, 4)
 
 f := f64(b)
 
