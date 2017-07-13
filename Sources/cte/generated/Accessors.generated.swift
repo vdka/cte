@@ -985,7 +985,6 @@ extension AstNode.Return: CommonReturn {}
 extension AstNode.StringLiteral: CommonStringLiteral {}
 extension AstNode.Switch: CommonSwitch {}
 extension AstNode.Variadic: CommonVariadic {}
-extension Checker.Assign: CommonAssign {}
 extension Checker.Block: CommonBlock {}
 extension Checker.Call: CommonCall {}
 extension Checker.Case: CommonCase {}
@@ -1002,7 +1001,6 @@ extension Checker.Paren: CommonParen {}
 extension Checker.PointerType: CommonPointerType {}
 extension Checker.Prefix: CommonPrefix {}
 extension Checker.StringLiteral: CommonStringLiteral {}
-extension Checker.Switch: CommonSwitch {}
 
 extension Type {
 

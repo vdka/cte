@@ -147,7 +147,7 @@ struct IRGenerator {
             }
 
         case .assign:
-            let assign = node.asCheckedAssign
+            let assign = node.asAssign
 
             if assign.rvalueIsCall && assign.lvalues.count > 1 {
                 let call = assign.rvalues[0].asCheckedCall
@@ -272,7 +272,7 @@ struct IRGenerator {
             }
 
         case .switch:
-            let świtch = node.asCheckedSwitch
+            let świtch = node.asSwitch
             if świtch.subject == nil {
                 emitBooleanesqueSwitch(świtch)
             } else {
@@ -546,7 +546,7 @@ struct IRGenerator {
         builder.positionAtEnd(of: loopPost)
     }
 
-    func emitSwitch(_ świtch: Checker.Switch) {
+    func emitSwitch(_ świtch: CommonSwitch) {
         let subject = świtch.subject!
 
         let switchLn = subject.tokens.first!.start.line
@@ -598,7 +598,7 @@ struct IRGenerator {
         builder.positionAtEnd(of: postBlock)
     }
 
-    func emitBooleanesqueSwitch(_ świtch: Checker.Switch) {
+    func emitBooleanesqueSwitch(_ świtch: CommonSwitch) {
         let switchLn = świtch.cases.first!.tokens.first!.start.line
 
         let currentFunc = builder.currentFunction!

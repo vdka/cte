@@ -183,12 +183,6 @@ extension AstValue {
                 cCompatible: value.cCompatible
         )
 
-        case let value as Checker.Assign:
-            return Checker.Assign(
-                lvalues: value.lvalues.map({ $0.copy() }),
-                rvalues: value.rvalues.map({ $0.copy() })
-        )
-
         case let value as Checker.Block:
             return Checker.Block(
                 stmts: value.stmts.map({ $0.copy() }),
@@ -325,12 +319,6 @@ extension AstValue {
             return Checker.StringLiteral(
                 value: value.value,
                 type: value.type.copy()
-        )
-
-        case let value as Checker.Switch:
-            return Checker.Switch(
-                subject: value.subject?.copy(),
-                cases: value.cases.map({ $0.copy() })
         )
 
         default:

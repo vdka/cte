@@ -175,8 +175,6 @@ extension Checker {
                 reportError("Cannot assign value of type '\(lvalueType!)' to value of type '\(rvalueType)'", at: rvalue)
             }
 
-            node.value = Assign(lvalues: assign.lvalues, rvalues: assign.rvalues)
-
         case .parameter:
             let param = node.asParameter
 
@@ -338,8 +336,6 @@ extension Checker {
                 reportError("A `switch` statement must have a default block\n    Note: try adding `case:` block", at: node)
                 return
             }
-
-            node.value = Switch(subject: świtch.subject, cases: checkedCases)
 
         case .return:
             let ret = node.asReturn
@@ -1323,13 +1319,6 @@ extension Checker {
         let rhsCast: OpCode.Cast?
     }
 
-    struct Assign: CheckedAstValue {
-        typealias UncheckedValue = AstNode.Assign
-
-        let lvalues: [AstNode]
-        let rvalues: [AstNode]
-    }
-
     struct Call: CheckedExpression, CheckedAstValue {
         typealias UncheckedValue = AstNode.Call
 
@@ -1373,13 +1362,6 @@ extension Checker {
         let stmts: [AstNode]
         var isForeign: Bool
         let scope: Scope
-    }
-
-    struct Switch: CheckedAstValue {
-        typealias UncheckedValue = AstNode.Switch
-
-        let subject: AstNode?
-        let cases: [AstNode]
     }
 
     struct Case: CheckedAstValue {
