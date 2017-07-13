@@ -787,6 +787,14 @@ extension Checker {
                 op = isIntegerOp ? .sub : .fsub
                 type = resultType
 
+            case .asterix:
+                op = isIntegerOp ? .mul : .fmul
+                type = resultType
+
+            case .divide:
+                op = isIntegerOp ? .udiv : .fdiv
+                type = resultType
+
             default:
                 fatalError()
             }
