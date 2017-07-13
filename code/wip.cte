@@ -11,6 +11,17 @@
     sprintf :: fn (buf: *u8, fmt: string, args: #cvargs ..any) -> i32
 }
 
+sum :: fn (a: $T, b: $U) -> T {
+
+  total : T = a
+  total = total + T(b)
+  return total
+}
+
+this := sum(1, 2.5)
+printf("total: %d\n", this)
+that := sum(1, 5.5)
+printf("total: %d\n", that)
 
 min :: fn ($U: type, a: U, b: U) -> U {
   if a < b return a

@@ -969,6 +969,25 @@ extension Checker {
             strippedArguments.remove(at: index)
         }
 
+        if let specialization = polymorphicFunction.specializations.firstMatching(specializationTypes) {
+
+            for (arg, expectedType) in zip(strippedArguments, specialization.strippedType.asFunction.params)
+                where !(arg.value is CheckedExpression)
+            {
+                let argType = checkExpr(node: arg, desiredType: expectedType)
+
+                guard argType == expectedType || implicitlyConvert(argType, to: expectedType) else {
+                    reportError("Cannot convert value of type '\(argType)' to expected argument type '\(expectedType)'", at: arg)
+                    continue
+                }
+            }
+
+            let returnType = specialization.strippedType.asFunction.returnType
+            callNode.value = Call(callee: call.callee, arguments: strippedArguments, specialization: specialization, type: returnType)
+
+            return specialization.strippedType.asFunction.returnType
+        }
+
         generatedFunction.flags.insert(.specialization)
         generatedFunctionNode.value = generatedFunction
 
