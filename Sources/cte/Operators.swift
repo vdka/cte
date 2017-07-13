@@ -81,6 +81,8 @@ extension InfixOperator {
     static var table: [InfixOperator] = [
         InfixOperator(.plus, bindingPower: 70),
         InfixOperator(.minus, bindingPower: 70),
+        InfixOperator(.asterix, bindingPower: 80),
+        InfixOperator(.divide, bindingPower: 80),
         InfixOperator(.lt, bindingPower: 40),
         InfixOperator(.gt, bindingPower: 40),
         InfixOperator(.lte, bindingPower: 40),
