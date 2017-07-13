@@ -446,7 +446,7 @@ struct IRGenerator {
     func emitPolymorphicFunction(named name: String, fn: Checker.PolymorphicFunction) {
 
         for specialization in fn.specializations {
-            let fn = specialization.fnNode.asCheckedFunction
+            let fn = specialization.generatedFunctionNode.asCheckedFunction
 
             let suffix = specialization.specializedTypes.reduce("", { $0 + "$" + $1.asMetatype.instanceType.description })
             specialization.llvm = emitFunction(named: name + suffix, fn)

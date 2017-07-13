@@ -562,12 +562,12 @@ extension Checker {
 
             if needsSpecialization {
 
-                node.value = PolymorphicFunction(parameters: fn.parameters, returnTypes: fn.returnTypes, body: fn.body, flags: fn.flags, type: type, specializations: [])
+                node.value = PolymorphicFunction(parameters: fn.parameters, returnTypes: fn.returnTypes, body: fn.body, flags: fn.flags,
+                                                 type: type, declaringScope: currentScope, specializations: [])
             } else {
 
-                node.value = Function(
-                    parameters: fn.parameters, returnTypes: fn.returnTypes, body: fn.body, flags: fn.flags,
-                    scope: currentScope, type: type)
+                node.value = Function(parameters: fn.parameters, returnTypes: fn.returnTypes, body: fn.body, flags: fn.flags,
+                                      scope: currentScope, type: type)
             }
 
             return type
@@ -912,15 +912,17 @@ extension Checker {
     mutating func checkPolymorphicCall(callNode: AstNode, calleeType: Type) -> Type {
         let call = callNode.asCall
         let functionLiteralNode = calleeType.asFunction.node
+        let polymorphicFunction = functionLiteralNode.asCheckedPolymorphicFunction
 
-        let functionLiteralNodeCopy = functionLiteralNode.copy()
-        var generatedFunction = functionLiteralNodeCopy.asCheckedPolymorphicFunction.toUnchecked()
+        // FIXME: Leave this copy until after we have checked for existing specializations
+        let generatedFunctionNode = functionLiteralNode.copy()
+        var generatedFunction = generatedFunctionNode.asCheckedPolymorphicFunction.toUnchecked()
         generatedFunction = AstNode.Function(parameters: generatedFunction.parameters, returnTypes: generatedFunction.returnTypes,
                                      body: generatedFunction.body, flags: generatedFunction.flags)
 
         var specializationTypes: [Type] = []
 
-        let functionScope = Scope(parent: currentScope) // FIXME: Use the original function declarations parent scope
+        let functionScope = Scope(parent: functionLiteralNode.asCheckedPolymorphicFunction.declaringScope)
 
         var explicitIndices: [Int] = []
         for (index, (arg, param)) in zip(call.arguments, generatedFunction.parameters).enumerated()
@@ -968,13 +970,13 @@ extension Checker {
         }
 
         generatedFunction.flags.insert(.specialization)
-        functionLiteralNodeCopy.value = generatedFunction
+        generatedFunctionNode.value = generatedFunction
 
         let prevScope = currentScope
         currentScope = functionScope
 
         currentSpecializationCall = callNode
-        let type = checkExpr(node: functionLiteralNodeCopy)
+        let type = checkExpr(node: generatedFunctionNode)
         currentSpecializationCall = nil
 
         currentScope = prevScope
@@ -990,8 +992,7 @@ extension Checker {
             }
         }
 
-        let specialization = FunctionSpecialization(specializationIndices: [], specializedTypes: specializationTypes,
-                                                    strippedType: type, fnNode: functionLiteralNodeCopy)
+        let specialization = FunctionSpecialization(specializedTypes: specializationTypes, strippedType: type, generatedFunctionNode: generatedFunctionNode)
 
         let returnType = type.asFunction.returnType
         callNode.value = Call(callee: call.callee, arguments: strippedArguments, specialization: specialization, type: returnType)
@@ -1195,6 +1196,8 @@ extension Checker {
 
         let type: Type
 
+        let declaringScope: Scope
+
         var specializations: [FunctionSpecialization] = []
     }
 
@@ -1337,18 +1340,16 @@ extension Checker {
 }
 
 class FunctionSpecialization {
-    let specializationIndices: [Int] // FIXME: remove
     let specializedTypes: [Type]
     let strippedType: Type
-    let fnNode: AstNode
+    let generatedFunctionNode: AstNode
     var llvm: Function?
 
-    init(specializationIndices: [Int], specializedTypes: [Type], strippedType: Type, fnNode: AstNode, llvm: Function? = nil) {
-        assert(fnNode.value is Checker.Function)
-        self.specializationIndices = specializationIndices
+    init(specializedTypes: [Type], strippedType: Type, generatedFunctionNode: AstNode, llvm: Function? = nil) {
+        assert(generatedFunctionNode.value is Checker.Function)
         self.specializedTypes = specializedTypes
         self.strippedType = strippedType
-        self.fnNode = fnNode
+        self.generatedFunctionNode = generatedFunctionNode
         self.llvm = llvm
     }
 }

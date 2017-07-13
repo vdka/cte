@@ -310,6 +310,7 @@ extension AstValue {
                 body: value.body.copy(),
                 flags: value.flags,
                 type: value.type.copy(),
+                declaringScope: value.declaringScope.copy(),
                 specializations: value.specializations
         )
 
@@ -364,10 +365,9 @@ extension FunctionSpecialization {
 
     func copy() -> FunctionSpecialization {
         return FunctionSpecialization(
-            specializationIndices: specializationIndices,
             specializedTypes: specializedTypes,
             strippedType: strippedType.copy(),
-            fnNode: fnNode.copy(),
+            generatedFunctionNode: generatedFunctionNode.copy(),
             llvm: llvm
         )
     }
