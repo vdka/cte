@@ -55,13 +55,23 @@ struct IRGenerator {
             }
 
             if decl.rvalueIsCall && decl.entities.count > 1 {
-                let aggregate = emitCall(decl.values[0].asCheckedCall)
+                let call = decl.values[0].asCheckedCall
+
+                let retType = canonicalize(call.type)
+                let stackAggregate = builder.buildAlloca(type: retType)
+                let aggregate = emitCall(call)
+                builder.buildStore(aggregate, to: stackAggregate)
 
                 for (index, entity) in decl.entities.enumerated() {
-                    let rvalue = builder.buildStructGEP(aggregate, index: index)
-                    builder.buildStore(rvalue, to: entity.value!)
-                }
+                    let type = canonicalize(entity.type!)
+                    let stackValue = builder.buildAlloca(type: type, name: entity.name)
+                    let rvaluePtr = builder.buildStructGEP(stackAggregate, index: index)
+                    let rvalue = builder.buildLoad(rvaluePtr)
 
+                    builder.buildStore(rvalue, to: stackValue)
+
+                    entity.value = stackValue
+                }
                 return
             }
 
@@ -138,11 +148,17 @@ struct IRGenerator {
             let assign = node.asCheckedAssign
 
             if assign.rvalueIsCall && assign.lvalues.count > 1 {
-                let aggregate = emitCall(assign.rvalues[0].asCheckedCall)
+                let call = assign.rvalues[0].asCheckedCall
+
+                let retType = canonicalize(call.type)
+                let stackAggregate = builder.buildAlloca(type: retType)
+                let aggregate = emitCall(call)
+                builder.buildStore(aggregate, to: stackAggregate)
 
                 for (index, lvalue) in assign.lvalues.enumerated() {
                     let lvalueAddress = emitExpr(node: lvalue, returnAddress: true)
-                    let rvalue = builder.buildStructGEP(aggregate, index: index)
+                    let rvaluePtr = builder.buildStructGEP(stackAggregate, index: index)
+                    let rvalue = builder.buildLoad(rvaluePtr)
                     builder.buildStore(rvalue, to: lvalueAddress)
                 }
                 return

@@ -76,7 +76,7 @@ forExample()
 addrA := &a
 valA := <addrA
 
-swap :: fn (a, b: i32) -> i32, i32 {
+swap :: fn (a: $T, b: T) -> T, T {
     return b, a
 }
 
@@ -84,5 +84,13 @@ x, y := 1, 2
 
 x, y = 3, 4
 
+x, y = y, x
+
+x, y = swap(x, y)
+
 printf("%d, %d\n", x, y)
+
+x1, y1 := swap(x, y)
+
+printf("%d, %d\n", x1, y1)
 
