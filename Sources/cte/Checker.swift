@@ -156,7 +156,8 @@ extension Checker {
             for (index, (lvalueType, rvalueType)) in zip(lvalueTypes, rvalueTypes).enumerated()
                 where rvalueType != lvalueType
             {
-                reportError("Cannot assign value of type '\(lvalueType)' to value of type '\(rvalueType)'", at: assign.rvalues[index])
+                let rvalue = assign.rvalueIsCall ? assign.rvalues[0] : assign.rvalues[index]
+                reportError("Cannot assign value of type '\(lvalueType)' to value of type '\(rvalueType)'", at: rvalue)
             }
 
             node.value = Assign(lvalues: assign.lvalues, rvalues: assign.rvalues)
