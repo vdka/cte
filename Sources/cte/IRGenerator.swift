@@ -62,7 +62,9 @@ struct IRGenerator {
                 let aggregate = emitCall(call)
                 builder.buildStore(aggregate, to: stackAggregate)
 
-                for (index, entity) in decl.entities.enumerated() {
+                for (index, entity) in decl.entities.enumerated()
+                    where entity !== Entity.anonymous
+                {
                     let type = canonicalize(entity.type!)
                     let stackValue = builder.buildAlloca(type: type, name: entity.name)
                     let rvaluePtr = builder.buildStructGEP(stackAggregate, index: index)
@@ -155,7 +157,9 @@ struct IRGenerator {
                 let aggregate = emitCall(call)
                 builder.buildStore(aggregate, to: stackAggregate)
 
-                for (index, lvalue) in assign.lvalues.enumerated() {
+                for (index, lvalue) in assign.lvalues.enumerated()
+                    where !lvalue.isDispose
+                {
                     let lvalueAddress = emitExpr(node: lvalue, returnAddress: true)
                     let rvaluePtr = builder.buildStructGEP(stackAggregate, index: index)
                     let rvalue = builder.buildLoad(rvaluePtr)
@@ -170,7 +174,9 @@ struct IRGenerator {
                 rvalues.append(rvalue)
             }
 
-            for (lvalue, rvalue) in zip(assign.lvalues, rvalues) {
+            for (lvalue, rvalue) in zip(assign.lvalues, rvalues)
+                where !lvalue.isDispose
+            {
                 let lvalueAddress = emitExpr(node: lvalue, returnAddress: true)
                 builder.buildStore(rvalue, to: lvalueAddress)
             }

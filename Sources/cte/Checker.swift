@@ -62,6 +62,10 @@ extension Checker {
 
                 for (name, type) in zip(decl.names, types) {
                     assert(name.kind == .identifier)
+                    if name.isDispose {
+                        entities.append(Entity.anonymous)
+                        continue
+                    }
                     let identifierToken = name.tokens[0]
                     let entity = Entity(ident: identifierToken, type: type)
 
@@ -84,6 +88,10 @@ extension Checker {
 
             for (name, value) in zip(decl.names, decl.values) {
                 var type = checkExpr(node: value, desiredType: expectedType)
+                if name.isDispose {
+                    entities.append(Entity.anonymous)
+                    continue
+                }
 
                 if decl.rvalueIsCall {
                     type = type.asTuple.types[0]
@@ -129,9 +137,12 @@ extension Checker {
         case .assign:
             let assign = node.asAssign
 
-            var lvalueTypes: [Type] = []
+            var lvalueTypes: [Type?] = []
             for lvalue in assign.lvalues {
-                let type = checkExpr(node: lvalue)
+                var type: Type?
+                if !lvalue.isDispose {
+                    type = checkExpr(node: lvalue)
+                }
                 lvalueTypes.append(type)
 
                 guard lvalue.isLvalue else {
@@ -158,10 +169,10 @@ extension Checker {
             }
 
             for (index, (lvalueType, rvalueType)) in zip(lvalueTypes, rvalueTypes).enumerated()
-                where rvalueType != lvalueType
+                where lvalueType != nil && rvalueType != lvalueType
             {
                 let rvalue = assign.rvalueIsCall ? assign.rvalues[0] : assign.rvalues[index]
-                reportError("Cannot assign value of type '\(lvalueType)' to value of type '\(rvalueType)'", at: rvalue)
+                reportError("Cannot assign value of type '\(lvalueType!)' to value of type '\(rvalueType)'", at: rvalue)
             }
 
             node.value = Assign(lvalues: assign.lvalues, rvalues: assign.rvalues)
@@ -1081,6 +1092,9 @@ extension AstNode {
             return asParen.expr.isLvalue
 
         case .identifier:
+            if asIdentifier.name == "_" {
+                return true
+            }
             let entity = asCheckedIdentifier.entity
             return !(entity.flags.contains(.file) || entity.flags.contains(.library))
 
@@ -1115,6 +1129,16 @@ extension AstNode {
         }
         assert(fn.kind == .function)
         return fn.asFunction.isDiscardableResult
+    }
+
+    var isDispose: Bool {
+        assert(!isStmt)
+
+        guard self.kind == .identifier else {
+            return false
+        }
+
+        return self.asIdentifier.name == "_"
     }
 }
 
