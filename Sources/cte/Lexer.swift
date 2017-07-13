@@ -85,7 +85,22 @@ struct Lexer {
         case "+":  kind = .plus
         case "*":  kind = .asterix
         case "&":  kind = .ampersand
-        case "=":  kind = .equals
+        case "!":
+            guard !scanner.hasPrefix("!=") else {
+                charactersToPop = 2
+                kind = .neq
+                break
+            }
+            kind = .not
+
+        case "=":
+            guard !scanner.hasPrefix("==") else {
+                charactersToPop = 2
+                kind = .eq
+                break
+            }
+            kind = .equals
+
         case ".":
             guard !scanner.hasPrefix("..") else {
                 charactersToPop = 2
@@ -394,6 +409,9 @@ extension Token {
         case gt
         case lte
         case gte
+        case eq
+        case neq
+        case not
 
         case returnArrow
 
@@ -480,6 +498,9 @@ extension Token: CustomStringConvertible {
         case .gt: fallthrough
         case .lte: fallthrough
         case .gte: fallthrough
+        case .eq: fallthrough
+        case .neq: fallthrough
+        case .not: fallthrough
         case .returnArrow: fallthrough
         case .keywordFn: fallthrough
         case .keywordIf: fallthrough
@@ -526,6 +547,9 @@ extension Token.Kind: CustomStringConvertible {
         case .gt: return ">"
         case .lte: return "<="
         case .gte: return ">="
+        case .eq: return "=="
+        case .neq: return "!="
+        case .not: return "!"
         case .returnArrow: return "->"
         case .keywordFn: return "fn"
         case .keywordIf: return "if"

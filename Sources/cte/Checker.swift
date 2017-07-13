@@ -680,13 +680,13 @@ extension Checker {
             switch prefix.token.kind {
             case .plus, .minus:
                 guard type == Type.f64 else {
-                    reportError("Prefix operator '\(prefix.token)' is only valid on signed numeric types", at: prefix.expr)
+                    reportError("Invalid operation '\(prefix.token)' on type '\(type)'", at: prefix.expr)
                     return Type.invalid
                 }
 
             case .lt:
                 guard type.kind == .pointer else {
-                    reportError("Cannot dereference '\(prefix.expr)'", at: node)
+                    reportError("Invalid operation '\(prefix.token)' on type '\(type)'", at: node)
                     return Type.invalid
                 }
 
@@ -699,8 +699,15 @@ extension Checker {
                 }
                 type = Type.makePointer(to: type)
 
+            case .not:
+                guard prefix.expr.exprType.isBoolean else {
+                    reportError("Invalid operation '\(prefix.token)' on type '\(type)'", at: prefix.expr)
+                    return Type.invalid
+                }
+                type = Type.bool
+
             default:
-                reportError("Prefix operator '\(prefix.token)', is invalid on type '\(type)'", at: prefix.expr)
+                reportError("Invalid operation '\(prefix.token)' on type '\(type)'", at: prefix.expr)
                 return Type.invalid
             }
             node.value = Prefix(token: prefix.token, expr: prefix.expr, type: type)
@@ -746,7 +753,7 @@ extension Checker {
                     rCast = .fpext
                 }
             } else {
-                reportError("Operator '\(infix.token)' is not valid between '\(lhsType)' and '\(rhsType)' types", at: node)
+                reportError("Invalid operation '\(infix.token)' between types '\(lhsType)' and '\(rhsType)'", at: node)
                 return Type.invalid
             }
 
@@ -758,10 +765,18 @@ extension Checker {
             switch infix.token.kind {
             case .lt, .lte, .gt, .gte:
                 guard lhsType.isNumber && rhsType.isNumber else {
-                    reportError("Cannot compare '\(lhsType)' and '\(rhsType)' comparison is only valid on 'number' types", at: node)
+                    reportError("Cannot compare '\(lhsType)' and '\(rhsType)'", at: node)
                     return Type.invalid
                 }
                 op = isIntegerOp ? .icmp : .fcmp
+                type = Type.bool
+
+            case .eq, .neq:
+                guard lhsType.isNumber || lhsType.isBoolean else {
+                    reportError("Cannot compare '\(lhsType)' and '\(rhsType)'", at: node)
+                    return Type.invalid
+                }
+                op = (isIntegerOp || lhsType.isBoolean) ? .icmp : .fcmp
                 type = Type.bool
 
             case .plus:

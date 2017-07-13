@@ -377,6 +377,9 @@ struct IRGenerator {
         case .lt:
             return builder.buildLoad(expr)
 
+        case .not:
+            return builder.buildNeg(expr)
+
         default:
             fatalError()
         }
@@ -401,6 +404,8 @@ struct IRGenerator {
             case .gt:  pred = isSigned ? .signedGreaterThan : .unsignedGreaterThan
             case .lte: pred = isSigned ? .signedLessThanOrEqual : .unsignedLessThanOrEqual
             case .gte: pred = isSigned ? .signedGreaterThanOrEqual : .unsignedGreaterThanOrEqual
+            case .eq:  pred = .equal
+            case .neq: pred = .notEqual
             default:
                 fatalError()
             }
@@ -413,6 +418,8 @@ struct IRGenerator {
             case .gt:  pred = .orderedGreaterThan
             case .lte: pred = .orderedLessThanOrEqual
             case .gte: pred = .orderedGreaterThanOrEqual
+            case .eq:  pred = .orderedEqual
+            case .neq: pred = .orderedNotEqual
             default:
                 fatalError()
             }

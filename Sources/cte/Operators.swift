@@ -35,6 +35,7 @@ extension PrefixOperator {
         }),
         PrefixOperator(.lt),
         PrefixOperator(.ampersand),
+        PrefixOperator(.not),
     ]
 
     static func lookup(_ symbol: Token.Kind) -> PrefixOperator? {
@@ -84,6 +85,8 @@ extension InfixOperator {
         InfixOperator(.gt, bindingPower: 40),
         InfixOperator(.lte, bindingPower: 40),
         InfixOperator(.gte, bindingPower: 40),
+        InfixOperator(.eq,  bindingPower: 40),
+        InfixOperator(.neq,  bindingPower: 40),
     ]
 
     static func lookup(_ symbol: Token.Kind) -> InfixOperator? {
