@@ -145,7 +145,7 @@ extension Checker {
                 if decl.isForeign, decl.isCompileTime {
                     guard type.isMetatype else {
                         reportError("Expected 'type' as rvalue for foreign symbol, got '\(type)'", at: value)
-                        type = Type.invalid
+                        type = expectedType ?? Type.invalid
                         return
                     }
                     type = Type.lowerFromMetatype(type)
@@ -155,10 +155,12 @@ extension Checker {
                     }
                 }
 
-                if let expectedType = expectedType, type != expectedType &&
-                    (Type.makePointer(to: type) != expectedType && type.isFunction && expectedType.isFunctionPointer) {
+                if let expectedType = expectedType, type.isFunction && expectedType.isFunctionPointer && Type.makePointer(to: type) != expectedType {
                     reportError("Cannot convert value of type '\(type)' to specified type '\(expectedType)'", at: value)
-                    type = Type.invalid
+                    type = expectedType
+                } else if let expectedType = expectedType, type != expectedType {
+                    reportError("Cannot convert value of type '\(type)' to specified type '\(expectedType)'", at: value)
+                    type = expectedType
                 }
 
                 assert(name.kind == .identifier)
