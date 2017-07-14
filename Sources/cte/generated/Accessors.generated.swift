@@ -42,6 +42,25 @@ extension AstNode {
         }
     }
 
+    var asBreak: CommonBreak {
+        get {
+            assert(kind == AstNode.Break.astKind)
+            return value as! CommonBreak
+        }
+        set {
+            self.value = newValue
+        }
+    }
+    var asUncheckedBreak: AstNode.Break {
+        get {
+            assert(kind == AstNode.Break.astKind)
+            return value as! AstNode.Break
+        }
+        set {
+            value = newValue
+        }
+    }
+
     var asCall: CommonCall {
         get {
             assert(kind == AstNode.Call.astKind)
@@ -118,6 +137,25 @@ extension AstNode {
         }
     }
 
+    var asContinue: CommonContinue {
+        get {
+            assert(kind == AstNode.Continue.astKind)
+            return value as! CommonContinue
+        }
+        set {
+            self.value = newValue
+        }
+    }
+    var asUncheckedContinue: AstNode.Continue {
+        get {
+            assert(kind == AstNode.Continue.astKind)
+            return value as! AstNode.Continue
+        }
+        set {
+            value = newValue
+        }
+    }
+
     var asDeclaration: CommonDeclaration {
         get {
             assert(kind == AstNode.Declaration.astKind)
@@ -150,6 +188,25 @@ extension AstNode {
         get {
             assert(kind == AstNode.Empty.astKind)
             return value as! AstNode.Empty
+        }
+        set {
+            value = newValue
+        }
+    }
+
+    var asFallthrough: CommonFallthrough {
+        get {
+            assert(kind == AstNode.Fallthrough.astKind)
+            return value as! CommonFallthrough
+        }
+        set {
+            self.value = newValue
+        }
+    }
+    var asUncheckedFallthrough: AstNode.Fallthrough {
+        get {
+            assert(kind == AstNode.Fallthrough.astKind)
+            return value as! AstNode.Fallthrough
         }
         set {
             value = newValue
@@ -584,6 +641,16 @@ extension AstNode {
         }
     }
 
+    var asCheckedBreak: Checker.Break {
+        get {
+            assert(kind == Checker.Break.astKind)
+            return value as! Checker.Break
+        }
+        set {
+            value = newValue
+        }
+    }
+
     var asCheckedCall: Checker.Call {
         get {
             assert(kind == Checker.Call.astKind)
@@ -614,6 +681,16 @@ extension AstNode {
         }
     }
 
+    var asCheckedContinue: Checker.Continue {
+        get {
+            assert(kind == Checker.Continue.astKind)
+            return value as! Checker.Continue
+        }
+        set {
+            value = newValue
+        }
+    }
+
     var asCheckedDeclaration: Checker.Declaration {
         get {
             assert(kind == Checker.Declaration.astKind)
@@ -624,10 +701,30 @@ extension AstNode {
         }
     }
 
+    var asCheckedFallthrough: Checker.Fallthrough {
+        get {
+            assert(kind == Checker.Fallthrough.astKind)
+            return value as! Checker.Fallthrough
+        }
+        set {
+            value = newValue
+        }
+    }
+
     var asCheckedFloatLiteral: Checker.FloatLiteral {
         get {
             assert(kind == Checker.FloatLiteral.astKind)
             return value as! Checker.FloatLiteral
+        }
+        set {
+            value = newValue
+        }
+    }
+
+    var asCheckedFor: Checker.For {
+        get {
+            assert(kind == Checker.For.astKind)
+            return value as! Checker.For
         }
         set {
             value = newValue
@@ -753,6 +850,16 @@ extension AstNode {
             value = newValue
         }
     }
+
+    var asCheckedSwitch: Checker.Switch {
+        get {
+            assert(kind == Checker.Switch.astKind)
+            return value as! Checker.Switch
+        }
+        set {
+            value = newValue
+        }
+    }
 }
 
 
@@ -766,6 +873,12 @@ protocol CommonBlock: AstValue {
 
     var stmts: [AstNode] { get }
     var isForeign: Bool { get set }
+    var isFunction: Bool { get set }
+}
+
+protocol CommonBreak: AstValue {
+
+    var label: AstNode? { get }
 }
 
 protocol CommonCall: AstValue {
@@ -790,6 +903,11 @@ protocol CommonCompileTime: AstValue {
     var stmt: AstNode { get }
 }
 
+protocol CommonContinue: AstValue {
+
+    var label: AstNode? { get }
+}
+
 protocol CommonDeclaration: AstValue {
 
     var names: [AstNode] { get set }
@@ -803,6 +921,10 @@ protocol CommonEmpty: AstValue {
 
 }
 
+protocol CommonFallthrough: AstValue {
+
+}
+
 protocol CommonFloatLiteral: AstValue {
 
     var value: Double { get }
@@ -810,6 +932,7 @@ protocol CommonFloatLiteral: AstValue {
 
 protocol CommonFor: AstValue {
 
+    var label: AstNode? { get set }
     var initializer: AstNode? { get }
     var condition: AstNode? { get }
     var step: AstNode? { get }
@@ -925,6 +1048,7 @@ protocol CommonStringLiteral: AstValue {
 
 protocol CommonSwitch: AstValue {
 
+    var label: AstNode? { get set }
     var subject: AstNode? { get }
     var cases: [AstNode] { get }
 }
@@ -937,12 +1061,15 @@ protocol CommonVariadic: AstValue {
 
 extension AstNode.Assign: CommonAssign {}
 extension AstNode.Block: CommonBlock {}
+extension AstNode.Break: CommonBreak {}
 extension AstNode.Call: CommonCall {}
 extension AstNode.Case: CommonCase {}
 extension AstNode.Comment: CommonComment {}
 extension AstNode.CompileTime: CommonCompileTime {}
+extension AstNode.Continue: CommonContinue {}
 extension AstNode.Declaration: CommonDeclaration {}
 extension AstNode.Empty: CommonEmpty {}
+extension AstNode.Fallthrough: CommonFallthrough {}
 extension AstNode.FloatLiteral: CommonFloatLiteral {}
 extension AstNode.For: CommonFor {}
 extension AstNode.Foreign: CommonForeign {}
@@ -966,10 +1093,14 @@ extension AstNode.StringLiteral: CommonStringLiteral {}
 extension AstNode.Switch: CommonSwitch {}
 extension AstNode.Variadic: CommonVariadic {}
 extension Checker.Block: CommonBlock {}
+extension Checker.Break: CommonBreak {}
 extension Checker.Call: CommonCall {}
 extension Checker.Case: CommonCase {}
+extension Checker.Continue: CommonContinue {}
 extension Checker.Declaration: CommonDeclaration {}
+extension Checker.Fallthrough: CommonFallthrough {}
 extension Checker.FloatLiteral: CommonFloatLiteral {}
+extension Checker.For: CommonFor {}
 extension Checker.Function: CommonFunction {}
 extension Checker.FunctionType: CommonFunctionType {}
 extension Checker.Identifier: CommonIdentifier {}
@@ -981,6 +1112,7 @@ extension Checker.Paren: CommonParen {}
 extension Checker.PointerType: CommonPointerType {}
 extension Checker.Prefix: CommonPrefix {}
 extension Checker.StringLiteral: CommonStringLiteral {}
+extension Checker.Switch: CommonSwitch {}
 
 extension Type {
 

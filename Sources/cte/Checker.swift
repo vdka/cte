@@ -4,13 +4,58 @@ import LLVM
 struct Checker {
     var file: SourceFile
 
-    var currentScope: Scope
-    var currentExpectedReturnType: Type? = nil
-    var currentSpecializationCall: AstNode? = nil
+    var context: Context
 
     init(file: SourceFile) {
         self.file = file
-        self.currentScope = Scope(parent: Scope.global, file: file)
+
+        let currentScope = Scope(parent: Scope.global, file: file)
+        context = Context(scope: currentScope, previous: nil)
+    }
+
+    class Context {
+
+        var scope: Scope
+        var expectedReturnType: Type? = nil
+        var specializationCallNode: AstNode? = nil
+
+        var nextCase: AstNode?
+        var switchLabel: Entity?
+        var nearestSwitchLabel: Entity? {
+            return switchLabel ?? previous?.nearestSwitchLabel
+        }
+        var inSwitch: Bool {
+            return nearestSwitchLabel != nil
+        }
+
+        var loopLabel: Entity?
+        var nearestLoopLabel: Entity? {
+            return loopLabel ?? previous?.nearestLoopLabel
+        }
+        var inLoop: Bool {
+            return nearestLoopLabel != nil
+        }
+
+        var nearestLabel: Entity? {
+            assert(loopLabel == nil || switchLabel == nil)
+            return loopLabel ?? switchLabel ?? previous?.nearestLabel
+        }
+
+        var previous: Context?
+
+        init(scope: Scope, previous: Context?) {
+            self.scope = scope
+            self.previous = previous
+        }
+    }
+
+    mutating func pushContext(owningNode: AstNode? = nil) {
+        let newScope = Scope(parent: context.scope, owningNode: owningNode)
+        self.context = Context(scope: newScope, previous: context)
+    }
+
+    mutating func popContext() {
+        context = context.previous!
     }
 }
 
@@ -42,7 +87,7 @@ extension Checker {
 
             defer {
                 for entity in entities {
-                    currentScope.insert(entity)
+                    context.scope.insert(entity)
                 }
             }
 
@@ -190,9 +235,9 @@ extension Checker {
                 let entity = Entity(ident: compileTime.stmt.tokens[0])
                 entity.flags = .implicitType
 
-                let type = Type.makePolymorphicMetatype(entity)
+                entity.type = Type.makePolymorphicMetatype(entity)
 
-                currentScope.insert(entity)
+                context.scope.insert(entity)
             }
 
             var type = checkExpr(node: param.isImplicitPolymorphic ? param.type.asCompileTime.stmt : param.type)
@@ -210,20 +255,17 @@ extension Checker {
             }
 
             let entity = Entity(ident: identifierToken, type: type, flags: flags)
-            currentScope.insert(entity)
+            context.scope.insert(entity)
 
             node.value = Parameter(name: param.name, type: param.type, entity: entity, implicitPolymorphicTypeEntity: implicitTypeEntity)
 
         case .block:
             let block = node.asBlock
 
-            if !block.isForeign {
-                let prevScope = currentScope
-                currentScope = Scope(parent: currentScope)
-                defer {
-                    currentScope = prevScope
-                }
+            if !(block.isForeign || block.isFunction) {
+                pushContext()
             }
+
             for node in block.stmts {
                 if block.isForeign {
                     guard node.kind == .declaration else {
@@ -237,7 +279,11 @@ extension Checker {
                 check(node: node)
             }
 
-            node.value = Block(stmts: block.stmts, isForeign: block.isForeign, scope: currentScope)
+            node.value = Block(stmts: block.stmts, isForeign: block.isForeign, isFunction: block.isFunction, scope: context.scope)
+
+            if !(block.isForeign || block.isFunction) {
+                popContext()
+            }
 
         case .if:
             let iff = node.asIf
@@ -254,56 +300,68 @@ extension Checker {
             }
 
         case .for:
-            let fór = node.asFor
+            let foŕ = node.asFor
 
             // This scope ensures that the `initializer`, `condition` and `step` of the
             // `for` statement have their own block. So, they can shadow values
             // and be shadowed themselves. This scope is not redundant.
-            let prevScope = currentScope
-            currentScope = Scope(parent: currentScope)
-            defer {
-                currentScope = prevScope
+            pushContext(owningNode: node)
+
+            let continueLabelEntity = Entity.makeLabel(for: foŕ.label ?? node)
+            if foŕ.label != nil {
+                context.scope.insert(continueLabelEntity)
             }
 
-            if let initializer = fór.initializer {
+            context.loopLabel = continueLabelEntity
+
+            if let initializer = foŕ.initializer {
                 check(node: initializer)
             }
 
-            if let condition = fór.condition {
+            if let condition = foŕ.condition {
                 let condType = checkExpr(node: condition, desiredType: Type.bool)
                 if condType != Type.bool {
                     reportError("Cannot convert type '\(condition)' to expected type 'bool'", at: condition)
                 }
             }
 
-            if let step = fór.step {
+            if let step = foŕ.step {
                 check(node: step)
             }
 
-            check(node: fór.body)
+            check(node: foŕ.body)
+            popContext()
+
+            node.value = For(label: foŕ.label,
+                             initializer: foŕ.initializer, condition: foŕ.condition, step: foŕ.step, body: foŕ.body,
+                             continueTarget: JumpTarget(), breakTarget: JumpTarget())
 
         case .switch:
-            let świtch = node.asSwitch
+            let swítch = node.asSwitch
             var subjectType: Type?
+            
+            pushContext(owningNode: node)
 
-            if let subject = świtch.subject {
+            let labelEntity = Entity.makeLabel(for: swítch.label ?? node)
+            if swítch.label != nil {
+                context.scope.insert(labelEntity)
+            }
+
+            context.switchLabel = labelEntity
+
+            if let subject = swítch.subject {
                 subjectType = checkExpr(node: subject)
             }
 
             var seenDefaultCase = false
             var checkedCases: [AstNode] = []
-            for ćase in świtch.cases {
-                guard ćase.kind == .case else {
-                    reportError("Expected `case` block in `switch`, got: \(ćase)", at: ćase)
+            for (casé, nextCase) in swítch.cases.reversed().enumerated().map({ ($0.element, swítch.cases[safe: $0.offset - 1]) }) {
+                guard casé.kind == .case else {
+                    reportError("Expected `case` block in `switch`, got: \(casé)", at: casé)
                     continue
                 }
 
-                guard !seenDefaultCase else {
-                    reportError("Additional `case` blocks cannot be after a `default` block", at: ćase)
-                    continue
-                }
-
-                let asCase = ćase.asCase
+                let asCase = casé.asCase
                 if let match = asCase.condition {
                     let matchType = checkExpr(node: match)
 
@@ -320,29 +378,37 @@ extension Checker {
                     }
                 } else {
                     seenDefaultCase = true
+                    guard nextCase == nil else {
+                        reportError("There must be at most one default case and it must be last", at: casé)
+                        continue
+                    }
                 }
 
-                let prevScope = currentScope
-                currentScope = Scope(parent: currentScope)
-                defer {
-                    currentScope = prevScope
-                }
+                context.nextCase = nextCase
 
                 check(node: asCase.block)
 
-                ćase.value = Case(condition: asCase.condition, block: asCase.block, scope: currentScope)
-                checkedCases.append(ćase)
+                context.nextCase = nil
+
+                casé.value = Case(condition: asCase.condition, block: asCase.block, scope: context.scope, fallthroughTarget: JumpTarget())
+
+                checkedCases.append(casé)
             }
 
             guard seenDefaultCase else {
-                reportError("A `switch` statement must have a default block\n    Note: try adding `case:` block", at: node)
+                reportError("A 'switch' statement must have a default block", at: node)
+                attachNote("Try adding 'case:' block")
                 return
             }
+
+            popContext()
+
+            node.value = Switch(label: swítch.label, subject: swítch.subject, cases: swítch.cases, breakTarget: JumpTarget())
 
         case .return:
             let ret = node.asReturn
 
-            let expectedTypes = currentExpectedReturnType!.isTuple ? currentExpectedReturnType!.asTuple.types : [currentExpectedReturnType!]
+            let expectedTypes = context.expectedReturnType!.asTuple.types
 
             var types: [Type] = []
             for (value, expectedType) in zip(ret.values, expectedTypes) {
@@ -354,14 +420,70 @@ extension Checker {
                 }
             }
 
-            if ret.values.count < expectedTypes.count && !currentExpectedReturnType!.isVoid {
+            if ret.values.count < expectedTypes.count && !context.expectedReturnType!.isVoid {
                 reportError("Not enough arguments to return", at: node)
                 return
             }
             if ret.values.count > expectedTypes.count {
                 reportError("Too many arguments to return", at: node)
                 return
-            }            
+            }
+
+        case .break:
+            let breaḱ = node.asBreak
+
+            let labelEntity: Entity
+            if let label = breaḱ.label {
+                let name = label.asIdentifier.name
+                guard let entity = context.scope.lookup(name) else {
+                    reportError("Use of undefined identifier '\(label)'", at: node)
+                    return
+                }
+                labelEntity = entity
+            } else {
+                guard let entity = context.nearestLabel else {
+                    reportError("break outside of loop or switch", at: node)
+                    return
+                }
+                labelEntity = entity
+            }
+
+            let target = labelEntity.owningScope.owningNode!
+
+            node.value = Break(label: breaḱ.label, target: target)
+
+        case .continue:
+            let continué = node.asContinue
+
+            let labelEntity: Entity
+            if let label = continué.label {
+                let name = label.asIdentifier.name
+                guard let entity = context.scope.lookup(name) else {
+                    reportError("Use of undefined identifier '\(label)'", at: node)
+                    return
+                }
+                labelEntity = entity
+            } else {
+                guard let entity = context.nearestLoopLabel else {
+                    reportError("continue outside of loop", at: node)
+                    return
+                }
+                labelEntity = entity
+            }
+
+            let target = labelEntity.owningScope.owningNode!
+
+            node.value = Continue(label: continué.label, target: target)
+
+        case .fallthrough:
+            guard context.inSwitch else {
+                reportError("fallthrough outside of switch", at: node)
+                return
+            }
+
+            let target = context.nextCase!
+
+            node.value = Fallthrough(target: target)
 
         case .import:
             let imp = node.asImport
@@ -399,14 +521,14 @@ extension Checker {
                     guard !entity.flags.contains(.file) else {
                         continue
                     }
-                    currentScope.insert(entity, scopeOwnsEntity: false)
+                    context.scope.insert(entity, scopeOwnsEntity: false)
                 }
             }
 
             if let entity = entity {
                 entity.memberScope = imp.file.scope
                 entity.type = Type(value: Type.File(memberScope: imp.file.scope))
-                currentScope.insert(entity)
+                context.scope.insert(entity)
             }
 
         case .library:
@@ -442,7 +564,7 @@ extension Checker {
                 file.linkedLibraries.insert(linkpath)
             }
 
-            currentScope.insert(entity)
+            context.scope.insert(entity)
 
         default:
             fatalError("Unknown node kind: \(node.kind)")
@@ -454,7 +576,7 @@ extension Checker {
         switch node.kind {
         case .identifier:
             let ident = node.asIdentifier.name
-            guard let entity = self.currentScope.lookup(ident) else {
+            guard let entity = context.scope.lookup(ident) else {
                 reportError("Use of undefined identifier '\(ident)'", at: node)
                 return Type.invalid
             }
@@ -511,17 +633,13 @@ extension Checker {
         case .function:
             var fn = node.asFunction
 
-            let prevScope = currentScope
             if !fn.isSpecialization {
-                currentScope = Scope(parent: currentScope)
-            }
-            defer {
-                currentScope = prevScope
+                pushContext()
             }
 
             var needsSpecialization = false
             var params: [Type] = []
-            for (index, param) in fn.parameters.enumerated() {
+            for param in fn.parameters {
                 assert(param.kind == .parameter)
                 needsSpecialization = needsSpecialization || param.asParameter.isExplicitPolymorphic || param.asParameter.isImplicitPolymorphic
 
@@ -557,15 +675,11 @@ extension Checker {
                 reportError("#discardable on void returning function is superflous", at: node.tokens[0])
             }
 
-            let prevExpectedReturnType = currentExpectedReturnType
-            currentExpectedReturnType = returnType
-            defer {
-                currentExpectedReturnType = prevExpectedReturnType
-            }
-
+            context.expectedReturnType = returnType
             if !needsSpecialization { // polymorphic functions are checked when called
                 check(node: fn.body)
             }
+            context.expectedReturnType = nil
 
             let isVariadic = fn.flags.contains(.variadic)
             let functionType = Type.Function(node: node, params: params, returnType: returnType,
@@ -577,11 +691,15 @@ extension Checker {
             if needsSpecialization {
 
                 node.value = PolymorphicFunction(parameters: fn.parameters, returnTypes: fn.returnTypes, body: fn.body, flags: fn.flags,
-                                                 type: type, declaringScope: currentScope, specializations: [])
+                                                 type: type, declaringScope: context.scope, specializations: [])
             } else {
 
                 node.value = Function(parameters: fn.parameters, returnTypes: fn.returnTypes, body: fn.body, flags: fn.flags,
-                                      scope: currentScope, type: type)
+                                      scope: context.scope, type: type)
+            }
+
+            if !fn.isSpecialization {
+                popContext()
             }
 
             return type
@@ -910,12 +1028,16 @@ extension Checker {
             return Type.invalid
         }
 
-        let argType = checkExpr(node: arg, desiredType: targetType)
+        var argType = checkExpr(node: arg, desiredType: targetType)
 
         var cast: OpCode.Cast = .bitCast
 
         defer {
             callNode.value = Cast(callee: call.callee, arguments: call.arguments, type: targetType, cast: cast)
+        }
+
+        if argType.isTuple && argType.asTuple.types.count == 1 {
+            argType = argType.asTuple.types[0]
         }
 
         if argType == targetType {
@@ -1032,14 +1154,14 @@ extension Checker {
         generatedFunction.flags.insert(.specialization)
         generatedFunctionNode.value = generatedFunction
 
-        let prevScope = currentScope
-        currentScope = functionScope
+        let prevScope = context.scope
+        context.scope = functionScope
+        context.specializationCallNode = callNode
 
-        currentSpecializationCall = callNode
         let type = checkExpr(node: generatedFunctionNode)
-        currentSpecializationCall = nil
 
-        currentScope = prevScope
+        context.scope = prevScope
+        context.specializationCallNode = nil
 
         for (arg, expectedType) in zip(strippedArguments, type.asFunction.params)
             where !(arg.value is CheckedExpression)
@@ -1386,7 +1508,31 @@ extension Checker {
 
         let stmts: [AstNode]
         var isForeign: Bool
+        var isFunction: Bool
         let scope: Scope
+    }
+
+    struct For: CheckedAstValue {
+        typealias UncheckedValue = AstNode.For
+
+        var label: AstNode?
+        let initializer: AstNode?
+        let condition: AstNode?
+        let step: AstNode?
+        let body: AstNode
+
+        var continueTarget: JumpTarget
+        var breakTarget: JumpTarget
+    }
+
+    struct Switch: AstValue {
+        static let astKind = AstKind.switch
+
+        var label: AstNode?
+        let subject: AstNode?
+        let cases: [AstNode]
+
+        var breakTarget: JumpTarget
     }
 
     struct Case: CheckedAstValue {
@@ -1395,6 +1541,28 @@ extension Checker {
         let condition: AstNode?
         let block: AstNode
         let scope: Scope
+
+        var fallthroughTarget: JumpTarget
+    }
+
+    struct Break: CheckedAstValue {
+        typealias UncheckedValue = AstNode.Break
+
+        let label: AstNode?
+        let target: AstNode
+    }
+
+    struct Continue: CheckedAstValue {
+        typealias UncheckedValue = AstNode.Continue
+
+        let label: AstNode?
+        let target: AstNode
+    }
+
+    struct Fallthrough: CheckedAstValue {
+        typealias UncheckedValue = AstNode.Fallthrough
+
+        let target: AstNode
     }
 }
 
@@ -1409,6 +1577,16 @@ class FunctionSpecialization {
         self.specializedTypes = specializedTypes
         self.strippedType = strippedType
         self.generatedFunctionNode = generatedFunctionNode
+        self.llvm = llvm
+    }
+}
+
+// Used purely for reference semantics
+class JumpTarget {
+    var llvm: BasicBlock?
+
+    init() {}
+    init(llvm: BasicBlock?) {
         self.llvm = llvm
     }
 }
@@ -1451,7 +1629,7 @@ extension Checker {
     func reportError(_ message: String, at node: AstNode, file: StaticString = #file, line: UInt = #line) {
 
         cte.reportError(message, at: node, file: file, line: line)
-        if let currentSpecializationCall = currentSpecializationCall {
+        if let currentSpecializationCall = context.specializationCallNode {
             attachNote("Called from: " + currentSpecializationCall.tokens.first!.start.description)
         }
     }
@@ -1459,7 +1637,7 @@ extension Checker {
     func reportError(_ message: String, at token: Token, file: StaticString = #file, line: UInt = #line) {
 
         cte.reportError(message, at: token, file: file, line: line)
-        if let currentSpecializationCall = currentSpecializationCall {
+        if let currentSpecializationCall = context.specializationCallNode {
             attachNote("Called from: " + currentSpecializationCall.tokens.first!.start.description)
         }
     }

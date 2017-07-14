@@ -248,8 +248,8 @@ struct IRGenerator {
             builder.positionAtEnd(of: postBlock)
 
         case .for:
-            let fór = node.asFor
-            emitFor(fór)
+            let foŕ = node.asCheckedFor
+            emitFor(foŕ)
 
         case .return:
             let ret = node.asReturn
@@ -271,15 +271,35 @@ struct IRGenerator {
             }
 
         case .switch:
-            let świtch = node.asSwitch
-            if świtch.subject == nil {
-                emitBooleanesqueSwitch(świtch)
+            let swítch = node.asCheckedSwitch
+            if swítch.subject == nil {
+                emitBSwitch(swítch)
             } else {
-                emitSwitch(świtch)
+                emitSwitch(swítch)
             }
 
         case .call:
             emitCall(node.asCheckedCall)
+
+        case .break:
+            let target = node.asCheckedBreak.target
+
+            switch target.kind {
+            case .for:
+                builder.buildBr(target.asCheckedFor.breakTarget.llvm!)
+            case .switch:
+                builder.buildBr(target.asCheckedSwitch.breakTarget.llvm!)
+            default:
+                fatalError()
+            }
+
+        case .continue:
+            let target = node.asCheckedContinue.target
+            builder.buildBr(target.asCheckedFor.continueTarget.llvm!)
+
+        case .fallthrough:
+            let target = node.asCheckedCase
+            builder.buildBr(target.fallthroughTarget.llvm!)
 
         default:
             fatalError()
@@ -485,7 +505,7 @@ struct IRGenerator {
         }
     }
 
-    func emitFor(_ fór: CommonFor) {
+    func emitFor(_ foŕ: Checker.For) {
         let currentFunc = builder.currentFunction!
 
         var loopBody: BasicBlock
@@ -493,13 +513,13 @@ struct IRGenerator {
         var loopCond: BasicBlock?
         var loopStep: BasicBlock?
 
-        if let initializer = fór.initializer {
+        if let initializer = foŕ.initializer {
             emit(node: initializer)
         }
 
-        if let condition = fór.condition {
+        if let condition = foŕ.condition {
             loopCond = currentFunc.appendBasicBlock(named: "for.cond")
-            if fór.step != nil {
+            if foŕ.step != nil {
                 loopStep = currentFunc.appendBasicBlock(named: "for.step")
             }
 
@@ -512,7 +532,7 @@ struct IRGenerator {
             let condVal = emitExpr(node: condition)
             builder.buildCondBr(condition: condVal, then: loopBody, else: loopPost)
         } else {
-            if fór.step != nil {
+            if foŕ.step != nil {
                 loopStep = currentFunc.appendBasicBlock(named: "for.step")
             }
 
@@ -522,14 +542,18 @@ struct IRGenerator {
             builder.buildBr(loopBody)
         }
 
-        //TODO(Brett): escape points
+        foŕ.breakTarget.llvm = loopPost
+        foŕ.continueTarget.llvm = loopCond ?? loopStep ?? loopBody
         builder.positionAtEnd(of: loopBody)
+        defer {
+            loopPost.moveAfter(builder.currentFunction!.lastBlock!)
+        }
 
-        emit(node: fór.body)
+        emit(node: foŕ.body)
 
         let hasJump = builder.insertBlock?.terminator != nil
 
-        if let step = fór.step {
+        if let step = foŕ.step {
             if !hasJump {
                 builder.buildBr(loopStep!)
             }
@@ -552,112 +576,117 @@ struct IRGenerator {
         builder.positionAtEnd(of: loopPost)
     }
 
-    func emitSwitch(_ świtch: CommonSwitch) {
-        let subject = świtch.subject!
+    func emitSwitch(_ swítch: Checker.Switch) {
+        let subject = swítch.subject!
 
-        let switchLn = subject.tokens.first!.start.line
+        let ln = swítch.cases.first!.tokens[0].start.line
 
         let currentFunc = builder.currentFunction!
         let currentBlock = builder.insertBlock!
 
-        let defaultBlock = currentFunc.appendBasicBlock(named: "switch.default.ln.\(switchLn)")
-        let postBlock = currentFunc.appendBasicBlock(named: "switch.post.ln.\(switchLn)")
+        let postBlock = currentFunc.appendBasicBlock(named: "switch.post.ln.\(ln)")
+        swítch.breakTarget.llvm = postBlock
+        defer {
+            postBlock.moveAfter(currentFunc.lastBlock!)
+        }
 
-        // TODO(Brett): escape points
-        builder.positionAtEnd(of: currentBlock)
-        let value = emitExpr(node: subject)
+        var thenBlocks: [BasicBlock] = []
 
-        var caseBlocks: [BasicBlock] = []
-        var constants: [IRValue] = []
-
-        for ćase in świtch.cases {
-            let ćase = ćase.asCheckedCase
-
-            let block: BasicBlock
-
-            if let match = ćase.condition {
-                constants.append(emitExpr(node: match))
-                let ln = match.tokens.first!.start.line
-                block = currentFunc.appendBasicBlock(named: "switch.case.ln.\(ln)")
-                caseBlocks.append(block)
+        for i in swítch.cases.indices {
+            let ln = swítch.cases[i].tokens.first!.start.line
+            if i != swítch.cases.lastIndex {
+                let thenBlock = currentFunc.appendBasicBlock(named: "switch.then.ln.\(ln)")
+                thenBlocks.append(thenBlock)
             } else {
-                block = defaultBlock
+                let thenBlock = currentFunc.appendBasicBlock(named: "switch.default.ln.\(ln)")
+                thenBlocks.append(thenBlock)
+            }
+        }
+
+        let value = emitExpr(node: subject)
+        var constants: [IRValue] = []
+        for (i, casé) in swítch.cases.map({ $0.asCheckedCase }).enumerated() {
+
+            let thenBlock = thenBlocks[i]
+            casé.fallthroughTarget.llvm = thenBlocks[safe: i + 1]
+
+            if let match = casé.condition {
+                let val = emitExpr(node: match)
+                constants.append(val)
             }
 
-            builder.positionAtEnd(of: block)
+            builder.positionAtEnd(of: thenBlock)
 
-            emit(node: ćase.block)
+            emit(node: casé.block)
 
             if builder.insertBlock!.terminator == nil {
                 builder.buildBr(postBlock)
             }
-            assert(block.terminator != nil)
+            assert(thenBlock.terminator != nil)
 
             builder.positionAtEnd(of: currentBlock)
         }
 
-        let switchPtr = builder.buildSwitch(value, else: defaultBlock, caseCount: constants.count)
-        for (constant, block) in zip(constants, caseBlocks) {
-            switchPtr.addCase(constant, block)
+        let irSwitch = builder.buildSwitch(value, else: thenBlocks.last!, caseCount: thenBlocks.count)
+        for (constant, block) in zip(constants, thenBlocks) {
+            irSwitch.addCase(constant, block)
         }
 
         builder.positionAtEnd(of: postBlock)
     }
 
-    func emitBooleanesqueSwitch(_ świtch: CommonSwitch) {
-        let switchLn = świtch.cases.first!.tokens.first!.start.line
+    func emitBSwitch(_ swítch: Checker.Switch) {
+        let ln = swítch.cases.first!.tokens[0].start.line
 
         let currentFunc = builder.currentFunction!
         let currentBlock = builder.insertBlock!
 
-        let postBlock = currentFunc.appendBasicBlock(named: "bswitch.post.ln.\(switchLn)")
+        let postBlock = currentFunc.appendBasicBlock(named: "switch.post.ln.\(ln)")
+        swítch.breakTarget.llvm = postBlock
+        defer {
+            postBlock.moveAfter(currentFunc.lastBlock!)
+        }
 
-        // TODO(Brett): escape points
         var condBlocks: [BasicBlock] = []
         var thenBlocks: [BasicBlock] = []
 
-        for i in 0..<świtch.cases.count {
-            let ln = świtch.cases[i].tokens.first!.start.line
-            condBlocks.append(currentFunc.appendBasicBlock(named: "bswitch.cond.ln.\(ln)"))
-            thenBlocks.append(currentFunc.appendBasicBlock(named: "bswitch.then.ln.\(ln)"))
+        for i in swítch.cases.indices {
+            let ln = swítch.cases[i].tokens.first!.start.line
+            let condBlock = currentFunc.appendBasicBlock(named: "switch.cond.ln.\(ln)")
+            condBlocks.append(condBlock)
+            let thenBlock = currentFunc.appendBasicBlock(named: "switch.then.ln.\(ln)")
+            thenBlocks.append(thenBlock)
         }
 
         builder.positionAtEnd(of: currentBlock)
 
-        for (i, caseStmt) in świtch.cases.enumerated() {
-            let caseStmt = caseStmt.asCheckedCase
+        for (i, casé) in swítch.cases.map({ $0.asCheckedCase }).enumerated() {
 
-            let nextCondBlock = condBlocks[safe: i+1] ?? postBlock
-            let condBlock: BasicBlock
-
-            if i == 0 {
-                // the first conditional needs to be in the starting block
-                condBlock = currentBlock
-                condBlocks[i].removeFromParent()
-            } else {
-                condBlock = condBlocks[i]
-            }
+            let condBlock = i == 0 ? currentBlock : condBlocks[i]
+            let nextCondBlock = condBlocks[safe: i + 1]
 
             let thenBlock = thenBlocks[i]
+            casé.fallthroughTarget.llvm = thenBlocks[safe: i + 1]
 
             builder.positionAtEnd(of: condBlock)
 
-            if let match = caseStmt.condition {
+            if let match = casé.condition {
                 let cond = emitExpr(node: match)
-                builder.buildCondBr(condition: cond, then: thenBlock, else: nextCondBlock)
+                builder.buildCondBr(condition: cond, then: thenBlock, else: nextCondBlock ?? postBlock)
             } else {
                 // this is the default case. Will just jump to the `then` block
                 builder.buildBr(thenBlock)
             }
 
             builder.positionAtEnd(of: thenBlock)
-            emit(node: caseStmt.block)
+            emit(node: casé.block)
 
-            builder.positionAtEnd(of: thenBlock)
-            if thenBlock.terminator == nil {
+            if builder.insertBlock!.terminator == nil {
                 builder.buildBr(postBlock)
             }
         }
+
+        condBlocks[0].removeFromParent()
 
         postBlock.moveAfter(thenBlocks.last!)
         builder.positionAtEnd(of: postBlock)

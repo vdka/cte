@@ -53,6 +53,9 @@ enum AstKind {
     case `switch`
     case `case`
     case `return`
+    case `break`
+    case `continue`
+    case `fallthrough`
     case compileTime
     case pointerType
     case functionType
@@ -230,6 +233,7 @@ extension AstNode {
 
         let stmts: [AstNode]
         var isForeign: Bool
+        var isFunction: Bool
     }
 
     struct If: AstValue {
@@ -243,6 +247,7 @@ extension AstNode {
     struct For: AstValue {
         static let astKind = AstKind.for
 
+        var label: AstNode?
         let initializer: AstNode?
         let condition: AstNode?
         let step: AstNode?
@@ -252,6 +257,7 @@ extension AstNode {
     struct Switch: AstValue {
         static let astKind = AstKind.switch
 
+        var label: AstNode?
         let subject: AstNode?
         let cases: [AstNode]
     }
@@ -290,6 +296,22 @@ extension AstNode {
 
         let library: AstNode
         let stmt: AstNode
+    }
+
+    struct Break: AstValue {
+        static let astKind = AstKind.break
+
+        let label: AstNode?
+    }
+
+    struct Continue: AstValue {
+        static let astKind = AstKind.continue
+
+        let label: AstNode?
+    }
+
+    struct Fallthrough: AstValue {
+        static let astKind = AstKind.fallthrough
     }
 }
 

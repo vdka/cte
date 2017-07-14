@@ -28,10 +28,10 @@ struct Parser {
 
         static let permitExprList       = State(rawValue: 0b0000_0001)
         static let permitAssignOrDecl   = State(rawValue: 0b0000_0010)
-        static let permitReturn         = State(rawValue: 0b0000_0100)
-        static let permitCase           = State(rawValue: 0b0000_1000)
+        static let permitCase           = State(rawValue: 0b0000_0100)
 
-        static let foreign              = State(rawValue: 0b0001_0000)
+        static let functionBody         = State(rawValue: 0b0001_0000)
+        static let foreign              = State(rawValue: 0b0010_0000)
 
         static let `default`            = [.permitExprList, .permitAssignOrDecl] as State
     }
@@ -41,7 +41,7 @@ struct Parser {
         case parseReturnType
         case parseSingle
         case parseDeclValue
-        case parseFuncBody
+        case parseFunctionBody
         case parseSwitchBody
         case parseDeferExpr
         case parseForeignDirectiveBody
@@ -61,9 +61,9 @@ struct Parser {
             state = []
         case .parseDeclValue:
             state = [.permitExprList]
-        case .parseFuncBody:
+        case .parseFunctionBody:
             state = .default
-            state.insert(.permitReturn)
+            state.insert(.functionBody)
         case .parseSwitchBody:
             state.insert(.permitCase)
         case .parseDeferExpr:
@@ -199,7 +199,7 @@ struct Parser {
 
             let rbrace = advance(expecting: .rbrace)
 
-            let stmtBlock = AstNode.Block(stmts: stmts, isForeign: false)
+            let stmtBlock = AstNode.Block(stmts: stmts, isForeign: false, isFunction: context.state.contains(.functionBody))
             return AstNode(stmtBlock, tokens: [lbrace, rbrace])
 
         case .ellipsis:
@@ -291,7 +291,7 @@ struct Parser {
                 return AstNode.invalid(with: [forToken])
             }
 
-            let fór = AstNode.For(initializer: initializer, condition: condition, step: step, body: body)
+            let fór = AstNode.For(label: nil, initializer: initializer, condition: condition, step: step, body: body)
             return AstNode(fór, tokens: tokens)
 
         case .keywordFn:
@@ -352,7 +352,7 @@ struct Parser {
                 attachNote("If don't use a parameter but need it in the function signature use '_: \(param)'")
             }
 
-            pushContext(changingStateTo: .parseFuncBody)
+            pushContext(changingStateTo: .parseFunctionBody)
             let body = expression()
             popContext()
 
@@ -389,7 +389,7 @@ struct Parser {
 
             let rbrace = advance(expecting: .rbrace)
 
-            let świtch = AstNode.Switch(subject: subject, cases: cases)
+            let świtch = AstNode.Switch(label: nil, subject: subject, cases: cases)
             return AstNode(świtch, tokens: [switchToken, lbrace, rbrace])
 
         case .keywordCase:
@@ -427,7 +427,7 @@ struct Parser {
                 }
             }
 
-            let blockValue = AstNode.Block(stmts: stmts, isForeign: false)
+            let blockValue = AstNode.Block(stmts: stmts, isForeign: false, isFunction: false)
             let block = AstNode(blockValue, tokens: [colon])
             let ćase = AstNode.Case(condition: match, block: block)
             return AstNode(ćase, tokens: [startToken, colon])
@@ -448,6 +448,52 @@ struct Parser {
             let stmtReturn = AstNode.Return(values: exprs)
 
             return AstNode(stmtReturn, tokens: [ŕeturn])
+
+        case .keywordBreak:
+            let bŕeak = advance()
+
+            let nextToken = lexer.peek()
+            var label: AstNode?
+            switch nextToken?.kind {
+            case .newline?:
+                break
+
+            case .ident?:
+                label = expression()
+
+            default:
+                reportError("'break' must be followed by a newline or a label to break to", at: bŕeak)
+            }
+
+            let value = AstNode.Break(label: label)
+            return AstNode(value, tokens: [bŕeak])
+
+        case .keywordContinue:
+            let ćontinue = advance()
+
+            let nextToken = lexer.peek()
+            var label: AstNode?
+            switch nextToken?.kind {
+            case .newline?:
+                break
+
+            case .ident?:
+                label = expression()
+
+            default:
+                reportError("'continue' must be followed by a newline or a label to continue to", at: ćontinue)
+            }
+
+            let value = AstNode.Continue(label: label)
+            return AstNode(value, tokens: [ćontinue])
+
+        case .keywordFallthrough:
+            let fállthrough = advance()
+
+            advance(expecting: .newline, errorMessage: "'fallthrough' must be followed by a newline")
+
+            let value = AstNode.Fallthrough()
+            return AstNode(value, tokens: [fállthrough])
 
         case .directiveImport:
             let directive = advance()
@@ -632,6 +678,16 @@ struct Parser {
             switch lexer.peek()?.kind {
             case .equals?, .colon?:
                 break
+
+            case .keywordFor?:
+                let stmt = expression()
+                stmt.asUncheckedFor.label = lvalue
+                return stmt
+
+            case .keywordSwitch?:
+                let stmt = expression()
+                stmt.asUncheckedSwitch.label = lvalue
+                return stmt
 
             default:
                 assert(colon.kind.lbp == Token.Kind.equals.lbp)

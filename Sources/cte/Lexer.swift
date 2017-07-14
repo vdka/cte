@@ -219,6 +219,9 @@ struct Lexer {
                 case "struct":       kind = .keywordStruct
                 case "switch":       kind = .keywordSwitch
                 case "case":         kind = .keywordCase
+                case "break":        kind = .keywordBreak
+                case "continue":     kind = .keywordContinue
+                case "fallthrough":  kind = .keywordFallthrough
                 case "#import":      kind = .directiveImport
                 case "#library":     kind = .directiveLibrary
                 case "#foreign":     kind = .directiveForeign
@@ -453,6 +456,9 @@ extension Token {
         case keywordSwitch
         case keywordCase
         case keywordStruct
+        case keywordBreak
+        case keywordContinue
+        case keywordFallthrough
 
         case directiveImport
         case directiveLibrary
@@ -544,6 +550,9 @@ extension Token: CustomStringConvertible {
         case .keywordSwitch: fallthrough
         case .keywordCase: fallthrough
         case .keywordStruct: fallthrough
+        case .keywordBreak: fallthrough
+        case .keywordContinue: fallthrough
+        case .keywordFallthrough: fallthrough
         case .directiveImport: fallthrough
         case .directiveLibrary: fallthrough
         case .directiveForeign: fallthrough
@@ -597,6 +606,9 @@ extension Token.Kind: CustomStringConvertible {
         case .keywordSwitch: return "switch"
         case .keywordCase: return "case"
         case .keywordStruct: return "struct"
+        case .keywordBreak: return "break"
+        case .keywordContinue: return "continue"
+        case .keywordFallthrough: return "fallthrough"
         case .directiveImport: return "#import"
         case .directiveLibrary: return "#library"
         case .directiveForeign: return "#foreign"

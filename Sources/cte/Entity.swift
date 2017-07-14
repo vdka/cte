@@ -38,7 +38,7 @@ class Entity: CustomStringConvertible {
     }
 
     struct Flag: OptionSet {
-        let rawValue: UInt8
+        let rawValue: UInt16
         static let none         = Flag(rawValue: 0b0000_0000)
         static let used         = Flag(rawValue: 0b0000_0001)
         static let file         = Flag(rawValue: 0b0000_0010)
@@ -47,6 +47,7 @@ class Entity: CustomStringConvertible {
         static let compileTime  = Flag(rawValue: 0b0010_0000)
         static let implicitType = Flag(rawValue: 0b0111_0000)
         static let foreign      = Flag(rawValue: 0b1000_0000)
+        static let label        = Flag(rawValue: 0b0000_0001 << 8)
     }
 
     var description: String {
@@ -61,6 +62,20 @@ extension Entity {
         let entity = Entity(ident: tok)
         entity.type = type
         entity.flags.insert(.compileTime)
+        return entity
+    }
+
+    static var labelNo: UInt64 = 0
+    static func makeLabel(for node: AstNode) -> Entity {
+        assert(node.kind == .identifier || node.kind == .for || node.kind == .switch)
+
+        var tok = node.tokens[0]
+        if node.kind == .for || node.kind == .switch {
+            tok = Token(kind: .ident, value: labelNo, location: tok.location)
+            labelNo += 1
+        }
+
+        let entity = Entity(ident: tok, type: Type.invalid, flags: .label)
         return entity
     }
 }

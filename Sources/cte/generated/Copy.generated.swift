@@ -16,7 +16,13 @@ extension AstValue {
         case let value as AstNode.Block:
             return AstNode.Block(
                 stmts: value.stmts.map({ $0.copy() }),
-                isForeign: value.isForeign
+                isForeign: value.isForeign,
+                isFunction: value.isFunction
+        )
+
+        case let value as AstNode.Break:
+            return AstNode.Break(
+                label: value.label?.copy()
         )
 
         case let value as AstNode.Call:
@@ -41,6 +47,11 @@ extension AstValue {
                 stmt: value.stmt.copy()
         )
 
+        case let value as AstNode.Continue:
+            return AstNode.Continue(
+                label: value.label?.copy()
+        )
+
         case let value as AstNode.Declaration:
             return AstNode.Declaration(
                 names: value.names.map({ $0.copy() }),
@@ -53,6 +64,9 @@ extension AstValue {
         case is AstNode.Empty:
             return AstNode.Empty()
 
+        case is AstNode.Fallthrough:
+            return AstNode.Fallthrough()
+
         case let value as AstNode.FloatLiteral:
             return AstNode.FloatLiteral(
                 value: value.value
@@ -60,6 +74,7 @@ extension AstValue {
 
         case let value as AstNode.For:
             return AstNode.For(
+                label: value.label?.copy(),
                 initializer: value.initializer?.copy(),
                 condition: value.condition?.copy(),
                 step: value.step?.copy(),
@@ -173,6 +188,7 @@ extension AstValue {
 
         case let value as AstNode.Switch:
             return AstNode.Switch(
+                label: value.label?.copy(),
                 subject: value.subject?.copy(),
                 cases: value.cases.map({ $0.copy() })
         )
@@ -187,7 +203,14 @@ extension AstValue {
             return Checker.Block(
                 stmts: value.stmts.map({ $0.copy() }),
                 isForeign: value.isForeign,
+                isFunction: value.isFunction,
                 scope: value.scope.copy()
+        )
+
+        case let value as Checker.Break:
+            return Checker.Break(
+                label: value.label?.copy(),
+                target: value.target.copy()
         )
 
         case let value as Checker.Call:
@@ -202,7 +225,8 @@ extension AstValue {
             return Checker.Case(
                 condition: value.condition?.copy(),
                 block: value.block.copy(),
-                scope: value.scope.copy()
+                scope: value.scope.copy(),
+                fallthroughTarget: value.fallthroughTarget.copy()
         )
 
         case let value as Checker.Cast:
@@ -211,6 +235,12 @@ extension AstValue {
                 arguments: value.arguments.map({ $0.copy() }),
                 type: value.type.copy(),
                 cast: value.cast
+        )
+
+        case let value as Checker.Continue:
+            return Checker.Continue(
+                label: value.label?.copy(),
+                target: value.target.copy()
         )
 
         case let value as Checker.Declaration:
@@ -223,10 +253,26 @@ extension AstValue {
                 entities: value.entities.map({ $0.copy() })
         )
 
+        case let value as Checker.Fallthrough:
+            return Checker.Fallthrough(
+                target: value.target.copy()
+        )
+
         case let value as Checker.FloatLiteral:
             return Checker.FloatLiteral(
                 value: value.value,
                 type: value.type.copy()
+        )
+
+        case let value as Checker.For:
+            return Checker.For(
+                label: value.label?.copy(),
+                initializer: value.initializer?.copy(),
+                condition: value.condition?.copy(),
+                step: value.step?.copy(),
+                body: value.body.copy(),
+                continueTarget: value.continueTarget.copy(),
+                breakTarget: value.breakTarget.copy()
         )
 
         case let value as Checker.Function:
@@ -321,6 +367,14 @@ extension AstValue {
                 type: value.type.copy()
         )
 
+        case let value as Checker.Switch:
+            return Checker.Switch(
+                label: value.label?.copy(),
+                subject: value.subject?.copy(),
+                cases: value.cases.map({ $0.copy() }),
+                breakTarget: value.breakTarget.copy()
+        )
+
         default:
             fatalError()
         }
@@ -360,12 +414,11 @@ extension FunctionSpecialization {
         )
     }
 }
-extension Parser.Context {
+extension JumpTarget {
 
-    func copy() -> Parser.Context {
-        return Parser.Context(
-            state: state,
-            previous: previous?.copy()
+    func copy() -> JumpTarget {
+        return JumpTarget(
+            llvm: llvm
         )
     }
 }
@@ -374,6 +427,7 @@ extension Scope {
     func copy() -> Scope {
         return Scope(
             parent: parent?.copy(),
+            owningNode: owningNode?.copy(),
             file: file?.copy(),
             members: members
         )

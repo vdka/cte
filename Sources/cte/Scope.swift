@@ -3,6 +3,8 @@ class Scope {
 
     weak var parent: Scope?
 
+    var owningNode: AstNode?
+
     var file: SourceFile?
     var isFile: Bool {
         return file != nil
@@ -10,8 +12,9 @@ class Scope {
 
     var members: [Entity] = []
 
-    init(parent: Scope? = nil, file: SourceFile? = nil, members: [Entity] = []) {
+    init(parent: Scope? = nil, owningNode: AstNode? = nil, file: SourceFile? = nil, members: [Entity] = []) {
         self.parent = parent
+        self.owningNode = owningNode
         self.file = file
         self.members = members
     }

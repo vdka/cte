@@ -98,7 +98,7 @@ final class SourceFile {
         }
         // checks importted files when needed
         var checker = Checker(file: self)
-        scope = checker.currentScope
+        scope = checker.context.scope
         checker.check() // Changes node values to checked values
         emitErrors(for: "Checking")
 

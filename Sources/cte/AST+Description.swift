@@ -163,6 +163,21 @@ extension AstNode: CustomStringConvertible {
         case .foreign:
             let foreign = asForeign
             return "#foreign " + foreign.library.description + "\n" + foreign.stmt.description
+
+        case .break:
+            if let label = asBreak.label {
+                return "break " + label.description
+            }
+            return "break"
+
+        case .continue:
+            if let label = asContinue.label {
+                return "break " + label.description
+            }
+            return "continue"
+
+        case .fallthrough:
+            return "fallthrough"
         }
     }
 }
