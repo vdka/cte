@@ -38,11 +38,11 @@ func reportError(_ message: String, at lexer: Lexer, file: StaticString = #file,
 }
 
 func emitErrors(for stage: String) {
-    guard !cte.errors.isEmpty else {
+    guard !Core.errors.isEmpty else {
         return
     }
 
-    let errors = cte.errors.enumerated().filter { !$0.element.contains("<invalid>") }
+    let errors = Core.errors.enumerated().filter { !$0.element.contains("<invalid>") }
 
     print("There were \(errors.count) errors during \(stage)\nexiting")
 

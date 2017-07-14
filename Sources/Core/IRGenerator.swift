@@ -112,7 +112,7 @@ struct IRGenerator {
                     return
                 }
 
-                if options.contains(.emitIr) {
+                if Options.instance.contains(.emitIr) {
 
                     // Somehow Xcode 9 beta 3 includes a Swift compiler which thinks this is ambiguous.
                     // if let endOfAlloca = builder.insertBlock!.instructions.first(where: { !$0.isAAllocaInst }) {
@@ -130,7 +130,7 @@ struct IRGenerator {
 
                 let stackValue = builder.buildAlloca(type: type, name: entity.name)
 
-                if options.contains(.emitIr) {
+                if Options.instance.contains(.emitIr) {
                     builder.positionAtEnd(of: builder.insertBlock!)
                 }
 
@@ -185,7 +185,7 @@ struct IRGenerator {
 
             let type = canonicalize(param.entity.type!)
 
-            if options.contains(.emitIr) {
+            if Options.instance.contains(.emitIr) {
 
                 // Somehow Xcode 9 beta 3 includes a Swift compiler which thinks this is ambiguous.
                 // if let endOfAlloca = builder.insertBlock!.instructions.first(where: { !$0.isAAllocaInst }) {
@@ -202,7 +202,7 @@ struct IRGenerator {
 
             let stackValue = builder.buildAlloca(type: type, name: param.entity.name)
 
-            if options.contains(.emitIr) {
+            if Options.instance.contains(.emitIr) {
                 builder.positionAtEnd(of: builder.insertBlock!)
             }
 

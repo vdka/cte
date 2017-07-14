@@ -1,6 +1,7 @@
-
-import Foundation
+import Core
 import LLVM
+import Foundation
+
 
 guard CommandLine.arguments.count > 1 else {
     print("ERROR: No input file")
@@ -13,9 +14,9 @@ guard let file = SourceFile.new(path: filepath) else {
     exit(1)
 }
 
-var options = Options.from(arguments: CommandLine.arguments[2...])
+Options.instance = Options.from(arguments: CommandLine.arguments[2...])
 
-performCompilationPreflightChecks(with: options)
+performCompilationPreflightChecks(with: Options.instance)
 
 startTiming("Parsing")
 file.parseEmittingErrors()
@@ -41,23 +42,23 @@ startTiming("Linking (via shell)")
 file.link()
 endTiming()
 
-if !options.contains(.noCleanup) {
+if !Options.instance.contains(.noCleanup) {
     file.cleanupBuildProducts()
 }
 
-if options.contains(.emitIr) {
+if Options.instance.contains(.emitIr) {
     file.emitIr()
 }
 
-if options.contains(.emitBitcode) {
+if Options.instance.contains(.emitBitcode) {
     file.emitBitcode()
 }
 
-if options.contains(.emitAssembly) {
+if Options.instance.contains(.emitAssembly) {
     file.emitAssembly()
 }
 
-if options.contains(.emitTiming) {
+if Options.instance.contains(.emitTiming) {
     var total = 0.0
     for (name, duration) in timings {
         total += duration

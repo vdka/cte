@@ -1,15 +1,21 @@
 
-struct Options: OptionSet {
-    let rawValue: UInt16
+public struct Options: OptionSet {
+    public static var instance: Options = []
 
-    static let noCleanup    = Options(rawValue: 0b0000_0001)
+    public let rawValue: UInt16
 
-    static let emitTiming   = Options(rawValue: 0b0001_0000)
-    static let emitIr       = Options(rawValue: 0b0010_0000)
-    static let emitBitcode  = Options(rawValue: 0b0100_0000)
-    static let emitAssembly = Options(rawValue: 0b1000_0000)
+    public static let noCleanup    = Options(rawValue: 0b0000_0001)
 
-    static func from(arguments: ArraySlice<String>) -> Options {
+    public static let emitTiming   = Options(rawValue: 0b0001_0000)
+    public static let emitIr       = Options(rawValue: 0b0010_0000)
+    public static let emitBitcode  = Options(rawValue: 0b0100_0000)
+    public static let emitAssembly = Options(rawValue: 0b1000_0000)
+
+    public init(rawValue: UInt16) {
+        self.rawValue = rawValue
+    }
+
+    public static func from(arguments: ArraySlice<String>) -> Options {
         var value: Options = []
 
         for arg in arguments {

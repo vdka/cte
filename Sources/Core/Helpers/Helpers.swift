@@ -14,7 +14,7 @@ var buildDirectory = currentDirectory + "/" + fileExtension + "/"
 let fileExtension = ".cte"
 
 /// Ensures everything is preparred for compilation
-func performCompilationPreflightChecks(with options: Options) {
+public func performCompilationPreflightChecks(with options: Options) {
     do {
         targetMachine = try TargetMachine()
         try ensureBuildDirectoryExists()
@@ -25,7 +25,7 @@ func performCompilationPreflightChecks(with options: Options) {
     }
 }
 
-func ensureBuildDirectoryExists() throws {
+public func ensureBuildDirectoryExists() throws {
     let fm = FileManager.default
 
     var isDir: ObjCBool = false

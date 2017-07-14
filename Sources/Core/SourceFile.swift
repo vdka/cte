@@ -6,7 +6,7 @@ import func Darwin.C.dirname
 
 var knownSourceFiles: [String: SourceFile] = [:]
 
-final class SourceFile {
+public final class SourceFile {
 
     weak var firstImportedFrom: SourceFile?
     var isInitialFile: Bool {
@@ -41,7 +41,7 @@ final class SourceFile {
     }
 
     /// - Returns: nil iff the file could not be located or opened for reading
-    static func new(path: String, importedFrom: SourceFile? = nil) -> SourceFile? {
+    public static func new(path: String, importedFrom: SourceFile? = nil) -> SourceFile? {
 
         var pathRelativeToInitialFile = path
 
@@ -74,7 +74,7 @@ final class SourceFile {
         return buildDirectory + moduleName + ".o"
     }
 
-    func parseEmittingErrors() {
+    public func parseEmittingErrors() {
         assert(!hasBeenParsed)
         var parser = Parser(file: self)
         self.nodes = parser.parse()
@@ -92,7 +92,7 @@ final class SourceFile {
         hasBeenParsed = true
     }
 
-    func checkEmittingErrors() {
+    public func checkEmittingErrors() {
         guard !hasBeenChecked else {
             return
         }
@@ -105,7 +105,7 @@ final class SourceFile {
         hasBeenChecked = true
     }
 
-    func generateIntermediateRepresentation() {
+    public func generateIntermediateRepresentation() {
 
         moduleName = String(pathFirstImportedAs
             .split(separator: "/").last!
@@ -118,7 +118,7 @@ final class SourceFile {
         self.module = module
     }
 
-    func validateIntermediateRepresentation() {
+    public func validateIntermediateRepresentation() {
         do {
             try module.verify()
         } catch {
@@ -128,7 +128,7 @@ final class SourceFile {
         }
     }
 
-    func compileIntermediateRepresentation() {
+    public func compileIntermediateRepresentation() {
         do {
             try targetMachine.emitToFile(
                 module: module,
@@ -142,7 +142,7 @@ final class SourceFile {
         }
     }
 
-    func link() {
+    public func link() {
         let clangPath = getClangPath()
 
         var args = ["-o", moduleName, moduleObjFilepath]
@@ -166,7 +166,7 @@ final class SourceFile {
         shell(path: clangPath, args: ["-o", moduleName, moduleObjFilepath])
     }
 
-    func cleanupBuildProducts() {
+    public func cleanupBuildProducts() {
         do {
             try removeFile(at: buildDirectory)
         } catch {
@@ -176,7 +176,7 @@ final class SourceFile {
         }
     }
 
-    func emitIr() {
+    public func emitIr() {
         do {
             try module.print(to: "/dev/stdout")
         } catch {
@@ -186,7 +186,7 @@ final class SourceFile {
         }
     }
 
-    func emitBitcode() {
+    public func emitBitcode() {
         do {
             try targetMachine.emitToFile(
                 module: module,
@@ -200,7 +200,7 @@ final class SourceFile {
         }
     }
 
-    func emitAssembly() {
+    public func emitAssembly() {
         do {
             try targetMachine.emitToFile(
                 module: module,
@@ -214,7 +214,7 @@ final class SourceFile {
         }
     }
 
-    static func generateIntermediateRepresentation(to module: Module, for file: SourceFile) {
+   public static func generateIntermediateRepresentation(to module: Module, for file: SourceFile) {
         assert(file.hasBeenChecked)
         assert(!file.hasBeenGenerated)
 
