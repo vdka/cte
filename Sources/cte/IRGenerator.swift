@@ -33,7 +33,6 @@ struct IRGenerator {
         }
 
         if file.isInitialFile {
-            builder.positionAtEnd(of: function!.entryBlock!)
             builder.buildRet(IntType.int32.constant(0))
         }
     }
