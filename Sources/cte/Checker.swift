@@ -76,7 +76,7 @@ extension Checker {
 
         case .identifier, .call, .paren, .prefix, .infix:
             let type = checkExpr(node: node)
-            if !(node.isDiscardable || type.isVoid) {
+            if !(type == Type.invalid || node.isDiscardable || type.isVoid) {
                 reportError("Expression of type '\(type)' is unused", at: node)
             }
 
