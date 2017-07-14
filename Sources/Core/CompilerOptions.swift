@@ -1,6 +1,6 @@
 
 public struct Options: OptionSet {
-    public static var instance: Options!
+    public static var instance: Options = []
 
     public let rawValue: UInt16
 
@@ -11,7 +11,6 @@ public struct Options: OptionSet {
     public static let emitBitcode  = Options(rawValue: 0b0100_0000)
     public static let emitAssembly = Options(rawValue: 0b1000_0000)
 
-    // why do I have to do this?...
     public init(rawValue: UInt16) {
         self.rawValue = rawValue
     }
