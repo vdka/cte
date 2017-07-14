@@ -964,7 +964,7 @@ extension Checker {
 
         guard calleeType.isFunction else {
             reportError("Cannot call value of non-function type '\(calleeType)'", at: node)
-            return Type.invalid
+            return Type.makeTuple([Type.invalid])
         }
 
         let calleeFn = calleeType.asFunction
