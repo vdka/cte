@@ -152,7 +152,9 @@ extension Checker {
             }
             var rvalueTypes: [Type] = []
             if assign.rvalueIsCall, let call = assign.rvalues.first {
-                rvalueTypes = checkExpr(node: call).asTuple.types
+                // NOTE: rvalue can also be a cast.
+                let rvalueType = checkExpr(node: call)
+                rvalueTypes = rvalueType.isTuple ? rvalueType.asTuple.types : [rvalueType]
             } else if assign.lvalues.count != assign.rvalues.count {
                 reportError("Assignment count mismatch \(assign.lvalues.count) = \(assign.rvalues.count)", at: node)
             } else {
