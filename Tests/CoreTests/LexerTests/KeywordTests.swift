@@ -3,6 +3,6 @@ import XCTest
 
 class KeywordTests: XCTestCase {
     func testIdentifier() {
-        expectTokenFromLexer("anIdentifier", .ident)
+        "anIdentifier".expectFromLexer(.ident)
     }
 }

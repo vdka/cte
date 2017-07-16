@@ -11,9 +11,11 @@ extension Lexer {
     }
 }
 
-func expectTokenFromLexer(_ source: String, _ expectedToken: Token.Kind, file: StaticString = #file, line: UInt = #line) {
-    var lexer = Lexer(data: source)
-    let token = lexer.next()
-    XCTAssertNotNil(token, file: file, line: line)
-    XCTAssertEqual(token?.kind, expectedToken, file: file, line: line)
+extension String {
+    func expectFromLexer(_ expectedToken: Token.Kind, file: StaticString = #file, line: UInt = #line) {
+        var lexer = Lexer(data: self)
+        let token = lexer.next()
+        XCTAssertNotNil(token, file: file, line: line)
+        XCTAssertEqual(token?.kind, expectedToken, file: file, line: line)
+    }
 }
