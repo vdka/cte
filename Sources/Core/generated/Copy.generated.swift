@@ -390,6 +390,13 @@ extension AstNode {
         )
     }
 }
+extension DeclTests {
+
+    func copy() -> DeclTests {
+        return DeclTests(
+        )
+    }
+}
 extension Entity {
 
     func copy() -> Entity {
