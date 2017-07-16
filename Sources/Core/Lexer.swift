@@ -615,8 +615,14 @@ extension Token.Kind: CustomStringConvertible {
         case .directiveLinkname: return "#linkname"
         case .directiveDiscardable: return "#discardable"
         case .directiveCvargs: return "#cvargs"
-        case .invalid, .comment, .ident, .float, .integer, .string:
-            fatalError()
+
+        // MARK: - These descriptions are for test cases
+        case .invalid: return "invalid"
+        case .comment: return "comment"
+        case .ident: return "ident"
+        case .float: return "float"
+        case .integer: return "integer"
+        case .string: return "string"
         }
     }
 }
