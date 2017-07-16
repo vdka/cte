@@ -327,8 +327,7 @@ extension AstValue {
             return Checker.Parameter(
                 name: value.name.copy(),
                 type: value.type.copy(),
-                entity: value.entity.copy(),
-                implicitPolymorphicTypeEntity: value.implicitPolymorphicTypeEntity?.copy()
+                entity: value.entity.copy()
         )
 
         case let value as Checker.Paren:

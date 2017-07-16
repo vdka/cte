@@ -247,7 +247,6 @@ extension Checker {
             let identifierToken: Token
             var flags: Entity.Flag = []
 
-            var implicitTypeEntity: Entity?
             if param.isExplicitPolymorphic {
                 identifierToken = param.name.asCompileTime.stmt.tokens[0]
                 flags.insert(.compileTime)
@@ -259,7 +258,7 @@ extension Checker {
             let entity = Entity(ident: identifierToken, type: type, flags: flags)
             context.scope.insert(entity)
 
-            node.value = Parameter(name: param.name, type: param.type, entity: entity, implicitPolymorphicTypeEntity: implicitTypeEntity)
+            node.value = Parameter(name: param.name, type: param.type, entity: entity)
 
         case .block:
             let block = node.asBlock
@@ -1405,8 +1404,6 @@ extension Checker {
         var type: AstNode
 
         let entity: Entity
-
-        let implicitPolymorphicTypeEntity: Entity?
     }
 
     struct FunctionType: CheckedAstValue {
