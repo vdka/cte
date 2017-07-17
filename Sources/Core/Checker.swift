@@ -131,51 +131,72 @@ extension Checker {
                 return
             }
 
-            for (name, value) in zip(decl.names, decl.values) {
-                var type = checkExpr(node: value, desiredType: expectedType)
-                if name.isDispose {
-                    entities.append(Entity.anonymous)
-                    continue
-                }
+            if decl.values.isEmpty {
 
-                if decl.rvalueIsCall {
-                    type = type.asTuple.types[0]
-                }
+                let type = expectedType!
+                for name in decl.names {
+                    assert(name.kind == .identifier)
+                    let identifierToken = name.tokens[0]
+                    let entity = Entity(ident: identifierToken, type: type)
 
-                if decl.isForeign, decl.isCompileTime {
-                    guard type.isMetatype else {
-                        reportError("Expected 'type' as rvalue for foreign symbol, got '\(type)'", at: value)
-                        type = expectedType ?? Type.invalid
-                        return
+                    if decl.isCompileTime {
+                        entity.flags.insert(.compileTime)
                     }
-                    type = Type.lowerFromMetatype(type)
 
-                    if value.kind == .functionType {
-                        type = type.asPointer.pointeeType
+                    if type == Type.type {
+                        entity.flags.insert(.type)
                     }
+
+                    entities.append(entity)
                 }
+            } else {
 
-                if let expectedType = expectedType, type.isFunction && expectedType.isFunctionPointer && Type.makePointer(to: type) != expectedType {
-                    reportError("Cannot convert value of type '\(type)' to specified type '\(expectedType)'", at: value)
-                    type = expectedType
-                } else if let expectedType = expectedType, type != expectedType {
-                    reportError("Cannot convert value of type '\(type)' to specified type '\(expectedType)'", at: value)
-                    type = expectedType
+                for (name, value) in zip(decl.names, decl.values) {
+                    var type = checkExpr(node: value, desiredType: expectedType)
+                    if name.isDispose {
+                        entities.append(Entity.anonymous)
+                        continue
+                    }
+
+                    if decl.rvalueIsCall {
+                        type = type.asTuple.types[0]
+                    }
+
+                    if decl.isForeign, decl.isCompileTime {
+                        guard type.isMetatype else {
+                            reportError("Expected 'type' as rvalue for foreign symbol, got '\(type)'", at: value)
+                            type = expectedType ?? Type.invalid
+                            return
+                        }
+                        type = Type.lowerFromMetatype(type)
+
+                        if value.kind == .functionType {
+                            type = type.asPointer.pointeeType
+                        }
+                    }
+
+                    if let expectedType = expectedType, type.isFunction && expectedType.isFunctionPointer && Type.makePointer(to: type) != expectedType {
+                        reportError("Cannot convert value of type '\(type)' to specified type '\(expectedType)'", at: value)
+                        type = expectedType
+                    } else if let expectedType = expectedType, type != expectedType {
+                        reportError("Cannot convert value of type '\(type)' to specified type '\(expectedType)'", at: value)
+                        type = expectedType
+                    }
+
+                    assert(name.kind == .identifier)
+                    let identifierToken = name.tokens[0]
+                    let entity = Entity(ident: identifierToken, type: type)
+
+                    if decl.isCompileTime {
+                        entity.flags.insert(.compileTime)
+                    }
+
+                    if type == Type.type {
+                        entity.flags.insert(.type)
+                    }
+
+                    entities.append(entity)
                 }
-
-                assert(name.kind == .identifier)
-                let identifierToken = name.tokens[0]
-                let entity = Entity(ident: identifierToken, type: type)
-
-                if decl.isCompileTime {
-                    entity.flags.insert(.compileTime)
-                }
-
-                if type == Type.type {
-                    entity.flags.insert(.type)
-                }
-
-                entities.append(entity)
             }
 
             node.value = Declaration(names: decl.names, type: decl.type, values: decl.values,
@@ -568,7 +589,7 @@ extension Checker {
             context.scope.insert(entity)
 
         default:
-            fatalError("Unknown node kind: \(node.kind)")
+            reportError("Unused expression '\(node)'", at: node)
         }
     }
 
@@ -621,6 +642,56 @@ extension Checker {
                 type = IntegerLiteral.defaultType
             }
             node.value = IntegerLiteral(value: lit.value, type: type)
+            return type
+
+        case .compositeLiteral:
+            let lit = node.asCompositeLiteral
+
+            var type = checkExpr(node: lit.typeNode)
+            type = lowerFromMetatype(type, atNode: lit.typeNode)
+
+            guard type.kind == .struct else {
+                reportError("Invalid type for composite literal", at: lit.typeNode)
+                return Type.invalid
+            }
+
+            if type.asStruct.fields.count < lit.elements.count {
+                reportError("Too many values in struct initializer", at: lit.elements[type.asStruct.fields.count])
+            }
+
+            for (element, field) in zip(lit.elements, type.asStruct.fields) {
+
+                let el = element.asCompositeLiteralField
+
+                if let identifier = el.identifier {
+
+                    let name = identifier.asIdentifier.name
+
+                    guard let field = type.asStruct.fields.first(where: { $0.name == name }) else {
+                        reportError("Unknown field '\(identifier)' for '\(type)'", at: identifier)
+                        continue
+                    }
+                    
+                    let type = checkExpr(node: el.value, desiredType: field.type)
+                    guard type == field.type || implicitlyConvert(type, to: field.type) else {
+                        reportError("Cannot convert type '\(type)' to expected type '\(field.type)'", at: el.value)
+                        continue
+                    }
+
+                    element.value = CompositeLiteralField(identifier: identifier, value: el.value, field: field, type: type)
+                } else {
+                    let type = checkExpr(node: el.value, desiredType: field.type)
+                    guard type == field.type || implicitlyConvert(type, to: field.type) else {
+                        reportError("Cannot convert type '\(type)' to expected type '\(field.type)'", at: element)
+                        continue
+                    }
+
+                    element.value = CompositeLiteralField(identifier: el.identifier, value: el.value, field: field, type: type)
+                }
+            }
+
+            node.value = CompositeLiteral(typeNode: lit.typeNode, elements: lit.elements, type: type)
+
             return type
 
         case .variadic:
@@ -788,6 +859,36 @@ extension Checker {
             node.value = PointerType(pointee: pointerType.pointee, type: type)
             return type
 
+        case .structType:
+            let strućt = node.asStructType
+
+            var width = 0
+            var fields: [Type.Struct.Field] = []
+            pushContext()
+            for declaration in strućt.declarations {
+                guard declaration.kind == .declaration else {
+                    reportError("Unexpected \(declaration.kind), expected a declaration", at: declaration)
+                    continue
+                }
+
+                check(node: declaration)
+
+                for (index, entity) in declaration.asCheckedDeclaration.entities.enumerated() {
+
+                    let field = Type.Struct.Field(ident: entity.ident, type: entity.type!, index: index, offset: width)
+                    fields.append(field)
+
+                    // FIXME: This will align fields to bytes. This maybe shouldn't be the default.
+                    width = (width + (entity.type!.width ?? 0)).round(upToNearest: 8)
+                }
+            }
+            popContext()
+
+            let structType = Type.Struct(node: node, fields: fields)
+            let type = Type(entity: nil, width: width, flags: .none, value: structType)
+
+            return Type.makeMetatype(type)
+
         case .paren:
             let paren = node.asParen
             let type = checkExpr(node: paren.expr)
@@ -926,24 +1027,36 @@ extension Checker {
         case .call:
             return checkCall(node)
 
-        case .memberAccess:
-            let access = node.asMemberAccess
+        case .access:
+            let access = node.asAccess
 
             let aggregateType = checkExpr(node: access.aggregate)
 
-            guard let aggregateScope = aggregateType.memberScope else {
+            switch aggregateType.kind {
+            case .file:
+                guard let memberEntity = aggregateType.memberScope!.lookup(access.memberName) else {
+                    reportError("Member '\(access.member)' not found in scope of '\(access.aggregate)'", at: access.member)
+                    return Type.invalid
+                }
+
+                node.value = Access(aggregate: access.aggregate, member: access.member, entity: memberEntity)
+
+                return memberEntity.type!
+
+            case .struct:
+                guard let field = aggregateType.asStruct.fields.first(where: { $0.name == access.memberName }) else {
+                    reportError("Field '\(access.member)' not found in scope of '\(access.aggregate)'", at: access.member)
+                    return Type.invalid
+                }
+
+                node.value = FieldAccess(aggregate: access.aggregate, member: access.member, field: field)
+
+                return field.type
+
+            default:
                 reportError("'\(access.aggregate)' (type \(aggregateType)) is not an aggregate type", at: access.aggregate)
                 return Type.invalid
             }
-
-            guard let memberEntity = aggregateScope.lookup(access.memberName) else {
-                reportError("Member '\(access.member)' not found in scope of '\(access.aggregate)'", at: access.member)
-                return Type.invalid
-            }
-
-            node.value = MemberAccess(aggregate: access.aggregate, member: access.member, entity: memberEntity)
-
-            return memberEntity.type!
 
         default:
             reportError("Cannot convert '\(node)' to an Expression", at: node)
@@ -1365,6 +1478,25 @@ extension Checker {
         let type: Type
     }
 
+    struct CompositeLiteral: CheckedExpression, CheckedAstValue {
+        typealias UncheckedValue = AstNode.CompositeLiteral
+
+        var typeNode: AstNode
+        var elements: [AstNode]
+
+        var type: Type
+    }
+
+    struct CompositeLiteralField: CheckedExpression, CheckedAstValue {
+        typealias UncheckedValue = AstNode.CompositeLiteralField
+
+        var identifier: AstNode?
+        var value: AstNode
+
+        var field: Type.Struct.Field
+        var type: Type
+    }
+
     struct Function: CheckedExpression, CheckedAstValue {
         typealias UncheckedValue = AstNode.Function
 
@@ -1406,7 +1538,7 @@ extension Checker {
         let entity: Entity
     }
 
-    struct FunctionType: CheckedAstValue {
+    struct FunctionType: CheckedExpression, CheckedAstValue {
         typealias UncheckedValue = AstNode.FunctionType
 
         let parameters: [AstNode]
@@ -1416,10 +1548,17 @@ extension Checker {
         let type: Type
     }
 
-    struct PointerType: CheckedAstValue {
+    struct PointerType: CheckedExpression, CheckedAstValue {
         typealias UncheckedValue = AstNode.PointerType
 
         let pointee: AstNode
+        let type: Type
+    }
+
+    struct StructType: CheckedExpression, CheckedAstValue {
+        typealias UncheckedValue = AstNode.StructType
+
+        let declarations: [AstNode]
         let type: Type
     }
 
@@ -1487,8 +1626,8 @@ extension Checker {
         let cast: OpCode.Cast
     }
 
-    struct MemberAccess: CheckedExpression, CheckedAstValue {
-        typealias UncheckedValue = AstNode.MemberAccess
+    struct Access: CheckedExpression, CheckedAstValue {
+        typealias UncheckedValue = AstNode.Access
 
         let aggregate: AstNode
         let member: AstNode
@@ -1499,6 +1638,23 @@ extension Checker {
         let entity: Entity
         var type: Type {
             return entity.type!
+        }
+    }
+
+    struct FieldAccess: CheckedExpression, CheckedAstValue {
+        static let astKind = AstKind.fieldAccess
+
+        typealias UncheckedValue = AstNode.Access
+
+        let aggregate: AstNode
+        let member: AstNode
+        var memberName: String {
+            return member.asIdentifier.name
+        }
+
+        let field: Type.Struct.Field
+        var type: Type {
+            return field.type
         }
     }
 

@@ -76,6 +76,9 @@ class Type: Hashable, CustomStringConvertible {
             let returns = fn.returnType.asTuple.types.map({ $0.description }).joined(separator: ", ")
             return "fn(" + params + ")" + " -> " + returns
 
+        case .struct:
+            return "struct { \n" + asStruct.fields.map({ "    " + $0.name + ": " + $0.type.description }).joined(separator: "\n") + "\n}"
+
         case .tuple:
             return "(" + asTuple.types.map({ $0.description }).joined(separator: ", ") + ")"
         }
@@ -176,6 +179,7 @@ enum TypeKind {
     case floatingPoint
     case boolean
     case function
+    case `struct`
     case tuple
     case pointer
     case polymorphic
@@ -224,6 +228,25 @@ extension Type {
         var isVariadic: Bool
         var isCVariadic: Bool
         var needsSpecialization: Bool
+    }
+
+    struct Struct: TypeValue {
+        static let typeKind: TypeKind = .struct
+
+        var node: AstNode
+        var fields: [Field] = []
+
+        struct Field {
+            let ident: Token
+            let type: Type
+
+            var index: Int
+            var offset: Int
+
+            var name: String {
+                return ident.stringValue
+            }
+        }
     }
 
     struct Tuple: TypeValue {

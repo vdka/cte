@@ -162,6 +162,13 @@ extension String {
     }
 }
 
+extension Int {
+
+    func round(upToNearest multiple: Int) -> Int {
+        return (self + multiple - 1) & ~(multiple - 1)
+    }
+}
+
 /*
     Miscelaneous methods extensions and other tidbits of useful functionality
     that is general enough to not belong in other files.

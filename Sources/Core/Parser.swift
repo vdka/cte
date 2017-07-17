@@ -29,9 +29,11 @@ struct Parser {
         static let permitExprList       = State(rawValue: 0b0000_0001)
         static let permitAssignOrDecl   = State(rawValue: 0b0000_0010)
         static let permitCase           = State(rawValue: 0b0000_0100)
+        static let permitCompositeLit   = State(rawValue: 0b0000_1000)
 
         static let functionBody         = State(rawValue: 0b0001_0000)
-        static let foreign              = State(rawValue: 0b0010_0000)
+        static let structBody           = State(rawValue: 0b0010_0011)
+        static let foreign              = State(rawValue: 0b0100_0000)
         static let leaveTerminators     = State(rawValue: 0b1000_0000)
 
         static let `default`            = [.permitExprList, .permitAssignOrDecl] as State
@@ -43,10 +45,12 @@ struct Parser {
         case parseSingle
         case parseDeclValue
         case parseFunctionBody
+        case parseStruct
         case parseSwitchBody
         case parseDeferExpr
         case parseForeignDirectiveBody
         case parseParamIdentifiers
+        case parseCompositeLitElements
         case parseForStmts
     }
 
@@ -62,10 +66,12 @@ struct Parser {
         case .parseSingle:
             state = []
         case .parseDeclValue:
-            state = [.permitExprList]
+            state = [.permitExprList, .permitCompositeLit]
         case .parseFunctionBody:
             state = .default
             state.insert(.functionBody)
+        case .parseStruct:
+            state = .structBody
         case .parseSwitchBody:
             state.insert(.permitCase)
         case .parseDeferExpr:
@@ -74,6 +80,8 @@ struct Parser {
             state = [.permitAssignOrDecl, .foreign]
         case .parseParamIdentifiers:
             state = [.permitExprList]
+        case .parseCompositeLitElements:
+            state = [.permitCompositeLit]
         case .parseForStmts:
             state = [.permitExprList, .permitAssignOrDecl, .leaveTerminators]
         }
@@ -131,6 +139,9 @@ struct Parser {
             return 0
         }
         if !context.state.contains(.permitAssignOrDecl), token.kind == .colon || token.kind == .equals {
+            return 0
+        }
+        if !context.state.contains(.permitCompositeLit), token.kind == .lbrace {
             return 0
         }
 
@@ -323,10 +334,15 @@ struct Parser {
 
                 while lexer.peek()?.kind != .rparen {
                     pushContext(changingStateTo: .parseParamIdentifiers)
-                    let identifiers = expression() // FIXME(vdka): Handle fn (x, y, z: int) -> foo
+                    let identifiers = expression()
                     popContext()
                     if lexer.peek()?.kind != .colon {
                         params.append(identifiers) // handles function signatures `fn (i8, i8, i8, i8) -> i32`
+                        if lexer.peek()?.kind != .comma {
+                            break
+                        }
+                        advance()
+                        consumeNewlines()
                         continue
                     }
                     let colon = advance()
@@ -518,6 +534,21 @@ struct Parser {
             let value = AstNode.Fallthrough()
             return AstNode(value, tokens: [fállthrough])
 
+        case .keywordStruct:
+            let strućt = advance()
+
+            guard lexer.peek()?.kind == .lbrace else {
+                reportError("Expected '{' to follow 'struct'", at: strućt)
+                return AstNode.invalid
+            }
+
+            pushContext(changingStateTo: .parseStruct)
+            let body = expression()
+            popContext()
+
+            let value = AstNode.StructType(declarations: body.asBlock.stmts)
+            return AstNode(value, tokens: [strućt] + body.tokens)
+
         case .directiveImport:
             let directive = advance()
 
@@ -671,6 +702,63 @@ struct Parser {
             let exprCall = AstNode.Call(callee: lvalue, arguments: arguments)
             return AstNode(exprCall, tokens: [lparen, rparen])
 
+        case .lbrace:
+            let lbrace = advance()
+            consumeNewlines()
+
+            var fields: [AstNode.CompositeLiteralField] = []
+            if lexer.peek()?.kind != .rbrace {
+
+                var named: Int = 0
+                while lexer.peek()?.kind != .rbrace {
+                    pushContext(changingStateTo: .parseCompositeLitElements)
+                    let nameOrValue = expression()
+                    popContext()
+                    if lexer.peek()?.kind != .colon {
+                        let value = AstNode.CompositeLiteralField(identifier: nil, value: nameOrValue)
+                        fields.append(value) // handles function signatures `fn (i8, i8, i8, i8) -> i32`
+                        if lexer.peek()?.kind != .comma {
+                            break
+                        }
+                        advance()
+                        consumeNewlines()
+                        continue
+                    }
+                    advance()
+
+                    guard nameOrValue.kind == .identifier else {
+                        reportError("Invalid field name '\(nameOrValue)'", at: nameOrValue)
+                        continue
+                    }
+
+                    named += 1
+
+                    pushContext(changingStateTo: .parseCompositeLitElements)
+                    let value = expression()
+                    popContext()
+
+                    let field = AstNode.CompositeLiteralField(identifier: nameOrValue, value: value)
+
+                    fields.append(field)
+
+                    if lexer.peek()?.kind != .comma {
+                        break
+                    }
+                    advance()
+                    consumeNewlines()
+                }
+
+                if named != 0 && named < fields.count {
+                    reportError("Mixture of named and unnamed fields in struct initializer", at: lbrace)
+                }
+            }
+
+            let rbrace = advance(expecting: .rbrace)
+
+            let exprs = fields.map({ AstNode($0, tokens: [] )})
+            let value = AstNode.CompositeLiteral(typeNode: lvalue, elements: exprs)
+            return AstNode(value, tokens: [lbrace, rbrace])
+
         case .dot:
             let dot = advance()
             let memberToken = advance(expecting: .ident)
@@ -679,7 +767,7 @@ struct Parser {
 
             let member = AstNode(identifier, tokens: [memberToken])
 
-            let memberAccess = AstNode.MemberAccess(aggregate: lvalue, member: member)
+            let memberAccess = AstNode.Access(aggregate: lvalue, member: member)
             return AstNode(memberAccess, tokens: [dot])
 
         case .comma:
@@ -903,6 +991,9 @@ extension Token.Kind {
 
         case .lparen, .dot:
             return 80
+
+        case .lbrace:
+            return 150
 
         default:
             return 0

@@ -95,3 +95,14 @@ x1, y1 := swap(x, y)
 
 printf("%d, %d\n", x1, y1)
 
+Foo :: struct {
+    a, b: f64
+}
+
+k := 4.0
+
+foo := Foo { k, 3.6}
+
+printf("%f, %f\n", foo.b, foo.a)
+
+
