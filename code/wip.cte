@@ -99,10 +99,17 @@ Foo :: struct {
     a, b: f64
 }
 
+Bar :: struct {
+    foo: Foo
+}
+
 k := 4.0
 
 foo := Foo { k, 3.6}
 
+bar := Bar { foo }
+
 printf("%f, %f\n", foo.b, foo.a)
+printf("%f, %f\n", bar.foo.b, bar.foo.a)
 
 

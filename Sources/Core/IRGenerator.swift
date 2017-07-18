@@ -396,6 +396,10 @@ struct IRGenerator {
             let lvalue = emitExpr(node: access.aggregate, returnAddress: true)
 
             let fieldAddress = builder.buildStructGEP(lvalue, index: access.field.index)
+
+            if returnAddress {
+                return fieldAddress
+            }
             return builder.buildLoad(fieldAddress)
 
         default:
