@@ -29,9 +29,12 @@ struct Parser {
         static let permitExprList       = State(rawValue: 0b0000_0001)
         static let permitAssignOrDecl   = State(rawValue: 0b0000_0010)
         static let permitCase           = State(rawValue: 0b0000_0100)
+        static let permitCompositeLit   = State(rawValue: 0b0000_1000)
 
         static let functionBody         = State(rawValue: 0b0001_0000)
-        static let foreign              = State(rawValue: 0b0010_0000)
+        static let structBody           = State(rawValue: 0b0010_0011)
+        static let foreign              = State(rawValue: 0b0100_0000)
+        static let leaveTerminators     = State(rawValue: 0b1000_0000)
 
         static let `default`            = [.permitExprList, .permitAssignOrDecl] as State
     }
@@ -42,10 +45,13 @@ struct Parser {
         case parseSingle
         case parseDeclValue
         case parseFunctionBody
+        case parseStruct
         case parseSwitchBody
         case parseDeferExpr
         case parseForeignDirectiveBody
         case parseParamIdentifiers
+        case parseCompositeLitElements
+        case parseForStmts
     }
 
     mutating func pushContext(changingStateTo stateChange: StateChange) {
@@ -60,10 +66,12 @@ struct Parser {
         case .parseSingle:
             state = []
         case .parseDeclValue:
-            state = [.permitExprList]
+            state = [.permitExprList, .permitCompositeLit]
         case .parseFunctionBody:
             state = .default
             state.insert(.functionBody)
+        case .parseStruct:
+            state = .structBody
         case .parseSwitchBody:
             state.insert(.permitCase)
         case .parseDeferExpr:
@@ -72,6 +80,10 @@ struct Parser {
             state = [.permitAssignOrDecl, .foreign]
         case .parseParamIdentifiers:
             state = [.permitExprList]
+        case .parseCompositeLitElements:
+            state = [.permitCompositeLit]
+        case .parseForStmts:
+            state = [.permitExprList, .permitAssignOrDecl, .leaveTerminators]
         }
 
         let newContext = Context(state: state, previous: context)
@@ -84,20 +96,21 @@ struct Parser {
 
     mutating func parse() -> [AstNode] {
 
+        consumeNewlines()
+
         var nodes: [AstNode] = []
         while lexer.peek() != nil {
 
             let node = expression()
-
             nodes.append(node)
+
+            consumeTerminatorIfExprUsedAsStmt(node)
         }
 
         return nodes
     }
 
     mutating func expression(_ rbp: UInt8 = 0) -> AstNode {
-
-        consumeNewlines()
 
         guard let token = lexer.peek() else {
             return AstNode.empty
@@ -128,14 +141,14 @@ struct Parser {
         if !context.state.contains(.permitAssignOrDecl), token.kind == .colon || token.kind == .equals {
             return 0
         }
+        if !context.state.contains(.permitCompositeLit), token.kind == .lbrace {
+            return 0
+        }
 
         return lbp
     }
 
     mutating func nud(for token: Token) -> AstNode {
-        defer {
-            consumeNewlines()
-        }
 
         if let prefixOperator = PrefixOperator.lookup(token.kind) {
             return prefixOperator.nud(&self)
@@ -195,6 +208,12 @@ struct Parser {
             while lexer.peek()?.kind != .rbrace {
                 let stmt = expression()
                 stmts.append(stmt)
+
+                if stmts.last!.kind == .return {
+                    break
+                }
+
+                consumeTerminatorIfExprUsedAsStmt(stmt)
             }
 
             let rbrace = advance(expecting: .rbrace)
@@ -236,21 +255,28 @@ struct Parser {
             let body = expression()
 
             guard lexer.peek()?.kind == .keywordElse else {
+                if !body.isStmt {
+                    expectTerminator()
+                }
                 let stmtIf = AstNode.If(condition: cond, thenStmt: body, elseStmt: nil)
                 return AstNode(stmtIf, tokens: [ifToken])
             }
 
             let elseToken = advance()
             let elseStmt = expression()
+            if !elseStmt.isStmt {
+                expectTerminator()
+            }
 
-            let stmtIf = AstNode.If(condition: cond, thenStmt: body, elseStmt: elseStmt)
-            return AstNode(stmtIf, tokens: [ifToken, elseToken])
+            let value = AstNode.If(condition: cond, thenStmt: body, elseStmt: elseStmt)
+            return AstNode(value, tokens: [ifToken, elseToken])
 
         case .keywordFor:
             let forToken = advance()
 
             var tokens: [Token] = [forToken]
             var exprs: [AstNode] =  []
+            pushContext(changingStateTo: .parseForStmts)
             while let token = lexer.peek(), token.kind != .lbrace {
 
                 if token.kind == .semicolon {
@@ -270,8 +296,11 @@ struct Parser {
                     }
                 }
             }
+            popContext()
 
             let body = expression()
+
+            expectTerminator()
 
             var initializer: AstNode?
             var condition: AstNode?
@@ -305,10 +334,15 @@ struct Parser {
 
                 while lexer.peek()?.kind != .rparen {
                     pushContext(changingStateTo: .parseParamIdentifiers)
-                    let identifiers = expression() // FIXME(vdka): Handle fn (x, y, z: int) -> foo
+                    let identifiers = expression()
                     popContext()
                     if lexer.peek()?.kind != .colon {
                         params.append(identifiers) // handles function signatures `fn (i8, i8, i8, i8) -> i32`
+                        if lexer.peek()?.kind != .comma {
+                            break
+                        }
+                        advance()
+                        consumeNewlines()
                         continue
                     }
                     let colon = advance()
@@ -339,8 +373,8 @@ struct Parser {
             let returnTypes = explode(returnTypeList)
 
             if lexer.peek()?.kind != .lbrace {
-                let functionType = AstNode.FunctionType(parameters: params, returnTypes: returnTypes, flags: [])
-                return AstNode(functionType, tokens: [fnToken, lparen, rparen, returnArrow])
+                let value = AstNode.FunctionType(parameters: params, returnTypes: returnTypes, flags: [])
+                return AstNode(value, tokens: [fnToken, lparen, rparen, returnArrow])
             }
 
             for param in params
@@ -360,9 +394,8 @@ struct Parser {
                 reportError("Body of a function should be a block statement", at: body)
             }
 
-            let function = AstNode.Function(parameters: params, returnTypes: returnTypes, body: body, flags: [])
-
-            return AstNode(function, tokens: [fnToken, lparen, rparen, returnArrow])
+            let value = AstNode.Function(parameters: params, returnTypes: returnTypes, body: body, flags: [])
+            return AstNode(value, tokens: [fnToken, lparen, rparen, returnArrow])
 
         case .keywordSwitch:
             let switchToken = advance()
@@ -383,11 +416,14 @@ struct Parser {
             while lexer.peek()?.kind != .rbrace {
                 let expr = expression()
                 cases.append(expr)
-                consumeNewlines()
+
+                expectTerminator()
             }
             popContext()
 
             let rbrace = advance(expecting: .rbrace)
+
+            expectTerminator()
 
             let świtch = AstNode.Switch(label: nil, subject: subject, cases: cases)
             return AstNode(świtch, tokens: [switchToken, lbrace, rbrace])
@@ -423,7 +459,7 @@ struct Parser {
                 while let token = lexer.peek()?.kind, token != .keywordCase && token != .rbrace {
                     let expr = expression()
                     stmts.append(expr)
-                    consumeNewlines()
+                    expectTerminator()
                 }
             }
 
@@ -440,14 +476,17 @@ struct Parser {
 
             var exprs: [AstNode] = []
             if let tokenKind = lexer.peek()?.kind, !terminators.contains(tokenKind) {
-
                 let exprList = expression()
                 exprs = explode(exprList)
             }
 
-            let stmtReturn = AstNode.Return(values: exprs)
+            if exprs.count < 2 {
+                // NOTE: expression lists consume newlines
+                expectTerminator()
+            }
 
-            return AstNode(stmtReturn, tokens: [ŕeturn])
+            let value = AstNode.Return(values: exprs)
+            return AstNode(value, tokens: [ŕeturn])
 
         case .keywordBreak:
             let bŕeak = advance()
@@ -495,6 +534,21 @@ struct Parser {
             let value = AstNode.Fallthrough()
             return AstNode(value, tokens: [fállthrough])
 
+        case .keywordStruct:
+            let strućt = advance()
+
+            guard lexer.peek()?.kind == .lbrace else {
+                reportError("Expected '{' to follow 'struct'", at: strućt)
+                return AstNode.invalid
+            }
+
+            pushContext(changingStateTo: .parseStruct)
+            let body = expression()
+            popContext()
+
+            let value = AstNode.StructType(declarations: body.asBlock.stmts)
+            return AstNode(value, tokens: [strućt] + body.tokens)
+
         case .directiveImport:
             let directive = advance()
 
@@ -519,22 +573,25 @@ struct Parser {
 
             default:
                 reportError("Expected identifier to bind imported entities to or '.' to import them into the current scope", at: symbolToken!)
+                expectTerminator()
                 return AstNode.invalid(with: [directive, pathToken])
             }
 
             guard let importedFile = SourceFile.new(path: pathToken.stringValue, importedFrom: file) else {
                 reportError("Failed to open '\(pathToken.stringValue)' for reading", at: pathToken)
+                expectTerminator()
                 return AstNode.invalid(with: [directive, pathToken])
             }
-
-            let imp = AstNode.Import(path: pathToken.stringValue, symbol: symbol, includeSymbolsInParentScope: symbolToken?.kind == .dot, file: importedFile)
 
             var tokens = [directive, pathToken]
             if let symbolToken = symbolToken {
                 tokens.append(symbolToken)
             }
 
-            let node = AstNode(imp, tokens: tokens)
+            expectTerminator()
+
+            let value = AstNode.Import(path: pathToken.stringValue, symbol: symbol, includeSymbolsInParentScope: symbolToken?.kind == .dot, file: importedFile)
+            let node = AstNode(value, tokens: tokens)
             file.importStatements.append(node)
 
             return node
@@ -549,8 +606,10 @@ struct Parser {
                 symbol = expression()
             }
 
-            let lib = AstNode.Library(path: pathToken.stringValue, symbol: symbol)
-            return AstNode(lib, tokens: [directive, pathToken])
+            expectTerminator()
+
+            let value = AstNode.Library(path: pathToken.stringValue, symbol: symbol)
+            return AstNode(value, tokens: [directive, pathToken])
 
         case .directiveForeign:
             let directive = advance()
@@ -575,10 +634,13 @@ struct Parser {
 
             stmt.tokens.insert(directive, at: 0)
 
+            expectTerminator()
+
             return stmt
 
         case .directiveDiscardable:
             let directive = advance()
+            consumeNewlines()
             let stmt = expression()
 
             stmt.tokens.insert(directive, at: 0)
@@ -620,9 +682,6 @@ struct Parser {
     }
 
     mutating func led(for token: Token, with lvalue: AstNode) -> AstNode {
-        defer {
-            consumeNewlines()
-        }
 
         if let infixOperator = InfixOperator.lookup(token.kind) {
             return infixOperator.led(&self, lvalue)
@@ -631,7 +690,6 @@ struct Parser {
         switch token.kind {
         case .lparen:
             let lparen = advance()
-            consumeNewlines()
 
             var arguments: [AstNode] = []
             if lexer.peek()?.kind != .rparen {
@@ -644,6 +702,63 @@ struct Parser {
             let exprCall = AstNode.Call(callee: lvalue, arguments: arguments)
             return AstNode(exprCall, tokens: [lparen, rparen])
 
+        case .lbrace:
+            let lbrace = advance()
+            consumeNewlines()
+
+            var fields: [AstNode.CompositeLiteralField] = []
+            if lexer.peek()?.kind != .rbrace {
+
+                var named: Int = 0
+                while lexer.peek()?.kind != .rbrace {
+                    pushContext(changingStateTo: .parseCompositeLitElements)
+                    let nameOrValue = expression()
+                    popContext()
+                    if lexer.peek()?.kind != .colon {
+                        let value = AstNode.CompositeLiteralField(identifier: nil, value: nameOrValue)
+                        fields.append(value) // handles function signatures `fn (i8, i8, i8, i8) -> i32`
+                        if lexer.peek()?.kind != .comma {
+                            break
+                        }
+                        advance()
+                        consumeNewlines()
+                        continue
+                    }
+                    advance()
+
+                    guard nameOrValue.kind == .identifier else {
+                        reportError("Invalid field name '\(nameOrValue)'", at: nameOrValue)
+                        continue
+                    }
+
+                    named += 1
+
+                    pushContext(changingStateTo: .parseCompositeLitElements)
+                    let value = expression()
+                    popContext()
+
+                    let field = AstNode.CompositeLiteralField(identifier: nameOrValue, value: value)
+
+                    fields.append(field)
+
+                    if lexer.peek()?.kind != .comma {
+                        break
+                    }
+                    advance()
+                    consumeNewlines()
+                }
+
+                if named != 0 && named < fields.count {
+                    reportError("Mixture of named and unnamed fields in struct initializer", at: lbrace)
+                }
+            }
+
+            let rbrace = advance(expecting: .rbrace)
+
+            let exprs = fields.map({ AstNode($0, tokens: [] )})
+            let value = AstNode.CompositeLiteral(typeNode: lvalue, elements: exprs)
+            return AstNode(value, tokens: [lbrace, rbrace])
+
         case .dot:
             let dot = advance()
             let memberToken = advance(expecting: .ident)
@@ -652,13 +767,14 @@ struct Parser {
 
             let member = AstNode(identifier, tokens: [memberToken])
 
-            let memberAccess = AstNode.MemberAccess(aggregate: lvalue, member: member)
+            let memberAccess = AstNode.Access(aggregate: lvalue, member: member)
             return AstNode(memberAccess, tokens: [dot])
 
         case .comma:
             let comma = advance()
             let expr = expression(comma.kind.lbp)
             let list = append(lvalue, expr)
+            consumeNewlines()
             list.tokens.append(comma)
             return list
 
@@ -666,9 +782,14 @@ struct Parser {
             let equals = advance()
 
             let rvalue = expression(Token.Kind.equals.lbp)
+            let values = explode(rvalue)
 
-            let assign = AstNode.Assign(lvalues: explode(lvalue), rvalues: explode(rvalue))
+            if values.count < 2 {
+                // NOTE: expression lists consume newlines
+                expectTerminator()
+            }
 
+            let assign = AstNode.Assign(lvalues: explode(lvalue), rvalues: values)
             return AstNode(value: assign, tokens: [equals])
 
         case .colon:
@@ -699,8 +820,10 @@ struct Parser {
 
             guard let nextToken = lexer.peek(), nextToken.kind == .equals || nextToken.kind == .colon else {
                 assert(type != nil) // matches `x: foo`
-                let decl = AstNode.Declaration(names: explode(lvalue), type: type, values: [],
-                                               linkName: nil, flags: [])
+
+                expectTerminator()
+
+                let decl = AstNode.Declaration(names: explode(lvalue), type: type, values: [], linkName: nil, flags: [])
                 return AstNode(decl, tokens: [colon])
             }
 
@@ -728,10 +851,13 @@ struct Parser {
                 }
             }
 
-            let flags = token.kind == .colon ? DeclarationFlags.compileTime : []
+            if values.count < 2 {
+                // NOTE: expression lists consume newlines
+                expectTerminator()
+            }
 
-            let decl = AstNode.Declaration(names: explode(lvalue), type: type, values: values,
-                                           linkName: nil, flags: flags)
+            let flags = token.kind == .colon ? DeclarationFlags.compileTime : []
+            let decl = AstNode.Declaration(names: explode(lvalue), type: type, values: values, linkName: nil, flags: flags)
             return AstNode(decl, tokens: [colon, token])
 
         case .directiveLinkname:
@@ -756,19 +882,48 @@ struct Parser {
         }
     }
 
-    mutating func consumeNewlines() {
+    mutating func consumeTerminator() {
+        guard !context.state.contains(.leaveTerminators) else {
+            return
+        }
+        if lexer.peek()?.kind == .semicolon {
+            advance()
+        }
+
         while let token = lexer.peek()?.kind, token == .newline {
             advance()
         }
     }
 
-    /// - Returns: The semicolon token consumed if there was one
-    @discardableResult
-    mutating func consumeSemicolon() -> Token? {
-        if lexer.peek()?.kind == .semicolon {
-            return advance()
+    mutating func consumeTerminatorIfExprUsedAsStmt(_ node: AstNode) {
+        guard !context.state.contains(.leaveTerminators) else {
+            return
         }
-        return nil
+        // NOTE: Currently only calls can be either an expression or statement
+        if node.kind == .call {
+            consumeTerminator()
+        }
+    }
+
+    mutating func expectTerminator(line: UInt = #line) {
+        guard !context.state.contains(.leaveTerminators) else {
+            return
+        }
+        let token = lexer.peek()
+        if token?.kind != .newline && token?.kind != .semicolon {
+            reportError("Expected either a ';' or a newline as terminator", at: token ?? Token(kind: .invalid, value: nil, location: lexer.location ..< lexer.location), line: line)
+        }
+        consumeTerminator()
+    }
+
+    mutating func consumeNewlines() {
+        guard !context.state.contains(.leaveTerminators) else {
+            return
+        }
+
+        while let token = lexer.peek()?.kind, token == .newline {
+            advance()
+        }
     }
 
     @discardableResult
@@ -836,6 +991,9 @@ extension Token.Kind {
 
         case .lparen, .dot:
             return 80
+
+        case .lbrace:
+            return 150
 
         default:
             return 0

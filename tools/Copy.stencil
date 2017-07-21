@@ -12,7 +12,7 @@ extension AstValue {
         case let value as {{ type.name }}:
             return {{ type.name }}(
             {% for var in type.storedVariables %}
-                {{ var.name }}: value.{% if var.isArray and var.name != "specializations" %}{{ var.name }}.map({ $0.copy() }){% elif var.type.kind == "class" or var.type.name == "AstValue" %}{{ var.name }}{% if var.isOptional %}?{% endif %}.copy(){% else %}{{ var.name }}{% endif %}{% if not forloop.last %},{% endif %}
+                {{ var.name }}: value.{% if var.isArray and var.name != "specializations" and var.name != "indices" %}{{ var.name }}.map({ $0.copy() }){% elif var.type.kind == "class" or var.type.name == "AstValue" %}{{ var.name }}{% if var.isOptional %}?{% endif %}.copy(){% else %}{{ var.name }}{% endif %}{% if not forloop.last %},{% endif %}
             {% empty %}
             {% endfor %}
         )
@@ -25,7 +25,7 @@ extension AstValue {
     }
 }
 
-{% for type in types.classes where type.name != "SourceFile" and type.name != "Type" and type.localName != "Context" and type.localName|!hasSuffix:"Tests"%}
+{% for type in types.classes where type.name != "SourceFile" and type.name != "Type" and type.name != "BuiltinFunction" and type.localName != "Context" and type.localName|!hasSuffix:"Tests"%}
 extension {{ type.name }} {
 
     func copy() -> {{ type.name }} {
@@ -50,6 +50,14 @@ extension SourceFile {
 
     func copy() -> SourceFile {
         // no need to copy SourceFiles
+        return self
+    }
+}
+
+extension BuiltinFunction {
+
+    func copy() -> BuiltinFunction {
+        // no need to copy BuiltinFunctions
         return self
     }
 }

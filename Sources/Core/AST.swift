@@ -35,9 +35,11 @@ enum AstKind {
     case litString
     case litFloat
     case litInteger
+    case compositeLiteral
     case function
     case polymorphicFunction
     case parameter
+    case compositeLiteralField
     case variadic
     case declaration
     case paren
@@ -46,7 +48,8 @@ enum AstKind {
     case assign
     case call
     case cast
-    case memberAccess
+    case access
+    case fieldAccess
     case block
     case `if`
     case `for`
@@ -57,6 +60,7 @@ enum AstKind {
     case `continue`
     case `fallthrough`
     case compileTime
+    case structType
     case pointerType
     case functionType
     case `import`
@@ -127,6 +131,20 @@ extension AstNode {
         let value: UInt64
     }
 
+    struct CompositeLiteral: AstValue {
+        static let astKind = AstKind.compositeLiteral
+
+        var typeNode: AstNode
+        var elements: [AstNode]
+    }
+
+    struct CompositeLiteralField: AstValue {
+        static var astKind = AstKind.compositeLiteralField
+
+        var identifier: AstNode?
+        var value: AstNode
+    }
+
     struct Function: AstValue {
         static let astKind = AstKind.function
 
@@ -144,6 +162,13 @@ extension AstNode {
         var type: AstNode
     }
 
+    struct Variadic: AstValue {
+        static let astKind = AstKind.variadic
+
+        let type: AstNode
+        var cCompatible: Bool
+    }
+
     struct FunctionType: AstValue {
         static let astKind = AstKind.functionType
 
@@ -152,17 +177,16 @@ extension AstNode {
         var flags: FunctionFlags
     }
 
-    struct Variadic: AstValue {
-        static let astKind = AstKind.variadic
-
-        let type: AstNode
-        var cCompatible: Bool
-    }
-
     struct PointerType: AstValue {
         static let astKind = AstKind.pointerType
 
         let pointee: AstNode
+    }
+
+    struct StructType: AstValue {
+        static let astKind = AstKind.structType
+
+        let declarations: [AstNode]
     }
 
     struct CompileTime: AstValue {
@@ -217,8 +241,8 @@ extension AstNode {
         let arguments: [AstNode]
     }
 
-    struct MemberAccess: AstValue {
-        static let astKind = AstKind.memberAccess
+    struct Access: AstValue {
+        static let astKind = AstKind.access
 
         let aggregate: AstNode
         let member: AstNode

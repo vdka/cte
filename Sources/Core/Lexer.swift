@@ -1,5 +1,5 @@
 
-let digits        = Array("1234567890".unicodeScalars)
+let digits      = Array("1234567890".unicodeScalars)
 let hexDigits   = digits + Array("abcdefABCDEF".unicodeScalars)
 let opChars     = Array("~!%^&+-*/=<>|?".unicodeScalars)
 let identChars  = Array("_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".unicodeScalars)

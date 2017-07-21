@@ -331,6 +331,20 @@ struct IRGenerator {
         case .litString:
             return builder.buildGlobalStringPtr(node.asStringLiteral.value)
 
+        case .compositeLiteral:
+            let lit = node.asCheckedCompositeLiteral
+            let type = canonicalize(lit.type) as! StructType
+            var ir = type.undef()
+            for field in lit.elements {
+                let val = emitExpr(node: field)
+                ir = builder.buildInsertValue(aggregate: ir, element: val, index: field.asCheckedCompositeLiteralField.field.index)
+            }
+            return ir
+
+        case .compositeLiteralField:
+            let field = node.asCheckedCompositeLiteralField
+            return emitExpr(node: field.value)
+
         case .identifier:
             let ident = node.asCheckedIdentifier
             let stackValue = ident.entity.value!
@@ -355,6 +369,9 @@ struct IRGenerator {
         case .function:
             return emitFunction(named: name, node.asCheckedFunction)
 
+        case .structType, .functionType, .pointerType:
+            return VoidType().null()
+
         case .call:
             return emitCall(node.asCheckedCall)
 
@@ -363,8 +380,8 @@ struct IRGenerator {
             let val = emitExpr(node: cast.arguments.first!)
             return builder.buildCast(cast.cast, value: val, type: canonicalize(cast.type))
 
-        case .memberAccess:
-            let access = node.asCheckedMemberAccess
+        case .access:
+            let access = node.asCheckedAccess
             if access.entity.owningScope.isFile {
                 if access.entity.type!.isFunction {
                     return access.entity.value!
@@ -372,6 +389,18 @@ struct IRGenerator {
                 return builder.buildLoad(access.entity.value!)
             }
             fatalError("Only file entities have child scopes currently")
+
+        case .fieldAccess:
+            let access = node.asCheckedFieldAccess
+
+            let lvalue = emitExpr(node: access.aggregate, returnAddress: true)
+
+            let fieldAddress = builder.buildStructGEP(lvalue, index: access.field.index)
+
+            if returnAddress {
+                return fieldAddress
+            }
+            return builder.buildLoad(fieldAddress)
 
         default:
             fatalError()
@@ -451,6 +480,10 @@ struct IRGenerator {
 
     @discardableResult
     func emitCall(_ call: Checker.Call) -> IRValue {
+
+        if let builtinFunction = call.builtinFunction {
+            return builtinFunction.generate(builtinFunction, call.arguments, module, builder)
+        }
 
         var callee: IRValue
         if let specialization = call.specialization {
@@ -738,13 +771,26 @@ func canonicalize(_ type: Type) -> IRType {
         for param in requiredParams {
 
             if !param.isCVargAny {
-                paramTypes.append(canonicalize(param))
+                let type = canonicalize(param)
+                paramTypes.append(type)
             }
         }
 
         let retType = canonicalize(fn.returnType)
 
         return FunctionType(argTypes: paramTypes, returnType: retType, isVarArg: fn.isCVariadic)
+
+    case .struct:
+        let strućt = type.asStruct
+
+        var fieldTypes: [IRType] = []
+
+        for field in strućt.fields {
+            let type = canonicalize(field.type)
+            fieldTypes.append(type)
+        }
+
+        return StructType(elementTypes: fieldTypes, isPacked: false)
 
     case .tuple:
         let tuple = type.asTuple

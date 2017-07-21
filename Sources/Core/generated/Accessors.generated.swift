@@ -4,6 +4,25 @@
 
 extension AstNode {
 
+    var asAccess: CommonAccess {
+        get {
+            assert(kind == AstNode.Access.astKind)
+            return value as! CommonAccess
+        }
+        set {
+            self.value = newValue
+        }
+    }
+    var asUncheckedAccess: AstNode.Access {
+        get {
+            assert(kind == AstNode.Access.astKind)
+            return value as! AstNode.Access
+        }
+        set {
+            value = newValue
+        }
+    }
+
     var asAssign: CommonAssign {
         get {
             assert(kind == AstNode.Assign.astKind)
@@ -131,6 +150,44 @@ extension AstNode {
         get {
             assert(kind == AstNode.CompileTime.astKind)
             return value as! AstNode.CompileTime
+        }
+        set {
+            value = newValue
+        }
+    }
+
+    var asCompositeLiteral: CommonCompositeLiteral {
+        get {
+            assert(kind == AstNode.CompositeLiteral.astKind)
+            return value as! CommonCompositeLiteral
+        }
+        set {
+            self.value = newValue
+        }
+    }
+    var asUncheckedCompositeLiteral: AstNode.CompositeLiteral {
+        get {
+            assert(kind == AstNode.CompositeLiteral.astKind)
+            return value as! AstNode.CompositeLiteral
+        }
+        set {
+            value = newValue
+        }
+    }
+
+    var asCompositeLiteralField: CommonCompositeLiteralField {
+        get {
+            assert(kind == AstNode.CompositeLiteralField.astKind)
+            return value as! CommonCompositeLiteralField
+        }
+        set {
+            self.value = newValue
+        }
+    }
+    var asUncheckedCompositeLiteralField: AstNode.CompositeLiteralField {
+        get {
+            assert(kind == AstNode.CompositeLiteralField.astKind)
+            return value as! AstNode.CompositeLiteralField
         }
         set {
             value = newValue
@@ -460,25 +517,6 @@ extension AstNode {
         }
     }
 
-    var asMemberAccess: CommonMemberAccess {
-        get {
-            assert(kind == AstNode.MemberAccess.astKind)
-            return value as! CommonMemberAccess
-        }
-        set {
-            self.value = newValue
-        }
-    }
-    var asUncheckedMemberAccess: AstNode.MemberAccess {
-        get {
-            assert(kind == AstNode.MemberAccess.astKind)
-            return value as! AstNode.MemberAccess
-        }
-        set {
-            value = newValue
-        }
-    }
-
     var asParameter: CommonParameter {
         get {
             assert(kind == AstNode.Parameter.astKind)
@@ -593,6 +631,25 @@ extension AstNode {
         }
     }
 
+    var asStructType: CommonStructType {
+        get {
+            assert(kind == AstNode.StructType.astKind)
+            return value as! CommonStructType
+        }
+        set {
+            self.value = newValue
+        }
+    }
+    var asUncheckedStructType: AstNode.StructType {
+        get {
+            assert(kind == AstNode.StructType.astKind)
+            return value as! AstNode.StructType
+        }
+        set {
+            value = newValue
+        }
+    }
+
     var asSwitch: CommonSwitch {
         get {
             assert(kind == AstNode.Switch.astKind)
@@ -625,6 +682,16 @@ extension AstNode {
         get {
             assert(kind == AstNode.Variadic.astKind)
             return value as! AstNode.Variadic
+        }
+        set {
+            value = newValue
+        }
+    }
+
+    var asCheckedAccess: Checker.Access {
+        get {
+            assert(kind == Checker.Access.astKind)
+            return value as! Checker.Access
         }
         set {
             value = newValue
@@ -681,6 +748,26 @@ extension AstNode {
         }
     }
 
+    var asCheckedCompositeLiteral: Checker.CompositeLiteral {
+        get {
+            assert(kind == Checker.CompositeLiteral.astKind)
+            return value as! Checker.CompositeLiteral
+        }
+        set {
+            value = newValue
+        }
+    }
+
+    var asCheckedCompositeLiteralField: Checker.CompositeLiteralField {
+        get {
+            assert(kind == Checker.CompositeLiteralField.astKind)
+            return value as! Checker.CompositeLiteralField
+        }
+        set {
+            value = newValue
+        }
+    }
+
     var asCheckedContinue: Checker.Continue {
         get {
             assert(kind == Checker.Continue.astKind)
@@ -705,6 +792,16 @@ extension AstNode {
         get {
             assert(kind == Checker.Fallthrough.astKind)
             return value as! Checker.Fallthrough
+        }
+        set {
+            value = newValue
+        }
+    }
+
+    var asCheckedFieldAccess: Checker.FieldAccess {
+        get {
+            assert(kind == Checker.FieldAccess.astKind)
+            return value as! Checker.FieldAccess
         }
         set {
             value = newValue
@@ -781,16 +878,6 @@ extension AstNode {
         }
     }
 
-    var asCheckedMemberAccess: Checker.MemberAccess {
-        get {
-            assert(kind == Checker.MemberAccess.astKind)
-            return value as! Checker.MemberAccess
-        }
-        set {
-            value = newValue
-        }
-    }
-
     var asCheckedParameter: Checker.Parameter {
         get {
             assert(kind == Checker.Parameter.astKind)
@@ -851,6 +938,16 @@ extension AstNode {
         }
     }
 
+    var asCheckedStructType: Checker.StructType {
+        get {
+            assert(kind == Checker.StructType.astKind)
+            return value as! Checker.StructType
+        }
+        set {
+            value = newValue
+        }
+    }
+
     var asCheckedSwitch: Checker.Switch {
         get {
             assert(kind == Checker.Switch.astKind)
@@ -862,6 +959,13 @@ extension AstNode {
     }
 }
 
+
+protocol CommonAccess: AstValue {
+
+    var aggregate: AstNode { get }
+    var member: AstNode { get }
+    var memberName: String { get }
+}
 
 protocol CommonAssign: AstValue {
 
@@ -901,6 +1005,18 @@ protocol CommonComment: AstValue {
 protocol CommonCompileTime: AstValue {
 
     var stmt: AstNode { get }
+}
+
+protocol CommonCompositeLiteral: AstValue {
+
+    var typeNode: AstNode { get set }
+    var elements: [AstNode] { get set }
+}
+
+protocol CommonCompositeLiteralField: AstValue {
+
+    var identifier: AstNode? { get set }
+    var value: AstNode { get set }
 }
 
 protocol CommonContinue: AstValue {
@@ -1007,13 +1123,6 @@ protocol CommonList: AstValue {
     var values: [AstNode] { get }
 }
 
-protocol CommonMemberAccess: AstValue {
-
-    var aggregate: AstNode { get }
-    var member: AstNode { get }
-    var memberName: String { get }
-}
-
 protocol CommonParameter: AstValue {
 
     var name: AstNode { get set }
@@ -1046,6 +1155,11 @@ protocol CommonStringLiteral: AstValue {
     var value: String { get }
 }
 
+protocol CommonStructType: AstValue {
+
+    var declarations: [AstNode] { get }
+}
+
 protocol CommonSwitch: AstValue {
 
     var label: AstNode? { get set }
@@ -1059,6 +1173,7 @@ protocol CommonVariadic: AstValue {
     var cCompatible: Bool { get set }
 }
 
+extension AstNode.Access: CommonAccess {}
 extension AstNode.Assign: CommonAssign {}
 extension AstNode.Block: CommonBlock {}
 extension AstNode.Break: CommonBreak {}
@@ -1066,6 +1181,8 @@ extension AstNode.Call: CommonCall {}
 extension AstNode.Case: CommonCase {}
 extension AstNode.Comment: CommonComment {}
 extension AstNode.CompileTime: CommonCompileTime {}
+extension AstNode.CompositeLiteral: CommonCompositeLiteral {}
+extension AstNode.CompositeLiteralField: CommonCompositeLiteralField {}
 extension AstNode.Continue: CommonContinue {}
 extension AstNode.Declaration: CommonDeclaration {}
 extension AstNode.Empty: CommonEmpty {}
@@ -1083,19 +1200,22 @@ extension AstNode.IntegerLiteral: CommonIntegerLiteral {}
 extension AstNode.Invalid: CommonInvalid {}
 extension AstNode.Library: CommonLibrary {}
 extension AstNode.List: CommonList {}
-extension AstNode.MemberAccess: CommonMemberAccess {}
 extension AstNode.Parameter: CommonParameter {}
 extension AstNode.Paren: CommonParen {}
 extension AstNode.PointerType: CommonPointerType {}
 extension AstNode.Prefix: CommonPrefix {}
 extension AstNode.Return: CommonReturn {}
 extension AstNode.StringLiteral: CommonStringLiteral {}
+extension AstNode.StructType: CommonStructType {}
 extension AstNode.Switch: CommonSwitch {}
 extension AstNode.Variadic: CommonVariadic {}
+extension Checker.Access: CommonAccess {}
 extension Checker.Block: CommonBlock {}
 extension Checker.Break: CommonBreak {}
 extension Checker.Call: CommonCall {}
 extension Checker.Case: CommonCase {}
+extension Checker.CompositeLiteral: CommonCompositeLiteral {}
+extension Checker.CompositeLiteralField: CommonCompositeLiteralField {}
 extension Checker.Continue: CommonContinue {}
 extension Checker.Declaration: CommonDeclaration {}
 extension Checker.Fallthrough: CommonFallthrough {}
@@ -1106,12 +1226,12 @@ extension Checker.FunctionType: CommonFunctionType {}
 extension Checker.Identifier: CommonIdentifier {}
 extension Checker.Infix: CommonInfix {}
 extension Checker.IntegerLiteral: CommonIntegerLiteral {}
-extension Checker.MemberAccess: CommonMemberAccess {}
 extension Checker.Parameter: CommonParameter {}
 extension Checker.Paren: CommonParen {}
 extension Checker.PointerType: CommonPointerType {}
 extension Checker.Prefix: CommonPrefix {}
 extension Checker.StringLiteral: CommonStringLiteral {}
+extension Checker.StructType: CommonStructType {}
 extension Checker.Switch: CommonSwitch {}
 
 extension Type {
@@ -1154,6 +1274,10 @@ extension Type {
 
     var asPolymorphic: Type.Polymorphic {
         return value as! Type.Polymorphic
+    }
+
+    var asStruct: Type.Struct {
+        return value as! Type.Struct
     }
 
     var asTuple: Type.Tuple {

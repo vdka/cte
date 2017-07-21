@@ -51,7 +51,7 @@ protocol Common{{ type.localName }}: AstValue {
 {% endfor %}
 
 {% for type in types.implementing.AstValue|!protocol %}
-{% if type.localName != "PolymorphicFunction" and type.localName != "Cast" %}
+{% if type.localName != "PolymorphicFunction" and type.localName != "Cast" and type.localName != "FieldAccess" %}
 extension {{ type.name }}: Common{{ type.localName }} {}
 {% endif %}
 {% endfor %}

@@ -28,6 +28,16 @@ extension AstNode: CustomStringConvertible {
         case .litInteger:
             return asIntegerLiteral.value.description
 
+        case .compositeLiteral:
+            let elements = asCompositeLiteral.elements.map({ $0.description }).joined(separator: ", ")
+            return asCompositeLiteral.typeNode.description + " { " + elements + " }"
+
+        case .compositeLiteralField:
+            if let name = asCompositeLiteralField.identifier {
+                return name.description + ": " + asCompositeLiteralField.value.description
+            }
+            return asCompositeLiteralField.value.description
+
         case .function, .polymorphicFunction:
             let fn = value as! CommonFunction
             let parameterList = fn.parameters
@@ -58,6 +68,9 @@ extension AstNode: CustomStringConvertible {
         case .pointerType:
             return "*" + asPointerType.pointee.description
 
+        case .structType:
+            return "struct {\n" + asStructType.declarations.map({ "    " + $0.description }).joined(separator: "\n") + "\n}"
+
         case .compileTime:
             return "$" + asCompileTime.stmt.description
 
@@ -67,11 +80,11 @@ extension AstNode: CustomStringConvertible {
 
             var values = ""
             if !d.values.isEmpty {
-                values = d.values.map({ $0.description }).joined(separator: ", ")
+                values = (d.type == nil ? "= " : " = ") + d.values.map({ $0.description }).joined(separator: ", ")
             }
 
             if let type = d.type {
-                return (d.isCompileTime ? "$" : "") + names + ": " + type.description + " = " + values
+                return (d.isCompileTime ? "$" : "") + names + ": " + type.description + values
             }
             return names + (d.isCompileTime ? " :: " : " := ") + values
 
@@ -104,8 +117,8 @@ extension AstNode: CustomStringConvertible {
 
             return callee + "(" + arguments + ")"
 
-        case .memberAccess:
-            return asMemberAccess.aggregate.description + "." + asMemberAccess.member.description
+        case .access, .fieldAccess:
+            return asAccess.aggregate.description + "." + asAccess.member.description
 
         case .block:
             let block = asBlock

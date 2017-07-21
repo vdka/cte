@@ -7,6 +7,12 @@ extension AstValue {
     func copy() -> AstValue {
         switch self {
 
+        case let value as AstNode.Access:
+            return AstNode.Access(
+                aggregate: value.aggregate.copy(),
+                member: value.member.copy()
+        )
+
         case let value as AstNode.Assign:
             return AstNode.Assign(
                 lvalues: value.lvalues.map({ $0.copy() }),
@@ -45,6 +51,18 @@ extension AstValue {
         case let value as AstNode.CompileTime:
             return AstNode.CompileTime(
                 stmt: value.stmt.copy()
+        )
+
+        case let value as AstNode.CompositeLiteral:
+            return AstNode.CompositeLiteral(
+                typeNode: value.typeNode.copy(),
+                elements: value.elements.map({ $0.copy() })
+        )
+
+        case let value as AstNode.CompositeLiteralField:
+            return AstNode.CompositeLiteralField(
+                identifier: value.identifier?.copy(),
+                value: value.value.copy()
         )
 
         case let value as AstNode.Continue:
@@ -148,12 +166,6 @@ extension AstValue {
                 values: value.values.map({ $0.copy() })
         )
 
-        case let value as AstNode.MemberAccess:
-            return AstNode.MemberAccess(
-                aggregate: value.aggregate.copy(),
-                member: value.member.copy()
-        )
-
         case let value as AstNode.Parameter:
             return AstNode.Parameter(
                 name: value.name.copy(),
@@ -186,6 +198,11 @@ extension AstValue {
                 value: value.value
         )
 
+        case let value as AstNode.StructType:
+            return AstNode.StructType(
+                declarations: value.declarations.map({ $0.copy() })
+        )
+
         case let value as AstNode.Switch:
             return AstNode.Switch(
                 label: value.label?.copy(),
@@ -197,6 +214,13 @@ extension AstValue {
             return AstNode.Variadic(
                 type: value.type.copy(),
                 cCompatible: value.cCompatible
+        )
+
+        case let value as Checker.Access:
+            return Checker.Access(
+                aggregate: value.aggregate.copy(),
+                member: value.member.copy(),
+                entity: value.entity.copy()
         )
 
         case let value as Checker.Block:
@@ -218,6 +242,7 @@ extension AstValue {
                 callee: value.callee.copy(),
                 arguments: value.arguments.map({ $0.copy() }),
                 specialization: value.specialization?.copy(),
+                builtinFunction: value.builtinFunction?.copy(),
                 type: value.type.copy()
         )
 
@@ -235,6 +260,21 @@ extension AstValue {
                 arguments: value.arguments.map({ $0.copy() }),
                 type: value.type.copy(),
                 cast: value.cast
+        )
+
+        case let value as Checker.CompositeLiteral:
+            return Checker.CompositeLiteral(
+                typeNode: value.typeNode.copy(),
+                elements: value.elements.map({ $0.copy() }),
+                type: value.type.copy()
+        )
+
+        case let value as Checker.CompositeLiteralField:
+            return Checker.CompositeLiteralField(
+                identifier: value.identifier?.copy(),
+                value: value.value.copy(),
+                field: value.field,
+                type: value.type.copy()
         )
 
         case let value as Checker.Continue:
@@ -256,6 +296,13 @@ extension AstValue {
         case let value as Checker.Fallthrough:
             return Checker.Fallthrough(
                 target: value.target.copy()
+        )
+
+        case let value as Checker.FieldAccess:
+            return Checker.FieldAccess(
+                aggregate: value.aggregate.copy(),
+                member: value.member.copy(),
+                field: value.field
         )
 
         case let value as Checker.FloatLiteral:
@@ -316,19 +363,11 @@ extension AstValue {
                 type: value.type.copy()
         )
 
-        case let value as Checker.MemberAccess:
-            return Checker.MemberAccess(
-                aggregate: value.aggregate.copy(),
-                member: value.member.copy(),
-                entity: value.entity.copy()
-        )
-
         case let value as Checker.Parameter:
             return Checker.Parameter(
                 name: value.name.copy(),
                 type: value.type.copy(),
-                entity: value.entity.copy(),
-                implicitPolymorphicTypeEntity: value.implicitPolymorphicTypeEntity?.copy()
+                entity: value.entity.copy()
         )
 
         case let value as Checker.Paren:
@@ -364,6 +403,12 @@ extension AstValue {
         case let value as Checker.StringLiteral:
             return Checker.StringLiteral(
                 value: value.value,
+                type: value.type.copy()
+        )
+
+        case let value as Checker.StructType:
+            return Checker.StructType(
+                declarations: value.declarations.map({ $0.copy() }),
                 type: value.type.copy()
         )
 
@@ -446,6 +491,14 @@ extension SourceFile {
 
     func copy() -> SourceFile {
         // no need to copy SourceFiles
+        return self
+    }
+}
+
+extension BuiltinFunction {
+
+    func copy() -> BuiltinFunction {
+        // no need to copy BuiltinFunctions
         return self
     }
 }
