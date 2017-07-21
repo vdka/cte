@@ -22,8 +22,7 @@ extension AstValue {
         case let value as AstNode.Block:
             return AstNode.Block(
                 stmts: value.stmts.map({ $0.copy() }),
-                isForeign: value.isForeign,
-                isFunction: value.isFunction
+                flags: value.flags
         )
 
         case let value as AstNode.Break:
@@ -226,8 +225,7 @@ extension AstValue {
         case let value as Checker.Block:
             return Checker.Block(
                 stmts: value.stmts.map({ $0.copy() }),
-                isForeign: value.isForeign,
-                isFunction: value.isFunction,
+                flags: value.flags,
                 scope: value.scope.copy()
         )
 

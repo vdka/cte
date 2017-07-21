@@ -976,8 +976,7 @@ protocol CommonAssign: AstValue {
 protocol CommonBlock: AstValue {
 
     var stmts: [AstNode] { get }
-    var isForeign: Bool { get set }
-    var isFunction: Bool { get set }
+    var flags: BlockFlag { get set }
 }
 
 protocol CommonBreak: AstValue {

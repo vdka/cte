@@ -88,6 +88,9 @@ struct IRGenerator {
                     if let type = type as? FunctionType {
                         let function = builder.addFunction(name, type: type)
                         entity.value = function
+                        if decl.isSpecificCallingConvention {
+                            function.callingConvention = decl.flags.callingConvention
+                        }
                         return
                     }
 

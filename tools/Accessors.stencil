@@ -44,7 +44,7 @@ extension AstNode {
 protocol Common{{ type.localName }}: AstValue {
 
     {% for var in type.instanceVariables %}
-    var {{ var.name }}: {{ var.typeName }} { get{% if var.isMutable %} set{% endif %} }
+    var {{ var.name }}: {{ var.actualTypeName }} { get{% if var.isMutable %} set{% endif %} }
     {% endfor %}
 }
 {% endif %}

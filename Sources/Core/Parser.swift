@@ -1,4 +1,6 @@
 
+import enum LLVM.CallingConvention
+
 struct Parser {
 
     var file: SourceFile
@@ -49,12 +51,14 @@ struct Parser {
         case parseSwitchBody
         case parseDeferExpr
         case parseForeignDirectiveBody
+        case parseCallingConventionDirectiveBody
         case parseParamIdentifiers
         case parseCompositeLitElements
         case parseForStmts
+        case parseBlock
     }
 
-    mutating func pushContext(changingStateTo stateChange: StateChange) {
+    mutating func pushContext(changingStateTo stateChange: StateChange, willEnsureTerminated: Bool = false) {
 
         var state = context.state
 
@@ -78,12 +82,20 @@ struct Parser {
             state = []
         case .parseForeignDirectiveBody:
             state = [.permitAssignOrDecl, .foreign]
+        case .parseCallingConventionDirectiveBody:
+            state = [.permitAssignOrDecl, .foreign]
         case .parseParamIdentifiers:
             state = [.permitExprList]
         case .parseCompositeLitElements:
             state = [.permitCompositeLit]
         case .parseForStmts:
             state = [.permitExprList, .permitAssignOrDecl, .leaveTerminators]
+        case .parseBlock:
+            state = state.subtracting(.leaveTerminators)
+        }
+
+        if willEnsureTerminated {
+            state.insert(.leaveTerminators)
         }
 
         let newContext = Context(state: state, previous: context)
@@ -201,6 +213,7 @@ struct Parser {
             return AstNode(integerLit, tokens: [token])
 
         case .lbrace:
+            pushContext(changingStateTo: .parseBlock)
             let lbrace = advance()
             consumeNewlines()
 
@@ -217,9 +230,15 @@ struct Parser {
             }
 
             let rbrace = advance(expecting: .rbrace)
+            popContext()
 
-            let stmtBlock = AstNode.Block(stmts: stmts, isForeign: false, isFunction: context.state.contains(.functionBody))
-            return AstNode(stmtBlock, tokens: [lbrace, rbrace])
+            var flags: BlockFlag = []
+            if context.state.contains(.functionBody) {
+                flags.insert(.function)
+            }
+
+            let value = AstNode.Block(stmts: stmts, flags: flags)
+            return AstNode(value, tokens: [lbrace, rbrace])
 
         case .ellipsis:
             let ellispsis = advance()
@@ -463,8 +482,8 @@ struct Parser {
                 }
             }
 
-            let blockValue = AstNode.Block(stmts: stmts, isForeign: false, isFunction: false)
-            let block = AstNode(blockValue, tokens: [colon])
+            let value = AstNode.Block(stmts: stmts, flags: [])
+            let block = AstNode(value, tokens: [colon])
             let ćase = AstNode.Case(condition: match, block: block)
             return AstNode(ćase, tokens: [startToken, colon])
 
@@ -620,21 +639,84 @@ struct Parser {
                 return AstNode.invalid
             }
 
-            pushContext(changingStateTo: .parseForeignDirectiveBody)
+            pushContext(changingStateTo: .parseForeignDirectiveBody, willEnsureTerminated: true)
             let stmt = expression()
             popContext()
 
+            expectTerminator()
+
             if stmt.kind == .declaration {
                 stmt.asDeclaration.flags.insert(.foreign)
+                if !stmt.asDeclaration.isSpecificCallingConvention {
+                    stmt.asDeclaration.flags.callingConvention = .c
+                }
             } else if stmt.kind == .block {
-                stmt.asBlock.isForeign = true
+                stmt.asBlock.flags.insert(.foreign)
+                if !stmt.asBlock.isSpecificCallingConvention {
+                    stmt.asBlock.flags.callingConvention = .c
+                }
             } else {
                 reportError("Expected a declaration or block of declarations", at: stmt)
             }
 
             stmt.tokens.insert(directive, at: 0)
 
+            return stmt
+
+        case .directiveCallingConvention:
+            let directive = advance()
+            consumeNewlines()
+
+            pushContext(changingStateTo: .parseCallingConventionDirectiveBody, willEnsureTerminated: true)
+            let convention = expression()
+            popContext()
+
+            guard convention.kind == .litString else {
+                reportError("Expected string for calling convention", at: convention)
+                let valid = ["c", "fast", "cold", "webKitJS", "anyReg", "x86Stdcall", "x86Fastcall"]
+                attachNote("NOTE: Valid calling conventions are:\n" + valid.map({ "    " + $0 }).joined(separator: "\t"))
+                return AstNode.invalid
+            }
+
+            var callingConvention: CallingConvention
+            switch convention.asStringLiteral.value {
+            case "c":
+                callingConvention = .c
+            case "fast":
+                callingConvention = .fast
+            case "cold":
+                callingConvention = .cold
+            case "webKitJS":
+                callingConvention = .webKitJS
+            case "anyReg":
+                callingConvention = .anyReg
+            case "x86Stdcall":
+                callingConvention = .x86Stdcall
+            case "x86Fastcall":
+                callingConvention = .x86Fastcall
+            default:
+                reportError("Unrecognized calling convention \(convention)", at: convention)
+                let valid = ["c", "fast", "cold", "webKitJS", "anyReg", "x86Stdcall", "x86Fastcall"]
+                attachNote("NOTE: Valid calling conventions are:\n" + valid.map({ "    " + $0 }).joined(separator: "\t"))
+
+                callingConvention = .c
+            }
+
+            pushContext(changingStateTo: .parseForeignDirectiveBody)
+            let stmt = expression()
+            popContext()
+
             expectTerminator()
+
+            if stmt.kind == .declaration {
+                stmt.asDeclaration.flags.callingConvention = callingConvention
+            } else if stmt.kind == .block {
+                stmt.asBlock.flags.callingConvention = callingConvention
+            } else {
+                reportError("Expected a declaration or block of declarations", at: stmt)
+            }
+
+            stmt.tokens.insert(directive, at: 0)
 
             return stmt
 

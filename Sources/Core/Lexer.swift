@@ -222,11 +222,12 @@ struct Lexer {
                 case "break":        kind = .keywordBreak
                 case "continue":     kind = .keywordContinue
                 case "fallthrough":  kind = .keywordFallthrough
+                case "#cvargs":      kind = .directiveCvargs
                 case "#import":      kind = .directiveImport
                 case "#library":     kind = .directiveLibrary
                 case "#foreign":     kind = .directiveForeign
                 case "#discardable": kind = .directiveDiscardable
-                case "#cvargs":      kind = .directiveCvargs
+                case "#callingConvention":  kind = .directiveCallingConvention
                 default:
                     kind = .ident
                     value = string
@@ -466,6 +467,7 @@ extension Token {
         case directiveLinkname
         case directiveDiscardable
         case directiveCvargs
+        case directiveCallingConvention
     }
 }
 
@@ -558,7 +560,8 @@ extension Token: CustomStringConvertible {
         case .directiveForeign: fallthrough
         case .directiveLinkname: fallthrough
         case .directiveDiscardable: fallthrough
-        case .directiveCvargs:
+        case .directiveCvargs: fallthrough
+        case .directiveCallingConvention:
             return kind.description
         }
     }
@@ -615,6 +618,7 @@ extension Token.Kind: CustomStringConvertible {
         case .directiveLinkname: return "#linkname"
         case .directiveDiscardable: return "#discardable"
         case .directiveCvargs: return "#cvargs"
+        case .directiveCallingConvention: return "#callingConvention"
         case .invalid, .comment, .ident, .float, .integer, .string:
             fatalError()
         }

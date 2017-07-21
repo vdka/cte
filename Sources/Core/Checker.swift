@@ -295,10 +295,13 @@ extension Checker {
                     }
                     node.asDeclaration.flags.insert(.foreign)
                 }
+                if block.flags.contains(.specificCallingConvention) {
+                    node.asDeclaration.flags.callingConvention = block.flags.callingConvention
+                }
                 check(node: node)
             }
 
-            node.value = Block(stmts: block.stmts, isForeign: block.isForeign, isFunction: block.isFunction, scope: context.scope)
+            node.value = Block(stmts: block.stmts, flags: block.flags, scope: context.scope)
 
             if !(block.isForeign || block.isFunction) {
                 popContext()
@@ -1680,8 +1683,7 @@ extension Checker {
         typealias UncheckedValue = AstNode.Block
 
         let stmts: [AstNode]
-        var isForeign: Bool
-        var isFunction: Bool
+        var flags: BlockFlag = []
         let scope: Scope
     }
 
