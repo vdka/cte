@@ -669,6 +669,25 @@ extension AstNode {
         }
     }
 
+    var asUnionType: CommonUnionType {
+        get {
+            assert(kind == AstNode.UnionType.astKind)
+            return value as! CommonUnionType
+        }
+        set {
+            self.value = newValue
+        }
+    }
+    var asUncheckedUnionType: AstNode.UnionType {
+        get {
+            assert(kind == AstNode.UnionType.astKind)
+            return value as! AstNode.UnionType
+        }
+        set {
+            value = newValue
+        }
+    }
+
     var asVariadic: CommonVariadic {
         get {
             assert(kind == AstNode.Variadic.astKind)
@@ -792,16 +811,6 @@ extension AstNode {
         get {
             assert(kind == Checker.Fallthrough.astKind)
             return value as! Checker.Fallthrough
-        }
-        set {
-            value = newValue
-        }
-    }
-
-    var asCheckedFieldAccess: Checker.FieldAccess {
-        get {
-            assert(kind == Checker.FieldAccess.astKind)
-            return value as! Checker.FieldAccess
         }
         set {
             value = newValue
@@ -938,6 +947,16 @@ extension AstNode {
         }
     }
 
+    var asCheckedStructFieldAccess: Checker.StructFieldAccess {
+        get {
+            assert(kind == Checker.StructFieldAccess.astKind)
+            return value as! Checker.StructFieldAccess
+        }
+        set {
+            value = newValue
+        }
+    }
+
     var asCheckedStructType: Checker.StructType {
         get {
             assert(kind == Checker.StructType.astKind)
@@ -952,6 +971,26 @@ extension AstNode {
         get {
             assert(kind == Checker.Switch.astKind)
             return value as! Checker.Switch
+        }
+        set {
+            value = newValue
+        }
+    }
+
+    var asCheckedUnionFieldAccess: Checker.UnionFieldAccess {
+        get {
+            assert(kind == Checker.UnionFieldAccess.astKind)
+            return value as! Checker.UnionFieldAccess
+        }
+        set {
+            value = newValue
+        }
+    }
+
+    var asCheckedUnionType: Checker.UnionType {
+        get {
+            assert(kind == Checker.UnionType.astKind)
+            return value as! Checker.UnionType
         }
         set {
             value = newValue
@@ -1166,6 +1205,11 @@ protocol CommonSwitch: AstValue {
     var cases: [AstNode] { get }
 }
 
+protocol CommonUnionType: AstValue {
+
+    var declarations: [AstNode] { get }
+}
+
 protocol CommonVariadic: AstValue {
 
     var type: AstNode { get }
@@ -1207,6 +1251,7 @@ extension AstNode.Return: CommonReturn {}
 extension AstNode.StringLiteral: CommonStringLiteral {}
 extension AstNode.StructType: CommonStructType {}
 extension AstNode.Switch: CommonSwitch {}
+extension AstNode.UnionType: CommonUnionType {}
 extension AstNode.Variadic: CommonVariadic {}
 extension Checker.Access: CommonAccess {}
 extension Checker.Block: CommonBlock {}
@@ -1232,6 +1277,7 @@ extension Checker.Prefix: CommonPrefix {}
 extension Checker.StringLiteral: CommonStringLiteral {}
 extension Checker.StructType: CommonStructType {}
 extension Checker.Switch: CommonSwitch {}
+extension Checker.UnionType: CommonUnionType {}
 
 extension Type {
 
@@ -1281,6 +1327,10 @@ extension Type {
 
     var asTuple: Type.Tuple {
         return value as! Type.Tuple
+    }
+
+    var asUnion: Type.Union {
+        return value as! Type.Union
     }
 
     var asVoid: Type.Void {

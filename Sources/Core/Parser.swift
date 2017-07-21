@@ -26,7 +26,7 @@ struct Parser {
     }
 
     struct State: OptionSet {
-        let rawValue: UInt8
+        let rawValue: UInt16
 
         static let permitExprList       = State(rawValue: 0b0000_0001)
         static let permitAssignOrDecl   = State(rawValue: 0b0000_0010)
@@ -35,8 +35,9 @@ struct Parser {
 
         static let functionBody         = State(rawValue: 0b0001_0000)
         static let structBody           = State(rawValue: 0b0010_0011)
-        static let foreign              = State(rawValue: 0b0100_0000)
-        static let leaveTerminators     = State(rawValue: 0b1000_0000)
+        static let unionBody            = State(rawValue: 0b0100_0010)
+        static let foreign              = State(rawValue: 0b1100_0000)
+        static let leaveTerminators     = State(rawValue: 0b0000_0001 << 8)
 
         static let `default`            = [.permitExprList, .permitAssignOrDecl] as State
     }
@@ -48,6 +49,7 @@ struct Parser {
         case parseDeclValue
         case parseFunctionBody
         case parseStruct
+        case parseUnion
         case parseSwitchBody
         case parseDeferExpr
         case parseForeignDirectiveBody
@@ -76,6 +78,8 @@ struct Parser {
             state.insert(.functionBody)
         case .parseStruct:
             state = .structBody
+        case .parseUnion:
+            state = .unionBody
         case .parseSwitchBody:
             state.insert(.permitCase)
         case .parseDeferExpr:
@@ -184,6 +188,8 @@ struct Parser {
 
         case .comment:
             advance()
+
+            consumeNewlines()
 
             let comment = AstNode.Comment(comment: token.stringValue)
             return AstNode(comment, tokens: [token])
@@ -567,6 +573,21 @@ struct Parser {
 
             let value = AstNode.StructType(declarations: body.asBlock.stmts)
             return AstNode(value, tokens: [strućt] + body.tokens)
+
+        case .keywordUnion:
+            let union = advance()
+
+            guard lexer.peek()?.kind == .lbrace else {
+                reportError("Expected '{' to follow 'union'", at: union)
+                return AstNode.invalid
+            }
+
+            pushContext(changingStateTo: .parseUnion)
+            let body = expression()
+            popContext()
+
+            let value = AstNode.UnionType(declarations: body.asBlock.stmts)
+            return AstNode(value, tokens: [union] + body.tokens)
 
         case .directiveImport:
             let directive = advance()

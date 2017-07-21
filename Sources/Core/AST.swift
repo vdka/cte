@@ -49,7 +49,8 @@ enum AstKind {
     case call
     case cast
     case access
-    case fieldAccess
+    case structFieldAccess
+    case unionFieldAccess
     case block
     case `if`
     case `for`
@@ -61,6 +62,7 @@ enum AstKind {
     case `fallthrough`
     case compileTime
     case structType
+    case unionType
     case pointerType
     case functionType
     case `import`
@@ -185,6 +187,12 @@ extension AstNode {
 
     struct StructType: AstValue {
         static let astKind = AstKind.structType
+
+        let declarations: [AstNode]
+    }
+
+    struct UnionType: AstValue {
+        static let astKind = AstKind.unionType
 
         let declarations: [AstNode]
     }

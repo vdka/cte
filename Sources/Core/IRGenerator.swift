@@ -336,13 +336,29 @@ struct IRGenerator {
 
         case .compositeLiteral:
             let lit = node.asCheckedCompositeLiteral
-            let type = canonicalize(lit.type) as! StructType
-            var ir = type.undef()
-            for field in lit.elements {
-                let val = emitExpr(node: field)
-                ir = builder.buildInsertValue(aggregate: ir, element: val, index: field.asCheckedCompositeLiteralField.field.index)
+
+            switch lit.type.kind {
+            case .struct:
+                let type = canonicalize(lit.type) as! StructType
+                var ir = type.undef()
+                for element in lit.elements {
+                    let field = element.asCheckedCompositeLiteralField
+
+                    let val = emitExpr(node: element)
+                    ir = builder.buildInsertValue(aggregate: ir, element: val, index: field.structField!.index)
+                }
+                return ir
+
+            case .union:
+                let type = canonicalize(lit.type)
+                var ir = emitExpr(node: lit.elements[0])
+                ir = builder.buildBitCast(ir, type: IntType(width: lit.elements[0].exprType.width!))
+                ir = builder.buildZExtOrBitCast(ir, type: type)
+                return ir
+
+            default:
+                fatalError()
             }
-            return ir
 
         case .compositeLiteralField:
             let field = node.asCheckedCompositeLiteralField
@@ -393,8 +409,8 @@ struct IRGenerator {
             }
             fatalError("Only file entities have child scopes currently")
 
-        case .fieldAccess:
-            let access = node.asCheckedFieldAccess
+        case .structFieldAccess:
+            let access = node.asCheckedStructFieldAccess
 
             let lvalue = emitExpr(node: access.aggregate, returnAddress: true)
 
@@ -404,6 +420,17 @@ struct IRGenerator {
                 return fieldAddress
             }
             return builder.buildLoad(fieldAddress)
+
+        case .unionFieldAccess:
+            let access = node.asCheckedUnionFieldAccess
+
+            var ir = emitExpr(node: access.aggregate, returnAddress: true)
+            ir = builder.buildBitCast(ir, type: PointerType(pointee: canonicalize(node.exprType)))
+
+            if returnAddress {
+                return ir
+            }
+            return builder.buildLoad(ir)
 
         default:
             fatalError()
@@ -794,6 +821,9 @@ func canonicalize(_ type: Type) -> IRType {
         }
 
         return StructType(elementTypes: fieldTypes, isPacked: false)
+
+    case .union:
+        return IntType(width: type.width!)
 
     case .tuple:
         let tuple = type.asTuple

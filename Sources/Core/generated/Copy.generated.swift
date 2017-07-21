@@ -209,6 +209,11 @@ extension AstValue {
                 cases: value.cases.map({ $0.copy() })
         )
 
+        case let value as AstNode.UnionType:
+            return AstNode.UnionType(
+                declarations: value.declarations.map({ $0.copy() })
+        )
+
         case let value as AstNode.Variadic:
             return AstNode.Variadic(
                 type: value.type.copy(),
@@ -271,7 +276,7 @@ extension AstValue {
             return Checker.CompositeLiteralField(
                 identifier: value.identifier?.copy(),
                 value: value.value.copy(),
-                field: value.field,
+                structField: value.structField,
                 type: value.type.copy()
         )
 
@@ -294,13 +299,6 @@ extension AstValue {
         case let value as Checker.Fallthrough:
             return Checker.Fallthrough(
                 target: value.target.copy()
-        )
-
-        case let value as Checker.FieldAccess:
-            return Checker.FieldAccess(
-                aggregate: value.aggregate.copy(),
-                member: value.member.copy(),
-                field: value.field
         )
 
         case let value as Checker.FloatLiteral:
@@ -404,6 +402,13 @@ extension AstValue {
                 type: value.type.copy()
         )
 
+        case let value as Checker.StructFieldAccess:
+            return Checker.StructFieldAccess(
+                aggregate: value.aggregate.copy(),
+                member: value.member.copy(),
+                field: value.field
+        )
+
         case let value as Checker.StructType:
             return Checker.StructType(
                 declarations: value.declarations.map({ $0.copy() }),
@@ -416,6 +421,19 @@ extension AstValue {
                 subject: value.subject?.copy(),
                 cases: value.cases.map({ $0.copy() }),
                 breakTarget: value.breakTarget.copy()
+        )
+
+        case let value as Checker.UnionFieldAccess:
+            return Checker.UnionFieldAccess(
+                aggregate: value.aggregate.copy(),
+                member: value.member.copy(),
+                field: value.field
+        )
+
+        case let value as Checker.UnionType:
+            return Checker.UnionType(
+                declarations: value.declarations.map({ $0.copy() }),
+                type: value.type.copy()
         )
 
         default:

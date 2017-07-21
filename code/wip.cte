@@ -118,3 +118,16 @@ printf("%s's is of kind %d and is %d bits wide\n", typeof(string).name, typeof(s
 
 printf("%d, %d, %s\n", typeof(u8).kind, typeof(u8).width, typeof(u8).name)
 
+Baz :: union {
+    i: i32
+    f: f32
+    s: string
+    b: struct { a, b: f32; }
+}
+
+baz := Baz { f: 3.14159 }
+
+printf("i = %d\n", baz.i) // 10785300000
+printf("f = %f\n", baz.f) // FIXME: 0.000000
+printf("s = %p\n", baz.s) // 0x40490fd0
+
