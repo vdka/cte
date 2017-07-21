@@ -151,15 +151,12 @@ extension Checker {
                 }
             } else {
 
+                // NOTE: Calls with multiple returns are handled prior
                 for (name, value) in zip(decl.names, decl.values) {
                     var type = checkExpr(node: value, desiredType: expectedType)
                     if name.isDispose {
                         entities.append(Entity.anonymous)
                         continue
-                    }
-
-                    if decl.rvalueIsCall {
-                        type = type.asTuple.types[0]
                     }
 
                     if decl.isForeign, decl.isCompileTime {
@@ -753,12 +750,20 @@ extension Checker {
             }
             context.expectedReturnType = nil
 
-            let isVariadic = fn.flags.contains(.variadic)
-            let functionType = Type.Function(node: node, params: params, returnType: returnType,
-                                             isVariadic: isVariadic, isCVariadic: fn.isCVariadic,
-                                             needsSpecialization: needsSpecialization)
+            var flags: Type.Function.Flag = .none
+            if fn.isVariadic {
+                flags.insert(.variadic)
+            }
+            if fn.isCVariadic {
+                flags.insert(.cVariadic)
+            }
+            if needsSpecialization {
+                flags.insert(.polymorphic)
+            }
 
-            let type = Type(value: functionType, entity: Entity.anonymous)
+            let value = Type.Function(node: node, params: params, returnType: returnType, flags: flags)
+
+            let type = Type(value: value, entity: Entity.anonymous)
 
             if needsSpecialization {
 
@@ -836,9 +841,15 @@ extension Checker {
                 reportError("#discardable on void returning function is superflous", at: node.tokens[0])
             }
 
-            let functionType = Type.Function(node: node, params: params, returnType: returnType,
-                                             isVariadic: fn.isVariadic, isCVariadic: fn.isCVariadic,
-                                             needsSpecialization: false)
+            var flags: Type.Function.Flag = .none
+            if fn.isVariadic {
+                flags.insert(.variadic)
+            }
+            if fn.isCVariadic {
+                flags.insert(.cVariadic)
+            }
+
+            let functionType = Type.Function(node: node, params: params, returnType: returnType, flags: flags)
 
             let instanceType = Type(value: functionType, entity: Entity.anonymous)
             let fnPointerType = Type.makePointer(to: instanceType)
@@ -1122,9 +1133,19 @@ extension Checker {
             }
         }
 
-        node.value = Call(callee: call.callee, arguments: call.arguments, specialization: nil, type: calleeFn.returnType)
+        var builtinFunction: BuiltinFunction?
+        if calleeFn.isBuiltin {
+            builtinFunction = builtinFunctions.first(where: { $0.type === calleeType })!
+        }
 
-        return calleeFn.returnType
+        var returnType = calleeFn.returnType
+        if returnType.asTuple.types.count == 1 {
+            returnType = returnType.asTuple.types[0]
+        }
+
+        node.value = Call(callee: call.callee, arguments: call.arguments, specialization: nil, builtinFunction: builtinFunction, type: returnType)
+
+        return returnType
     }
 
     mutating func checkCast(callNode: AstNode) -> Type {
@@ -1148,10 +1169,6 @@ extension Checker {
 
         defer {
             callNode.value = Cast(callee: call.callee, arguments: call.arguments, type: targetType, cast: cast)
-        }
-
-        if argType.isTuple && argType.asTuple.types.count == 1 {
-            argType = argType.asTuple.types[0]
         }
 
         if argType == targetType {
@@ -1260,7 +1277,7 @@ extension Checker {
             }
 
             let returnType = specialization.strippedType.asFunction.returnType
-            callNode.value = Call(callee: call.callee, arguments: strippedArguments, specialization: specialization, type: returnType)
+            callNode.value = Call(callee: call.callee, arguments: strippedArguments, specialization: specialization, builtinFunction: nil, type: returnType)
 
             return specialization.strippedType.asFunction.returnType
         }
@@ -1291,7 +1308,7 @@ extension Checker {
         let specialization = FunctionSpecialization(specializedTypes: specializationTypes, strippedType: type, generatedFunctionNode: generatedFunctionNode)
 
         let returnType = type.asFunction.returnType
-        callNode.value = Call(callee: call.callee, arguments: strippedArguments, specialization: specialization, type: returnType)
+        callNode.value = Call(callee: call.callee, arguments: strippedArguments, specialization: specialization, builtinFunction: nil, type: returnType)
 
         functionLiteralNode.asCheckedPolymorphicFunction.specializations.append(specialization)
 
@@ -1611,6 +1628,7 @@ extension Checker {
         let arguments: [AstNode]
 
         let specialization: FunctionSpecialization?
+        let builtinFunction: BuiltinFunction?
         let type: Type
     }
 

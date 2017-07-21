@@ -105,11 +105,14 @@ Bar :: struct {
 
 k := 4.0
 
-foo := Foo { k, 3.6}
+foo := Foo { b: k, a: 3.6 }
 
-bar := Bar { foo }
+bar := Bar { Foo { 3.9, 4.3 } }
 
-printf("%f, %f\n", foo.b, foo.a)
-printf("%f, %f\n", bar.foo.b, bar.foo.a)
+printf("%f, %f\n", foo.a, foo.b)
+printf("%f, %f\n", bar.foo.a, bar.foo.b)
 
+// NOTE: On the following 2 calls the kind value *must* be last due to what will otherwise be a misaligned stack pointer
+printf("%s's type is %d bits wide and is of kind %d\n" , typeof(i64).name, typeof(i64).width, typeof(i64).kind)
+printf("%s's type is %d bits wide and is of kind %d\n", typeof(string).name, typeof(string).width, typeof(string).kind)
 

@@ -242,6 +242,7 @@ extension AstValue {
                 callee: value.callee.copy(),
                 arguments: value.arguments.map({ $0.copy() }),
                 specialization: value.specialization?.copy(),
+                builtinFunction: value.builtinFunction?.copy(),
                 type: value.type.copy()
         )
 
@@ -490,6 +491,14 @@ extension SourceFile {
 
     func copy() -> SourceFile {
         // no need to copy SourceFiles
+        return self
+    }
+}
+
+extension BuiltinFunction {
+
+    func copy() -> BuiltinFunction {
+        // no need to copy BuiltinFunctions
         return self
     }
 }

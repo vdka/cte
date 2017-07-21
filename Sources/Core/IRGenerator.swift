@@ -481,6 +481,10 @@ struct IRGenerator {
     @discardableResult
     func emitCall(_ call: Checker.Call) -> IRValue {
 
+        if let builtinFunction = call.builtinFunction {
+            return builtinFunction.generate(builtinFunction, call.arguments, module, builder)
+        }
+
         var callee: IRValue
         if let specialization = call.specialization {
             callee = specialization.llvm!

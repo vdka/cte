@@ -30,6 +30,9 @@ extension Type {
     static let i64 = BuiltinType.i64.type
 }
 
+let builtinFunctions = [
+    BuiltinFunction.typeof,
+]
 
 let builtinTypes = [
     BuiltinType.void,
@@ -42,5 +45,21 @@ let builtinTypes = [
     BuiltinType.f64,
     BuiltinType.u8,
     BuiltinType.i32,
-    BuiltinType.i64
+    BuiltinType.i64,
 ]
+
+let builtinEntities = [
+    BuiltinFunction.typeof.entity,
+    BuiltinType.void.entity,
+    BuiltinType.type.entity,
+    BuiltinType.any.entity,
+    BuiltinType.bool.entity,
+    BuiltinType.rawptr.entity,
+    BuiltinType.string.entity,
+    BuiltinType.f32.entity,
+    BuiltinType.f64.entity,
+    BuiltinType.u8.entity,
+    BuiltinType.i32.entity,
+    BuiltinType.i64.entity,
+]
+

@@ -225,9 +225,22 @@ extension Type {
         var params: [Type]
         /// - Note: Always a tuple type.
         var returnType: Type
-        var isVariadic: Bool
-        var isCVariadic: Bool
-        var needsSpecialization: Bool
+        var flags: Flag
+
+        var isVariadic: Bool { return flags.contains(.variadic) }
+        var isCVariadic: Bool { return flags.contains(.cVariadic) }
+        var needsSpecialization: Bool { return flags.contains(.polymorphic) }
+        var isBuiltin: Bool { return flags.contains(.builtin) }
+
+        struct Flag: OptionSet {
+            var rawValue: UInt8
+
+            static let none         = Flag(rawValue: 0b0000)
+            static let variadic     = Flag(rawValue: 0b0001)
+            static let cVariadic    = Flag(rawValue: 0b0011)
+            static let polymorphic  = Flag(rawValue: 0b0100)
+            static let builtin      = Flag(rawValue: 0b1000)
+        }
     }
 
     struct Struct: TypeValue {
@@ -302,6 +315,33 @@ extension Type {
         let type = Type(entity: entity, width: width, flags: .none, value: value)
         type.width = width
         return type
+    }
+
+    static func fn(in params: [Type], out returns: [Type], isVariadic: Bool = false) -> Type {
+        let ret = Type.makeTuple(returns)
+        let fn = Type.Function(node: .invalid, params: params, returnType: ret, flags: isVariadic ? [.variadic, .builtin] : .builtin)
+        let type = Type(entity: nil, width: nil, flags: .none, value: fn)
+        return type
+    }
+
+    static func makeStruct(_ members: [(String, Type)]) -> Type {
+
+        var width = 0
+        var fields: [Type.Struct.Field] = []
+        for (index, (name, type)) in members.enumerated() {
+
+            let token = Token(kind: .ident, value: name, location: .unknown)
+
+            let field = Type.Struct.Field(ident: token, type: type, index: index, offset: width)
+            fields.append(field)
+
+            width = (width + (type.width ?? 0)).round(upToNearest: 8)
+        }
+
+        let value = Type.Struct(node: .empty, fields: fields)
+        let type = Type(entity: nil, width: width, flags: .none, value: value)
+
+        return Type.makeMetatype(type)
     }
 
     static func makeTuple(_ types: [Type]) -> Type {
