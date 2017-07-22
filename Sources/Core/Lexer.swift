@@ -217,21 +217,41 @@ struct Lexer {
                 case "for":          kind = .keywordFor
                 case "return":       kind = .keywordReturn
                 case "struct":       kind = .keywordStruct
+                case "union":        kind = .keywordUnion
                 case "switch":       kind = .keywordSwitch
                 case "case":         kind = .keywordCase
                 case "break":        kind = .keywordBreak
                 case "continue":     kind = .keywordContinue
                 case "fallthrough":  kind = .keywordFallthrough
+                case "#cvargs":      kind = .directiveCvargs
                 case "#import":      kind = .directiveImport
                 case "#library":     kind = .directiveLibrary
                 case "#foreign":     kind = .directiveForeign
                 case "#discardable": kind = .directiveDiscardable
-                case "#cvargs":      kind = .directiveCvargs
+                case "#callingConvention":  kind = .directiveCallingConvention
                 default:
                     kind = .ident
                     value = string
                 }
             } else if digits.contains(char) {
+
+                var base: Int?
+                if scanner.hasPrefix("0x") {
+                    base = 16
+                    scanner.pop(2)
+                }
+                if scanner.hasPrefix("0d") {
+                    base = 10
+                    scanner.pop(2)
+                }
+                if scanner.hasPrefix("0o") {
+                    base = 8
+                    scanner.pop(2)
+                }
+                if scanner.hasPrefix("0b") {
+                    base = 2
+                    scanner.pop(2)
+                }
 
                 var isFloat = false
                 var string = ""
@@ -243,7 +263,10 @@ struct Lexer {
                     scanner.pop()
                 }
 
-                if !isFloat, let val = UInt64(string) {
+                if isFloat && base != nil {
+                    kind = .invalid
+                    value = string
+                } else if !isFloat, let val = UInt64(string, radix: base ?? 10) {
                     kind = .integer
                     value = val
                 } else if let val = Double(string) {
@@ -456,6 +479,7 @@ extension Token {
         case keywordSwitch
         case keywordCase
         case keywordStruct
+        case keywordUnion
         case keywordBreak
         case keywordContinue
         case keywordFallthrough
@@ -466,6 +490,7 @@ extension Token {
         case directiveLinkname
         case directiveDiscardable
         case directiveCvargs
+        case directiveCallingConvention
     }
 }
 
@@ -550,6 +575,7 @@ extension Token: CustomStringConvertible {
         case .keywordSwitch: fallthrough
         case .keywordCase: fallthrough
         case .keywordStruct: fallthrough
+        case .keywordUnion: fallthrough
         case .keywordBreak: fallthrough
         case .keywordContinue: fallthrough
         case .keywordFallthrough: fallthrough
@@ -558,7 +584,8 @@ extension Token: CustomStringConvertible {
         case .directiveForeign: fallthrough
         case .directiveLinkname: fallthrough
         case .directiveDiscardable: fallthrough
-        case .directiveCvargs:
+        case .directiveCvargs: fallthrough
+        case .directiveCallingConvention:
             return kind.description
         }
     }
@@ -606,6 +633,7 @@ extension Token.Kind: CustomStringConvertible {
         case .keywordSwitch: return "switch"
         case .keywordCase: return "case"
         case .keywordStruct: return "struct"
+        case .keywordUnion: return "union"
         case .keywordBreak: return "break"
         case .keywordContinue: return "continue"
         case .keywordFallthrough: return "fallthrough"
@@ -615,7 +643,8 @@ extension Token.Kind: CustomStringConvertible {
         case .directiveLinkname: return "#linkname"
         case .directiveDiscardable: return "#discardable"
         case .directiveCvargs: return "#cvargs"
-
+        case .directiveCallingConvention: return "#callingConvention"
+          
         // MARK: - These descriptions are for test cases
         case .invalid: return "invalid"
         case .comment: return "comment"

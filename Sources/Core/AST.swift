@@ -49,7 +49,8 @@ enum AstKind {
     case call
     case cast
     case access
-    case fieldAccess
+    case structFieldAccess
+    case unionFieldAccess
     case block
     case `if`
     case `for`
@@ -61,6 +62,7 @@ enum AstKind {
     case `fallthrough`
     case compileTime
     case structType
+    case unionType
     case pointerType
     case functionType
     case `import`
@@ -189,6 +191,12 @@ extension AstNode {
         let declarations: [AstNode]
     }
 
+    struct UnionType: AstValue {
+        static let astKind = AstKind.unionType
+
+        let declarations: [AstNode]
+    }
+
     struct CompileTime: AstValue {
         static let astKind = AstKind.compileTime
 
@@ -256,8 +264,7 @@ extension AstNode {
         static let astKind = AstKind.block
 
         let stmts: [AstNode]
-        var isForeign: Bool
-        var isFunction: Bool
+        var flags: BlockFlag = []
     }
 
     struct If: AstValue {
@@ -339,11 +346,44 @@ extension AstNode {
     }
 }
 
+import LLVM
 struct DeclarationFlags: OptionSet {
-    var rawValue: UInt8
+    var rawValue: UInt32
 
     static let compileTime  = DeclarationFlags(rawValue: 0b0000_0001)
     static let foreign      = DeclarationFlags(rawValue: 0b0000_0010)
+    static let specificCallingConvention = DeclarationFlags(rawValue: 0b0100)
+
+
+    var callingConvention: CallingConvention {
+        get {
+            return CallingConvention(rawValue: (rawValue >> 16) & 0xFF)!
+        }
+        set {
+            rawValue &= 0xFF
+            rawValue |= (newValue.rawValue << 16)
+            insert(.specificCallingConvention)
+        }
+    }
+}
+
+struct BlockFlag: OptionSet {
+    var rawValue: UInt32 // NOTE: The upper 16 bits store the calling convention for llvm rshifted by 1
+
+    static let foreign  = BlockFlag(rawValue: 0b0001)
+    static let function = BlockFlag(rawValue: 0b0010)
+    static let specificCallingConvention = BlockFlag(rawValue: 0b0100)
+
+    var callingConvention: CallingConvention {
+        get {
+            return CallingConvention(rawValue: (rawValue >> 16) & 0xFF)!
+        }
+        set {
+            rawValue &= 0xFF
+            rawValue |= (newValue.rawValue << 16)
+            insert(.specificCallingConvention)
+        }
+    }
 }
 
 struct FunctionFlags: OptionSet {

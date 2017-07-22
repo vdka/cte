@@ -3,7 +3,7 @@
 #import "math/constants.cte"
 #import "math/circle.cte"
 
-#foreign libc {
+#foreign libc #callingConvention "c" {
     #discardable
     printf :: fn (fmt: string, args: #cvargs ..any) -> i32
 
@@ -113,6 +113,21 @@ printf("%f, %f\n", foo.a, foo.b)
 printf("%f, %f\n", bar.foo.a, bar.foo.b)
 
 // NOTE: On the following 2 calls the kind value *must* be last due to what will otherwise be a misaligned stack pointer
-printf("%s's type is %d bits wide and is of kind %d\n" , typeof(i64).name, typeof(i64).width, typeof(i64).kind)
-printf("%s's type is %d bits wide and is of kind %d\n", typeof(string).name, typeof(string).width, typeof(string).kind)
+printf("%s's is of kind %d and is %d bits wide\n" , typeof(i64).name, typeof(i64).kind, typeof(i64).width)
+printf("%s's is of kind %d and is %d bits wide\n", typeof(string).name, typeof(string).kind, typeof(string).width)
+
+printf("%d, %d, %s\n", typeof(u8).kind, typeof(u8).width, typeof(u8).name)
+
+Baz :: union {
+    i: i32
+    f: f32
+    s: string
+    b: struct { a, b: f32; }
+}
+
+baz := Baz { i: 0x40486bf8 }
+
+printf("i = %d\n", baz.i) // 10785300000
+printf("f = %f\n", baz.f) // FIXME: 0.000000
+printf("s = %p\n", baz.s) // 0x40490fd0
 

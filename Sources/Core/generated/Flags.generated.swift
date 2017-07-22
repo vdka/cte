@@ -3,6 +3,35 @@
 
 
 
+extension AstNode.Block {
+
+    var isForeign: Bool {
+        return flags.contains(.foreign) 
+    }
+
+    var isFunction: Bool {
+        return flags.contains(.function) 
+    }
+
+    var isSpecificCallingConvention: Bool {
+        return flags.contains(.specificCallingConvention) 
+    }
+}
+extension CommonBlock {
+
+    var isForeign: Bool {
+        return flags.contains(.foreign) 
+    }
+
+    var isFunction: Bool {
+        return flags.contains(.function) 
+    }
+
+    var isSpecificCallingConvention: Bool {
+        return flags.contains(.specificCallingConvention) 
+    }
+}
+
 extension AstNode.Declaration {
 
     var isCompileTime: Bool {
@@ -11,6 +40,10 @@ extension AstNode.Declaration {
 
     var isForeign: Bool {
         return flags.contains(.foreign) 
+    }
+
+    var isSpecificCallingConvention: Bool {
+        return flags.contains(.specificCallingConvention) 
     }
 }
 extension CommonDeclaration {
@@ -21,6 +54,10 @@ extension CommonDeclaration {
 
     var isForeign: Bool {
         return flags.contains(.foreign) 
+    }
+
+    var isSpecificCallingConvention: Bool {
+        return flags.contains(.specificCallingConvention) 
     }
 }
 
@@ -98,6 +135,21 @@ extension CommonFunctionType {
     }
 }
 
+extension Checker.Block {
+
+    var isForeign: Bool {
+        return flags.contains(.foreign) 
+    }
+
+    var isFunction: Bool {
+        return flags.contains(.function) 
+    }
+
+    var isSpecificCallingConvention: Bool {
+        return flags.contains(.specificCallingConvention) 
+    }
+}
+
 extension Checker.Declaration {
 
     var isCompileTime: Bool {
@@ -106,6 +158,10 @@ extension Checker.Declaration {
 
     var isForeign: Bool {
         return flags.contains(.foreign) 
+    }
+
+    var isSpecificCallingConvention: Bool {
+        return flags.contains(.specificCallingConvention) 
     }
 }
 
