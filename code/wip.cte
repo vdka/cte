@@ -125,7 +125,7 @@ Baz :: union {
     b: struct { a, b: f32; }
 }
 
-baz := Baz { f: 3.14159 }
+baz := Baz { i: 0x40486bf8 }
 
 printf("i = %d\n", baz.i) // 10785300000
 printf("f = %f\n", baz.f) // FIXME: 0.000000

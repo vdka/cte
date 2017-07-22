@@ -235,6 +235,24 @@ struct Lexer {
                 }
             } else if digits.contains(char) {
 
+                var base: Int?
+                if scanner.hasPrefix("0x") {
+                    base = 16
+                    scanner.pop(2)
+                }
+                if scanner.hasPrefix("0d") {
+                    base = 10
+                    scanner.pop(2)
+                }
+                if scanner.hasPrefix("0o") {
+                    base = 8
+                    scanner.pop(2)
+                }
+                if scanner.hasPrefix("0b") {
+                    base = 2
+                    scanner.pop(2)
+                }
+
                 var isFloat = false
                 var string = ""
                 while let char = scanner.peek(), (identChars + digits + [".", "-"]).contains(char) {
@@ -245,7 +263,10 @@ struct Lexer {
                     scanner.pop()
                 }
 
-                if !isFloat, let val = UInt64(string) {
+                if isFloat && base != nil {
+                    kind = .invalid
+                    value = string
+                } else if !isFloat, let val = UInt64(string, radix: base ?? 10) {
                     kind = .integer
                     value = val
                 } else if let val = Double(string) {
