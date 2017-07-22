@@ -27,7 +27,7 @@ extension String {
 
         for (a, b) in zip(nodes, expectedNodes) {
             // This will need to be improved, but making AstValue `Equatable` is a total nightmare
-            XCTAssertEqual(a.kind, b.kind, file: file, line: line)
+            XCTAssertEqual(a, b, file: file, line: line)
             XCTAssert(Swift.type(of: a.value) == Swift.type(of: b.value), file: file, line: line)
         }
     }

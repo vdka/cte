@@ -22,7 +22,7 @@ class AstNode: Hashable {
     }
 
     static func == (lhs: AstNode, rhs: AstNode) -> Bool {
-        return lhs.tokens == rhs.tokens
+        return lhs.value.cmp(rhs: rhs.value)
     }
 }
 

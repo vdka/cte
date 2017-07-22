@@ -1,57 +1,15 @@
-// sourcery:inline:ASTEquatable
-@testable import Core
-
-extension Scope: Equatable {
-    public static func ==(lhs: Scope, rhs: Scope) -> Bool {
-        return lhs.members == rhs.members
-    }
-}
-
-extension Entity: Equatable {
-    public static func ==(lhs: Entity, rhs: Entity) -> Bool {
-        return lhs.ident == rhs.ident && lhs.type == rhs.type && lhs.flags == rhs.flags
-    }
-}
-
-extension JumpTarget: Equatable {
-    public static func ==(lhs: JumpTarget, rhs: JumpTarget) -> Bool {
-    // TODO(Brett): fix when doing checker tests
-        return true
-    }
-}
-
-extension FunctionSpecialization: Equatable {
-    public static func ==(lhs: FunctionSpecialization, rhs: FunctionSpecialization) -> Bool {
-        return lhs.specializedTypes == rhs.specializedTypes && lhs.strippedType == rhs.strippedType
-    }
-}
-
-extension SourceFile: Equatable {
-    public static func ==(lhs: SourceFile, rhs: SourceFile) -> Bool {
-        return lhs.fullpath == rhs.fullpath
-    }
-}
-
-extension AstNode {
-    public static func ==(lhs: AstValue, rhs: AstValue) -> Bool {
-        guard type(of: lhs) == type(of: rhs) else { return false }
-
-        switch type(of: lhs) {
+extension AstValue {
+    func cmp(rhs: AstValue) -> Bool {
+        switch (self, rhs) {
         {% for type in types.implementing.AstValue|!protocol where type.parentName|contains:"AstNode" %}
-        case {{ type.name }}:
-            let a = lhs.as{{ type.localName }}
-            let b = rhs.as{{ type.localName }}
+        case (let a as {{ type.name }}, let b as {{ type.name }}):
             {% for var in type.storedVariables %}
-            guard a.{{ var.name }} == b.{{ var.name }} else {
-                return false
-            }
+            if a.{{ var.name }} != b.{{ var.name }} { return false}
             {% endfor %}
-
             return true
-        {% endfor %}
-        default:
-            return false
+
+        {% endfor%}
+        default: return false
         }
     }
 }
-// sourcery:end
