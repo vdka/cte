@@ -15,10 +15,27 @@ extension SourceFile {
 }
 
 extension String {
+    func endsWithTerminator() -> Bool {
+        switch self.characters.last {
+        case "\n"?, ";"?, "{"?, "}"?:
+            return true
+
+        default:
+            return false
+        }
+    }
+
     func expectFromParser(_ expectedNodes: [TestAst], file: StaticString = #file, line: UInt = #line) {
         let expectedNodes = expectedNodes.expanded
 
-        let sFile = SourceFile(data: self)
+        let data: String
+        if !self.endsWithTerminator() {
+            data = self + "\n"
+        } else {
+            data = self
+        }
+
+        let sFile = SourceFile(data: data)
         sFile.parseEmittingErrors()
         XCTAssert(sFile.hasBeenParsed, "File was not parsed", file: file, line: line)
         XCTAssertEqual(errors.count, 0, "Parser had \(errors.count) errors", file: file, line: line)

@@ -2,6 +2,8 @@
 
 indirect enum TestAst {
     case int(UInt64)
+    case double(Double)
+    case string(String)
     case ident(String)
     case decl(names: [TestAst], type: TestAst?, values: [TestAst])
 }
@@ -12,6 +14,12 @@ extension TestAst {
         switch self {
         case .int(let val):
             value = AstNode.IntegerLiteral(value: val)
+
+        case .double(let val):
+            value = AstNode.FloatLiteral(value: val)
+
+        case .string(let val):
+            value = AstNode.StringLiteral(value: val)
 
         case .ident(let identifier):
             value = AstNode.Identifier(name: identifier)
@@ -30,28 +38,44 @@ extension TestAst {
     }
 }
 
+protocol TestLiteralRepresentable {
+    func toLiteral() -> TestAst
+}
+
+extension String: TestLiteralRepresentable {
+    func toLiteral() -> TestAst {
+        return .string(self)
+    }
+}
+
+extension UInt64: TestLiteralRepresentable {
+    func toLiteral() -> TestAst {
+        return .int(self)
+    }
+}
+
+extension Double: TestLiteralRepresentable {
+    func toLiteral() -> TestAst {
+        return .double(self)
+    }
+}
+
+extension TestAst: TestLiteralRepresentable {
+    func toLiteral() -> TestAst {
+        return self
+    }
+}
+
 extension TestAst {
-    static func makeDecl(_ name: String, _ type: String?, _ value: String) -> TestAst {
-        return makeDecl([name], type, [value])
+    static func makeDecl<T: TestLiteralRepresentable>(_ names: String, _ type: String? = nil, val value: T) -> TestAst {
+        return makeDecl([names], type, values: [value])
     }
 
-    static func makeDecl(_ names: [String], _ type: String?, _ values: [String]) -> TestAst {
+    static func makeDecl<T: TestLiteralRepresentable>(_ names: [String], _ type: String? = nil, values: [T]) -> TestAst {
         return .decl(
             names: names.map { TestAst.ident($0) },
             type: type == nil ? nil : .ident(type!),
-            values: values.map { TestAst.ident($0) }
-        )
-    }
-
-    static func makeDecl(_ name: String, _ type: String?, _ value: UInt64) -> TestAst {
-        return makeDecl([name], type, [value])
-    }
-
-    static func makeDecl(_ names: [String], _ type: String?, _ values: [UInt64]) -> TestAst {
-        return .decl(
-            names: names.map { TestAst.ident($0) },
-            type: type == nil ? nil : .ident(type!),
-            values: values.map { TestAst.int($0) }
+            values: values.map { $0.toLiteral() }
         )
     }
 }
