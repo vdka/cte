@@ -44,14 +44,14 @@ extension AstNode {
 protocol Common{{ type.localName }}: AstValue {
 
     {% for var in type.instanceVariables %}
-    var {{ var.name }}: {{ var.typeName }} { get{% if var.isMutable %} set{% endif %} }
+    var {{ var.name }}: {{ var.actualTypeName }} { get{% if var.isMutable %} set{% endif %} }
     {% endfor %}
 }
 {% endif %}
 {% endfor %}
 
 {% for type in types.implementing.AstValue|!protocol %}
-{% if type.localName != "PolymorphicFunction" and type.localName != "Cast" and type.localName != "FieldAccess" %}
+{% if type.localName != "PolymorphicFunction" and type.localName != "Cast" and type.localName != "StructFieldAccess" and type.localName != "UnionFieldAccess" %}
 extension {{ type.name }}: Common{{ type.localName }} {}
 {% endif %}
 {% endfor %}

@@ -295,10 +295,13 @@ extension Checker {
                     }
                     node.asDeclaration.flags.insert(.foreign)
                 }
+                if block.flags.contains(.specificCallingConvention) {
+                    node.asDeclaration.flags.callingConvention = block.flags.callingConvention
+                }
                 check(node: node)
             }
 
-            node.value = Block(stmts: block.stmts, isForeign: block.isForeign, isFunction: block.isFunction, scope: context.scope)
+            node.value = Block(stmts: block.stmts, flags: block.flags, scope: context.scope)
 
             if !(block.isForeign || block.isFunction) {
                 popContext()
@@ -647,49 +650,99 @@ extension Checker {
             var type = checkExpr(node: lit.typeNode)
             type = lowerFromMetatype(type, atNode: lit.typeNode)
 
-            guard type.kind == .struct else {
+            switch type.kind {
+            case .struct:
+                if lit.elements.count > type.asStruct.fields.count {
+                    reportError("Too many values in struct initializer", at: lit.elements[type.asStruct.fields.count])
+                }
+
+                for (element, field) in zip(lit.elements, type.asStruct.fields) {
+
+                    let el = element.asCompositeLiteralField
+
+                    if let identifier = el.identifier {
+
+                        let name = identifier.asIdentifier.name
+
+                        guard let field = type.asStruct.fields.first(where: { $0.name == name }) else {
+                            reportError("Unknown field '\(identifier)' for '\(type)'", at: identifier)
+                            continue
+                        }
+
+                        let type = checkExpr(node: el.value, desiredType: field.type)
+                        guard type == field.type || implicitlyConvert(type, to: field.type) else {
+                            reportError("Cannot convert type '\(type)' to expected type '\(field.type)'", at: el.value)
+                            continue
+                        }
+
+                        element.value = CompositeLiteralField(identifier: identifier, value: el.value, structField: field, type: type)
+                    } else {
+                        let type = checkExpr(node: el.value, desiredType: field.type)
+                        guard type == field.type || implicitlyConvert(type, to: field.type) else {
+                            reportError("Cannot convert type '\(type)' to expected type '\(field.type)'", at: element)
+                            continue
+                        }
+
+                        element.value = CompositeLiteralField(identifier: nil, value: el.value, structField: field, type: type)
+                    }
+                }
+
+                node.value = CompositeLiteral(typeNode: lit.typeNode, elements: lit.elements, type: type)
+
+                return type
+
+            case .union:
+                if lit.elements.count != 1 {
+                    reportError("Multiple values in union literal is invalid", at: node)
+                } else {
+                    let el = lit.elements[0].asCompositeLiteralField
+
+                    if let identifier = el.identifier {
+
+                        let name = identifier.asIdentifier.name
+
+                        guard let field = type.asUnion.fields.first(where: { $0.name == name }) else {
+                            reportError("Unknown field '\(identifier)' for '\(type)'", at: identifier)
+                            return type
+                        }
+
+                        let eltype = checkExpr(node: el.value, desiredType: field.type)
+                        guard eltype == field.type || implicitlyConvert(type, to: field.type) else {
+                            reportError("Cannot convert type '\(eltype)' to expected type '\(field.type)'", at: el.value)
+                            return type
+                        }
+
+                        lit.elements[0].value = CompositeLiteralField(identifier: identifier, value: el.value, structField: nil, type: type)
+                    } else {
+
+                        let eltype = checkExpr(node: el.value)
+
+                        var resolvedType: Type?
+                        for unionType in type.asUnion.fields.map({ $0.type }) {
+
+                            if eltype == unionType || implicitlyConvert(eltype, to: unionType) {
+                                resolvedType = unionType
+                                break
+                            }
+                        }
+
+                        if resolvedType == nil {
+                            reportError("No type in union matches the element type of '\(eltype)'", at: lit.elements[0])
+                            attachNote("Expected one of:\n" + "    " + type.asUnion.fields.map({ $0.type.description }).joined(separator: "\n"))
+                        } else {
+                            lit.elements[0].value = CompositeLiteralField(identifier: nil, value: el.value, structField: nil, type: resolvedType!)
+                        }
+                    }
+                }
+
+                node.value = CompositeLiteral(typeNode: lit.typeNode, elements: lit.elements, type: type)
+
+                return type
+
+            default:
                 reportError("Invalid type for composite literal", at: lit.typeNode)
                 return Type.invalid
             }
-
-            if type.asStruct.fields.count < lit.elements.count {
-                reportError("Too many values in struct initializer", at: lit.elements[type.asStruct.fields.count])
-            }
-
-            for (element, field) in zip(lit.elements, type.asStruct.fields) {
-
-                let el = element.asCompositeLiteralField
-
-                if let identifier = el.identifier {
-
-                    let name = identifier.asIdentifier.name
-
-                    guard let field = type.asStruct.fields.first(where: { $0.name == name }) else {
-                        reportError("Unknown field '\(identifier)' for '\(type)'", at: identifier)
-                        continue
-                    }
-                    
-                    let type = checkExpr(node: el.value, desiredType: field.type)
-                    guard type == field.type || implicitlyConvert(type, to: field.type) else {
-                        reportError("Cannot convert type '\(type)' to expected type '\(field.type)'", at: el.value)
-                        continue
-                    }
-
-                    element.value = CompositeLiteralField(identifier: identifier, value: el.value, field: field, type: type)
-                } else {
-                    let type = checkExpr(node: el.value, desiredType: field.type)
-                    guard type == field.type || implicitlyConvert(type, to: field.type) else {
-                        reportError("Cannot convert type '\(type)' to expected type '\(field.type)'", at: element)
-                        continue
-                    }
-
-                    element.value = CompositeLiteralField(identifier: el.identifier, value: el.value, field: field, type: type)
-                }
-            }
-
-            node.value = CompositeLiteral(typeNode: lit.typeNode, elements: lit.elements, type: type)
-
-            return type
 
         case .variadic:
             let variadic = node.asVariadic
@@ -895,8 +948,40 @@ extension Checker {
             }
             popContext()
 
-            let structType = Type.Struct(node: node, fields: fields)
-            let type = Type(entity: nil, width: width, flags: .none, value: structType)
+            let value = Type.Struct(node: node, fields: fields)
+            let type = Type(entity: nil, width: width, flags: .none, value: value)
+
+            return Type.makeMetatype(type)
+
+        case .unionType:
+            let union = node.asUnionType
+
+            var width = 0
+            var fields: [Type.Union.Field] = []
+            pushContext()
+            for declaration in union.declarations {
+                guard declaration.kind == .declaration else {
+                    reportError("Unexpected \(declaration.kind), expected a declaration", at: declaration)
+                    continue
+                }
+
+                check(node: declaration)
+
+                for entity in declaration.asCheckedDeclaration.entities {
+
+                    let field = Type.Union.Field(ident: entity.ident, type: entity.type!)
+                    fields.append(field)
+
+                    // FIXME: This will align fields to bytes. This maybe shouldn't be the default.
+                    width = max(width, entity.type!.width!)
+                }
+            }
+            popContext()
+            width = width.round(upToNearest: 8)
+
+            let value = Type.Union(node: node, fields: fields)
+            let type = Type(entity: nil, width: width, flags: .none, value: value)
+
 
             return Type.makeMetatype(type)
 
@@ -1060,7 +1145,17 @@ extension Checker {
                     return Type.invalid
                 }
 
-                node.value = FieldAccess(aggregate: access.aggregate, member: access.member, field: field)
+                node.value = StructFieldAccess(aggregate: access.aggregate, member: access.member, field: field)
+
+                return field.type
+
+            case .union:
+                guard let field = aggregateType.asUnion.fields.first(where: { $0.name == access.memberName }) else {
+                    reportError("Field '\(access.member)' not found in scope of '\(access.aggregate)'", at: access.member)
+                    return Type.invalid
+                }
+
+                node.value = UnionFieldAccess(aggregate: access.aggregate, member: access.member, field: field)
 
                 return field.type
 
@@ -1510,7 +1605,7 @@ extension Checker {
         var identifier: AstNode?
         var value: AstNode
 
-        var field: Type.Struct.Field
+        var structField: Type.Struct.Field?
         var type: Type
     }
 
@@ -1574,6 +1669,13 @@ extension Checker {
 
     struct StructType: CheckedExpression, CheckedAstValue {
         typealias UncheckedValue = AstNode.StructType
+
+        let declarations: [AstNode]
+        let type: Type
+    }
+
+    struct UnionType: CheckedExpression, CheckedAstValue {
+        typealias UncheckedValue = AstNode.UnionType
 
         let declarations: [AstNode]
         let type: Type
@@ -1659,9 +1761,8 @@ extension Checker {
         }
     }
 
-    struct FieldAccess: CheckedExpression, CheckedAstValue {
-        static let astKind = AstKind.fieldAccess
-
+    struct StructFieldAccess: CheckedExpression, CheckedAstValue {
+        static let astKind = AstKind.structFieldAccess
         typealias UncheckedValue = AstNode.Access
 
         let aggregate: AstNode
@@ -1676,12 +1777,27 @@ extension Checker {
         }
     }
 
+    struct UnionFieldAccess: CheckedExpression, CheckedAstValue {
+        static let astKind = AstKind.unionFieldAccess
+        typealias UncheckedValue = AstNode.Access
+
+        let aggregate: AstNode
+        let member: AstNode
+        var memberName: String {
+            return member.asIdentifier.name
+        }
+
+        let field: Type.Union.Field
+        var type: Type {
+            return field.type
+        }
+    }
+
     struct Block: CheckedAstValue {
         typealias UncheckedValue = AstNode.Block
 
         let stmts: [AstNode]
-        var isForeign: Bool
-        var isFunction: Bool
+        var flags: BlockFlag = []
         let scope: Scope
     }
 

@@ -79,6 +79,9 @@ class Type: Hashable, CustomStringConvertible {
         case .struct:
             return "struct { \n" + asStruct.fields.map({ "    " + $0.name + ": " + $0.type.description }).joined(separator: "\n") + "\n}"
 
+        case .union:
+            return "union { \n" + asUnion.fields.map({ "    " + $0.name + ": " + $0.type.description }).joined(separator: "\n") + "\n}"
+
         case .tuple:
             return "(" + asTuple.types.map({ $0.description }).joined(separator: ", ") + ")"
         }
@@ -180,6 +183,7 @@ enum TypeKind {
     case boolean
     case function
     case `struct`
+    case union
     case tuple
     case pointer
     case polymorphic
@@ -255,6 +259,22 @@ extension Type {
 
             var index: Int
             var offset: Int
+
+            var name: String {
+                return ident.stringValue
+            }
+        }
+    }
+
+    struct Union: TypeValue {
+        static let typeKind: TypeKind = .union
+
+        var node: AstNode
+        var fields: [Field] = []
+
+        struct Field {
+            let ident: Token
+            let type: Type
 
             var name: String {
                 return ident.stringValue

@@ -18,6 +18,9 @@ func attachNote(_ message: String) {
 func reportError(_ message: String, at node: AstNode, file: StaticString = #file, line: UInt = #line) {
 
     guard let firstToken = node.tokens.first else {
+        if node === AstNode.invalid {
+            return
+        }
         fatalError()
     }
     let formatted = formatMessage(message, firstToken.start.description, file, line)
