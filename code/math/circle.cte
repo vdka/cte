@@ -3,6 +3,6 @@
 
 // Yes. This is wrong. we don't have * yet.
 circumference :: fn (radius: f64) -> f64 {
-    return radius + constants.tau
+    return radius * constants.tau
 }
 

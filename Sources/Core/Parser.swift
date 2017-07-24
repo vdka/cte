@@ -1098,7 +1098,7 @@ extension Token.Kind {
             return 15
 
         case .lparen, .dot:
-            return 80
+            return 100
 
         case .lbrace:
             return 150

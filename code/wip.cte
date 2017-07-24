@@ -67,7 +67,9 @@ g = sub
 
 h = g(8)
 
-i := circle.circumference(constants.tau)
+radius : f64 = 10
+circumference := circle.circumference(radius)
+printf("The circumference of a circle with radius %f is ~%f\n", radius, circumference)
 
 // NOTE(vdka): The behaviour of being able to peer into an imported files imports
 //  will go away
