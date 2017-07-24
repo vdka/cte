@@ -34,9 +34,9 @@ struct Parser {
         static let permitCompositeLit   = State(rawValue: 0b0000_1000)
 
         static let functionBody         = State(rawValue: 0b0001_0000)
-        static let structBody           = State(rawValue: 0b0010_0011)
-        static let unionBody            = State(rawValue: 0b0100_0010)
-        static let foreign              = State(rawValue: 0b1100_0000)
+        static let structBody           = State(rawValue: 0b0010_0000)
+        static let unionBody            = State(rawValue: 0b0100_0000)
+        static let foreign              = State(rawValue: 0b1000_0000)
         static let leaveTerminators     = State(rawValue: 0b0000_0001 << 8)
 
         static let `default`            = [.permitExprList, .permitAssignOrDecl] as State
@@ -48,8 +48,8 @@ struct Parser {
         case parseSingle
         case parseDeclValue
         case parseFunctionBody
-        case parseStruct
-        case parseUnion
+        case parseStructBody
+        case parseUnionBody
         case parseSwitchBody
         case parseDeferExpr
         case parseForeignDirectiveBody
@@ -76,10 +76,10 @@ struct Parser {
         case .parseFunctionBody:
             state = .default
             state.insert(.functionBody)
-        case .parseStruct:
-            state = .structBody
-        case .parseUnion:
-            state = .unionBody
+        case .parseStructBody:
+            state = [.permitExprList, .permitAssignOrDecl, .structBody]
+        case .parseUnionBody:
+            state = [.permitAssignOrDecl, .unionBody]
         case .parseSwitchBody:
             state.insert(.permitCase)
         case .parseDeferExpr:
@@ -241,6 +241,11 @@ struct Parser {
             var flags: BlockFlag = []
             if context.state.contains(.functionBody) {
                 flags.insert(.function)
+            }
+            // these flags indicate that the caller will cleanup terminators
+            if context.state.intersection([.functionBody, .structBody, .unionBody, .foreign]).isEmpty &&
+                !context.state.contains(.leaveTerminators) {
+                expectTerminator()
             }
 
             let value = AstNode.Block(stmts: stmts, flags: flags)
@@ -567,7 +572,7 @@ struct Parser {
                 return AstNode.invalid
             }
 
-            pushContext(changingStateTo: .parseStruct)
+            pushContext(changingStateTo: .parseStructBody)
             let body = expression()
             popContext()
 
@@ -582,7 +587,7 @@ struct Parser {
                 return AstNode.invalid
             }
 
-            pushContext(changingStateTo: .parseUnion)
+            pushContext(changingStateTo: .parseUnionBody)
             let body = expression()
             popContext()
 
