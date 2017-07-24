@@ -9,7 +9,8 @@ let package = Package(
     ],
     targets: [
         .target(name: "cte", dependencies: ["Core"]),
-        .target(name: "Core", dependencies: ["LLVM"])
+        .target(name: "Core", dependencies: ["LLVM"]),
+        .testTarget(name: "CoreTests", dependencies: ["Core"])
     ],
     swiftLanguageVersions: [4]
 )

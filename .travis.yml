@@ -1,4 +1,3 @@
-
 os:
   - osx
 language: generic
@@ -17,3 +16,4 @@ script:
   - swift .build/checkouts/LLVMSwift.git-*/utils/make-pkgconfig.swift
   - ./build.sh
   - cte code/test.cte
+  - swift test

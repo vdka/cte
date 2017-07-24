@@ -222,3 +222,9 @@ public final class SourceFile {
         file.hasBeenGenerated = true
     }
 }
+
+extension SourceFile: Equatable {
+    public static func ==(lhs: SourceFile, rhs: SourceFile) -> Bool {
+        return lhs.fullpath == rhs.fullpath
+    }
+}

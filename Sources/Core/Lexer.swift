@@ -644,8 +644,14 @@ extension Token.Kind: CustomStringConvertible {
         case .directiveDiscardable: return "#discardable"
         case .directiveCvargs: return "#cvargs"
         case .directiveCallingConvention: return "#callingConvention"
-        case .invalid, .comment, .ident, .float, .integer, .string:
-            fatalError()
+          
+        // MARK: - These descriptions are for test cases
+        case .invalid: return "invalid"
+        case .comment: return "comment"
+        case .ident: return "ident"
+        case .float: return "float"
+        case .integer: return "integer"
+        case .string: return "string"
         }
     }
 }

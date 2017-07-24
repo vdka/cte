@@ -25,7 +25,7 @@ extension AstValue {
     }
 }
 
-{% for type in types.classes where type.name != "SourceFile" and type.name != "Type" and type.name != "BuiltinFunction" and type.localName != "Context" %}
+{% for type in types.classes where type.name != "SourceFile" and type.name != "Type" and type.name != "BuiltinFunction" and type.localName != "Context" and type.localName|!hasSuffix:"Tests"%}
 extension {{ type.name }} {
 
     func copy() -> {{ type.name }} {
