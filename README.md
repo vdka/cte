@@ -1,4 +1,5 @@
 # cte (Compile Time Execution)
+[![Build Status](https://travis-ci.org/vdka/cte.svg?branch=master)](https://travis-ci.org/vdka/cte)
 
 A tiny language intended as a platform to test Compile Time Execution, as well as compiler architecture and polymorphism.
 
