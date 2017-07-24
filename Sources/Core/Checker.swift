@@ -1624,7 +1624,7 @@ extension Checker {
         var type: Type
     }
 
-    struct PolymorphicFunction: CheckedExpression, CheckedAstValue, CommonFunction {
+    struct PolymorphicFunction: CheckedExpression, CheckedAstValue {
         static let astKind = AstKind.polymorphicFunction
 
         typealias UncheckedValue = AstNode.Function

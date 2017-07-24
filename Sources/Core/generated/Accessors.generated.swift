@@ -6,7 +6,6 @@ extension AstNode {
 
     var asAccess: CommonAccess {
         get {
-            assert(kind == AstNode.Access.astKind)
             return value as! CommonAccess
         }
         set {
@@ -25,7 +24,6 @@ extension AstNode {
 
     var asAssign: CommonAssign {
         get {
-            assert(kind == AstNode.Assign.astKind)
             return value as! CommonAssign
         }
         set {
@@ -44,7 +42,6 @@ extension AstNode {
 
     var asBlock: CommonBlock {
         get {
-            assert(kind == AstNode.Block.astKind)
             return value as! CommonBlock
         }
         set {
@@ -63,7 +60,6 @@ extension AstNode {
 
     var asBreak: CommonBreak {
         get {
-            assert(kind == AstNode.Break.astKind)
             return value as! CommonBreak
         }
         set {
@@ -82,7 +78,6 @@ extension AstNode {
 
     var asCall: CommonCall {
         get {
-            assert(kind == AstNode.Call.astKind)
             return value as! CommonCall
         }
         set {
@@ -101,7 +96,6 @@ extension AstNode {
 
     var asCase: CommonCase {
         get {
-            assert(kind == AstNode.Case.astKind)
             return value as! CommonCase
         }
         set {
@@ -120,7 +114,6 @@ extension AstNode {
 
     var asComment: CommonComment {
         get {
-            assert(kind == AstNode.Comment.astKind)
             return value as! CommonComment
         }
         set {
@@ -139,7 +132,6 @@ extension AstNode {
 
     var asCompileTime: CommonCompileTime {
         get {
-            assert(kind == AstNode.CompileTime.astKind)
             return value as! CommonCompileTime
         }
         set {
@@ -158,7 +150,6 @@ extension AstNode {
 
     var asCompositeLiteral: CommonCompositeLiteral {
         get {
-            assert(kind == AstNode.CompositeLiteral.astKind)
             return value as! CommonCompositeLiteral
         }
         set {
@@ -177,7 +168,6 @@ extension AstNode {
 
     var asCompositeLiteralField: CommonCompositeLiteralField {
         get {
-            assert(kind == AstNode.CompositeLiteralField.astKind)
             return value as! CommonCompositeLiteralField
         }
         set {
@@ -196,7 +186,6 @@ extension AstNode {
 
     var asContinue: CommonContinue {
         get {
-            assert(kind == AstNode.Continue.astKind)
             return value as! CommonContinue
         }
         set {
@@ -215,7 +204,6 @@ extension AstNode {
 
     var asDeclaration: CommonDeclaration {
         get {
-            assert(kind == AstNode.Declaration.astKind)
             return value as! CommonDeclaration
         }
         set {
@@ -234,7 +222,6 @@ extension AstNode {
 
     var asEmpty: CommonEmpty {
         get {
-            assert(kind == AstNode.Empty.astKind)
             return value as! CommonEmpty
         }
         set {
@@ -253,7 +240,6 @@ extension AstNode {
 
     var asFallthrough: CommonFallthrough {
         get {
-            assert(kind == AstNode.Fallthrough.astKind)
             return value as! CommonFallthrough
         }
         set {
@@ -272,7 +258,6 @@ extension AstNode {
 
     var asFloatLiteral: CommonFloatLiteral {
         get {
-            assert(kind == AstNode.FloatLiteral.astKind)
             return value as! CommonFloatLiteral
         }
         set {
@@ -291,7 +276,6 @@ extension AstNode {
 
     var asFor: CommonFor {
         get {
-            assert(kind == AstNode.For.astKind)
             return value as! CommonFor
         }
         set {
@@ -310,7 +294,6 @@ extension AstNode {
 
     var asForeign: CommonForeign {
         get {
-            assert(kind == AstNode.Foreign.astKind)
             return value as! CommonForeign
         }
         set {
@@ -329,7 +312,6 @@ extension AstNode {
 
     var asFunction: CommonFunction {
         get {
-            assert(kind == AstNode.Function.astKind)
             return value as! CommonFunction
         }
         set {
@@ -348,7 +330,6 @@ extension AstNode {
 
     var asFunctionType: CommonFunctionType {
         get {
-            assert(kind == AstNode.FunctionType.astKind)
             return value as! CommonFunctionType
         }
         set {
@@ -367,7 +348,6 @@ extension AstNode {
 
     var asIdentifier: CommonIdentifier {
         get {
-            assert(kind == AstNode.Identifier.astKind)
             return value as! CommonIdentifier
         }
         set {
@@ -386,7 +366,6 @@ extension AstNode {
 
     var asIf: CommonIf {
         get {
-            assert(kind == AstNode.If.astKind)
             return value as! CommonIf
         }
         set {
@@ -405,7 +384,6 @@ extension AstNode {
 
     var asImport: CommonImport {
         get {
-            assert(kind == AstNode.Import.astKind)
             return value as! CommonImport
         }
         set {
@@ -424,7 +402,6 @@ extension AstNode {
 
     var asInfix: CommonInfix {
         get {
-            assert(kind == AstNode.Infix.astKind)
             return value as! CommonInfix
         }
         set {
@@ -443,7 +420,6 @@ extension AstNode {
 
     var asIntegerLiteral: CommonIntegerLiteral {
         get {
-            assert(kind == AstNode.IntegerLiteral.astKind)
             return value as! CommonIntegerLiteral
         }
         set {
@@ -462,7 +438,6 @@ extension AstNode {
 
     var asInvalid: CommonInvalid {
         get {
-            assert(kind == AstNode.Invalid.astKind)
             return value as! CommonInvalid
         }
         set {
@@ -481,7 +456,6 @@ extension AstNode {
 
     var asLibrary: CommonLibrary {
         get {
-            assert(kind == AstNode.Library.astKind)
             return value as! CommonLibrary
         }
         set {
@@ -500,7 +474,6 @@ extension AstNode {
 
     var asList: CommonList {
         get {
-            assert(kind == AstNode.List.astKind)
             return value as! CommonList
         }
         set {
@@ -519,7 +492,6 @@ extension AstNode {
 
     var asParameter: CommonParameter {
         get {
-            assert(kind == AstNode.Parameter.astKind)
             return value as! CommonParameter
         }
         set {
@@ -538,7 +510,6 @@ extension AstNode {
 
     var asParen: CommonParen {
         get {
-            assert(kind == AstNode.Paren.astKind)
             return value as! CommonParen
         }
         set {
@@ -557,7 +528,6 @@ extension AstNode {
 
     var asPointerType: CommonPointerType {
         get {
-            assert(kind == AstNode.PointerType.astKind)
             return value as! CommonPointerType
         }
         set {
@@ -576,7 +546,6 @@ extension AstNode {
 
     var asPrefix: CommonPrefix {
         get {
-            assert(kind == AstNode.Prefix.astKind)
             return value as! CommonPrefix
         }
         set {
@@ -595,7 +564,6 @@ extension AstNode {
 
     var asReturn: CommonReturn {
         get {
-            assert(kind == AstNode.Return.astKind)
             return value as! CommonReturn
         }
         set {
@@ -614,7 +582,6 @@ extension AstNode {
 
     var asStringLiteral: CommonStringLiteral {
         get {
-            assert(kind == AstNode.StringLiteral.astKind)
             return value as! CommonStringLiteral
         }
         set {
@@ -633,7 +600,6 @@ extension AstNode {
 
     var asStructType: CommonStructType {
         get {
-            assert(kind == AstNode.StructType.astKind)
             return value as! CommonStructType
         }
         set {
@@ -652,7 +618,6 @@ extension AstNode {
 
     var asSwitch: CommonSwitch {
         get {
-            assert(kind == AstNode.Switch.astKind)
             return value as! CommonSwitch
         }
         set {
@@ -671,7 +636,6 @@ extension AstNode {
 
     var asUnionType: CommonUnionType {
         get {
-            assert(kind == AstNode.UnionType.astKind)
             return value as! CommonUnionType
         }
         set {
@@ -690,7 +654,6 @@ extension AstNode {
 
     var asVariadic: CommonVariadic {
         get {
-            assert(kind == AstNode.Variadic.astKind)
             return value as! CommonVariadic
         }
         set {
@@ -1278,6 +1241,10 @@ extension Checker.StringLiteral: CommonStringLiteral {}
 extension Checker.StructType: CommonStructType {}
 extension Checker.Switch: CommonSwitch {}
 extension Checker.UnionType: CommonUnionType {}
+extension Checker.Cast: CommonCall {}
+extension Checker.PolymorphicFunction: CommonFunction {}
+extension Checker.StructFieldAccess: CommonAccess {}
+extension Checker.UnionFieldAccess: CommonAccess {}
 
 extension Type {
 
