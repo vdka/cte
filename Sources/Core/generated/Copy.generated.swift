@@ -254,7 +254,7 @@ extension AstValue {
                 condition: value.condition?.copy(),
                 block: value.block.copy(),
                 scope: value.scope.copy(),
-                fallthroughTarget: value.fallthroughTarget.copy()
+                fallthroughTarget: value.fallthroughTarget
         )
 
         case let value as Checker.Cast:
@@ -314,8 +314,8 @@ extension AstValue {
                 condition: value.condition?.copy(),
                 step: value.step?.copy(),
                 body: value.body.copy(),
-                continueTarget: value.continueTarget.copy(),
-                breakTarget: value.breakTarget.copy()
+                continueTarget: value.continueTarget,
+                breakTarget: value.breakTarget
         )
 
         case let value as Checker.Function:
@@ -420,7 +420,7 @@ extension AstValue {
                 label: value.label?.copy(),
                 subject: value.subject?.copy(),
                 cases: value.cases.map({ $0.copy() }),
-                breakTarget: value.breakTarget.copy()
+                breakTarget: value.breakTarget
         )
 
         case let value as Checker.UnionFieldAccess:
@@ -475,11 +475,11 @@ extension FunctionSpecialization {
         )
     }
 }
-extension JumpTarget {
+extension Ref {
 
-    func copy() -> JumpTarget {
-        return JumpTarget(
-            llvm: llvm
+    func copy() -> Ref {
+        return Ref(
+            val: val
         )
     }
 }

@@ -253,6 +253,9 @@ extension Type {
         var node: AstNode
         var fields: [Field] = []
 
+        /// Used for the named type
+        var ir: Ref<IRType?>
+
         struct Field {
             let ident: Token
             let type: Type
@@ -271,6 +274,9 @@ extension Type {
 
         var node: AstNode
         var fields: [Field] = []
+
+        /// Used for the named type
+        var ir: Ref<IRType?>
 
         struct Field {
             let ident: Token
@@ -344,7 +350,7 @@ extension Type {
         return type
     }
 
-    static func makeStruct(_ members: [(String, Type)]) -> Type {
+    static func makeStruct(named name: String, _ members: [(String, Type)]) -> Type {
 
         var width = 0
         var fields: [Type.Struct.Field] = []
@@ -358,7 +364,16 @@ extension Type {
             width = (width + (type.width ?? 0)).round(upToNearest: 8)
         }
 
-        let value = Type.Struct(node: .empty, fields: fields)
+        let irType = builder.createStruct(name: name)
+        var irTypes: [IRType] = []
+        for field in fields {
+            let fieldType = canonicalize(field.type)
+            irTypes.append(fieldType)
+        }
+
+        irType.setBody(irTypes)
+
+        let value = Type.Struct(node: .empty, fields: fields, ir: Ref(irType))
         let type = Type(entity: nil, width: width, flags: .none, value: value)
 
         return Type.makeMetatype(type)

@@ -14,7 +14,7 @@ var buildDirectory = currentDirectory + "/" + fileExtension + "/"
 let fileExtension = ".cte"
 
 /// Ensures everything is preparred for compilation
-public func performCompilationPreflightChecks(with options: Options) {
+public func performCompilationPreflightChecks(with options: Options, initialFile file: SourceFile) {
     do {
         targetMachine = try TargetMachine()
         try ensureBuildDirectoryExists()
@@ -23,6 +23,10 @@ public func performCompilationPreflightChecks(with options: Options) {
         print("  While performing preflight checks")
         exit(1)
     }
+
+    moduleName = String(file.pathFirstImportedAs
+            .split(separator: "/").last!
+            .split(separator: ".").first!)
 }
 
 public func ensureBuildDirectoryExists() throws {
@@ -150,14 +154,14 @@ extension String {
 
 extension String {
 
-    var dirname: String {
+    public var dirname: String {
         if !self.contains("/") {
             return "."
         }
         return String(self.reversed().drop(while: { $0 != "/" }).reversed())
     }
 
-    var basename: String {
+    public var basename: String {
         return String(self.split(separator: "/").last ?? "")
     }
 }
@@ -217,6 +221,16 @@ extension ExpressibleByStringLiteral where StringLiteralType == StaticString {
 
     public init(extendedGraphemeClusterLiteral value: StaticString) {
         self.init(stringLiteral: value)
+    }
+}
+
+class Ref<T> {
+    var val: T
+    init(_ val: T) {
+        self.val = val
+    }
+    init(val: T) {
+        self.val = val
     }
 }
 

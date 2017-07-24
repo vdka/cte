@@ -356,7 +356,7 @@ extension Checker {
 
             node.value = For(label: foŕ.label,
                              initializer: foŕ.initializer, condition: foŕ.condition, step: foŕ.step, body: foŕ.body,
-                             continueTarget: JumpTarget(), breakTarget: JumpTarget())
+                             continueTarget: Ref(nil), breakTarget: Ref(nil))
 
         case .switch:
             let swítch = node.asSwitch
@@ -412,7 +412,7 @@ extension Checker {
 
                 context.nextCase = nil
 
-                casé.value = Case(condition: asCase.condition, block: asCase.block, scope: context.scope, fallthroughTarget: JumpTarget())
+                casé.value = Case(condition: asCase.condition, block: asCase.block, scope: context.scope, fallthroughTarget: Ref(nil))
 
                 checkedCases.append(casé)
             }
@@ -425,7 +425,7 @@ extension Checker {
 
             popContext()
 
-            node.value = Switch(label: swítch.label, subject: swítch.subject, cases: swítch.cases, breakTarget: JumpTarget())
+            node.value = Switch(label: swítch.label, subject: swítch.subject, cases: swítch.cases, breakTarget: Ref(nil))
 
         case .return:
             let ret = node.asReturn
@@ -948,7 +948,7 @@ extension Checker {
             }
             popContext()
 
-            let value = Type.Struct(node: node, fields: fields)
+            let value = Type.Struct(node: node, fields: fields, ir: Ref(nil))
             let type = Type(entity: nil, width: width, flags: .none, value: value)
 
             return Type.makeMetatype(type)
@@ -979,7 +979,7 @@ extension Checker {
             popContext()
             width = width.round(upToNearest: 8)
 
-            let value = Type.Union(node: node, fields: fields)
+            let value = Type.Union(node: node, fields: fields, ir: Ref(nil))
             let type = Type(entity: nil, width: width, flags: .none, value: value)
 
 
@@ -1810,8 +1810,8 @@ extension Checker {
         let step: AstNode?
         let body: AstNode
 
-        var continueTarget: JumpTarget
-        var breakTarget: JumpTarget
+        var continueTarget: Ref<BasicBlock?>
+        var breakTarget: Ref<BasicBlock?>
     }
 
     struct Switch: AstValue {
@@ -1821,7 +1821,7 @@ extension Checker {
         let subject: AstNode?
         let cases: [AstNode]
 
-        var breakTarget: JumpTarget
+        var breakTarget: Ref<BasicBlock?>
     }
 
     struct Case: CheckedAstValue {
@@ -1831,7 +1831,7 @@ extension Checker {
         let block: AstNode
         let scope: Scope
 
-        var fallthroughTarget: JumpTarget
+        var fallthroughTarget: Ref<BasicBlock?>
     }
 
     struct Break: CheckedAstValue {
@@ -1866,16 +1866,6 @@ class FunctionSpecialization {
         self.specializedTypes = specializedTypes
         self.strippedType = strippedType
         self.generatedFunctionNode = generatedFunctionNode
-        self.llvm = llvm
-    }
-}
-
-// Used purely for reference semantics
-class JumpTarget {
-    var llvm: BasicBlock?
-
-    init() {}
-    init(llvm: BasicBlock?) {
         self.llvm = llvm
     }
 }

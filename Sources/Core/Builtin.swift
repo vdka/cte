@@ -39,7 +39,7 @@ extension Type {
     static let invalid = Type.makeBuiltin(Entity.anonymous, width: 0, value: Type.Void())
     static let cvargsAny = Type(value: Type.CVargsAny())
 
-    static let typeInfo = Type.makeStruct([
+    static let typeInfo = Type.makeStruct(named: "TypeInfo", [
         ("kind", Type.u8), // TODO: Make this an enumeration
         ("name", Type.string),
         ("width", Type.i64),

@@ -51,6 +51,7 @@ enum AstKind {
     case access
     case structFieldAccess
     case unionFieldAccess
+    case staticFieldAccess
     case block
     case `if`
     case `for`

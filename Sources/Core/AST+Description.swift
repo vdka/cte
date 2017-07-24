@@ -120,7 +120,7 @@ extension AstNode: CustomStringConvertible {
 
             return callee + "(" + arguments + ")"
 
-        case .access, .structFieldAccess, .unionFieldAccess:
+        case .access, .structFieldAccess, .unionFieldAccess, .staticFieldAccess:
             return asAccess.aggregate.description + "." + asAccess.member.description
 
         case .block:

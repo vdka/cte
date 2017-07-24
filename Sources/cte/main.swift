@@ -16,7 +16,7 @@ guard let file = SourceFile.new(path: filepath) else {
 
 Options.instance = Options.from(arguments: CommandLine.arguments[2...])
 
-performCompilationPreflightChecks(with: Options.instance)
+performCompilationPreflightChecks(with: Options.instance, initialFile: file)
 
 startTiming("Parsing")
 file.parseEmittingErrors()

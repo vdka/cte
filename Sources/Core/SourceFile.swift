@@ -29,10 +29,6 @@ public final class SourceFile {
     var scope: Scope!
     var linkedLibraries: Set<String> = []
 
-    // Set in IRGen
-    var moduleName: String!
-    var module: Module!
-
     init(lexer: Lexer, fullpath: String, pathImportedAs: String, importedFrom: SourceFile?) {
         self.lexer = lexer
         self.fullpath = fullpath
@@ -107,15 +103,7 @@ public final class SourceFile {
 
     public func generateIntermediateRepresentation() {
 
-        moduleName = String(pathFirstImportedAs
-            .split(separator: "/").last!
-            .split(separator: ".").first!)
-
-        let module = Module(name: moduleName)
-
         SourceFile.generateIntermediateRepresentation(to: module, for: self)
-
-        self.module = module
     }
 
     public func validateIntermediateRepresentation() {
@@ -228,7 +216,7 @@ public final class SourceFile {
             generateIntermediateRepresentation(to: module, for: importedFile)
         }
 
-        let irGenerator = IRGenerator(forModule: module, file: file)
+        let irGenerator = IRGenerator(file: file)
         irGenerator.generate()
 
         file.hasBeenGenerated = true

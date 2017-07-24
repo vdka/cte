@@ -1,20 +1,24 @@
 
 import LLVM
 
+var moduleName: String!
+
+var module: Module = {
+    return Module(name: moduleName)
+}()
+
+var builder: IRBuilder = {
+    return IRBuilder(module: module)
+}()
+
 struct IRGenerator {
 
     var file: SourceFile
 
-    var module: Module
-    var builder: IRBuilder
-
     var function: Function?
 
-    init(forModule module: Module, file: SourceFile) {
+    init(file: SourceFile) {
         self.file = file
-
-        self.module = module
-        self.builder = IRBuilder(module: module)
 
         let mainType = FunctionType(argTypes: [], returnType: IntType.int32)
         if file.isInitialFile {
@@ -25,6 +29,10 @@ struct IRGenerator {
             self.function = mainFunction
         }
     }
+}
+
+
+extension IRGenerator {
 
     func generate() {
 
@@ -77,9 +85,33 @@ struct IRGenerator {
             }
 
             assert(decl.entities.count == decl.values.count)
-            for (entity, value) in zip(decl.entities, decl.values)
-                where !entity.type!.isMetatype
-            {
+            for (entity, value) in zip(decl.entities, decl.values) {
+                guard !entity.type!.isMetatype else {
+                    let type = entity.type!.asMetatype.instanceType
+                    let irType = builder.createStruct(name: entity.name) // TODO: Mangled
+
+                    switch type.kind {
+                    case .struct:
+                        var irTypes: [IRType] = []
+                        for field in type.asStruct.fields {
+                            let fieldType = canonicalize(field.type)
+                            irTypes.append(fieldType)
+                        }
+
+                        irType.setBody(irTypes)
+
+                        type.asStruct.ir.val = irType
+
+                    case .union:
+                        // TODO: We need to make unions a `type { i(width) }` instead of just `i(width)`
+                        continue
+
+                    default:
+                        fatalError()
+                    }
+                    continue
+                }
+
                 let type = canonicalize(entity.type!)
 
                 if decl.isForeign {
@@ -289,20 +321,20 @@ struct IRGenerator {
 
             switch target.kind {
             case .for:
-                builder.buildBr(target.asCheckedFor.breakTarget.llvm!)
+                builder.buildBr(target.asCheckedFor.breakTarget.val!)
             case .switch:
-                builder.buildBr(target.asCheckedSwitch.breakTarget.llvm!)
+                builder.buildBr(target.asCheckedSwitch.breakTarget.val!)
             default:
                 fatalError()
             }
 
         case .continue:
             let target = node.asCheckedContinue.target
-            builder.buildBr(target.asCheckedFor.continueTarget.llvm!)
+            builder.buildBr(target.asCheckedFor.continueTarget.val!)
 
         case .fallthrough:
             let target = node.asCheckedCase
-            builder.buildBr(target.fallthroughTarget.llvm!)
+            builder.buildBr(target.fallthroughTarget.val!)
 
         default:
             fatalError()
@@ -605,8 +637,8 @@ struct IRGenerator {
             builder.buildBr(loopBody)
         }
 
-        foŕ.breakTarget.llvm = loopPost
-        foŕ.continueTarget.llvm = loopCond ?? loopStep ?? loopBody
+        foŕ.breakTarget.val = loopPost
+        foŕ.continueTarget.val = loopCond ?? loopStep ?? loopBody
         builder.positionAtEnd(of: loopBody)
         defer {
             loopPost.moveAfter(builder.currentFunction!.lastBlock!)
@@ -648,7 +680,7 @@ struct IRGenerator {
         let currentBlock = builder.insertBlock!
 
         let postBlock = currentFunc.appendBasicBlock(named: "switch.post.ln.\(ln)")
-        swítch.breakTarget.llvm = postBlock
+        swítch.breakTarget.val = postBlock
         defer {
             postBlock.moveAfter(currentFunc.lastBlock!)
         }
@@ -671,7 +703,7 @@ struct IRGenerator {
         for (i, casé) in swítch.cases.map({ $0.asCheckedCase }).enumerated() {
 
             let thenBlock = thenBlocks[i]
-            casé.fallthroughTarget.llvm = thenBlocks[safe: i + 1]
+            casé.fallthroughTarget.val = thenBlocks[safe: i + 1]
 
             if let match = casé.condition {
                 let val = emitExpr(node: match)
@@ -705,7 +737,7 @@ struct IRGenerator {
         let currentBlock = builder.insertBlock!
 
         let postBlock = currentFunc.appendBasicBlock(named: "switch.post.ln.\(ln)")
-        swítch.breakTarget.llvm = postBlock
+        swítch.breakTarget.val = postBlock
         defer {
             postBlock.moveAfter(currentFunc.lastBlock!)
         }
@@ -729,7 +761,7 @@ struct IRGenerator {
             let nextCondBlock = condBlocks[safe: i + 1]
 
             let thenBlock = thenBlocks[i]
-            casé.fallthroughTarget.llvm = thenBlocks[safe: i + 1]
+            casé.fallthroughTarget.val = thenBlocks[safe: i + 1]
 
             builder.positionAtEnd(of: condBlock)
 
@@ -811,18 +843,10 @@ func canonicalize(_ type: Type) -> IRType {
         return FunctionType(argTypes: paramTypes, returnType: retType, isVarArg: fn.isCVariadic)
 
     case .struct:
-        let strućt = type.asStruct
-
-        var fieldTypes: [IRType] = []
-
-        for field in strućt.fields {
-            let type = canonicalize(field.type)
-            fieldTypes.append(type)
-        }
-
-        return StructType(elementTypes: fieldTypes, isPacked: false)
+        return type.asStruct.ir.val!
 
     case .union:
+//        return type.asUnion.ir.pointee!
         return IntType(width: type.width!)
 
     case .tuple:
