@@ -131,14 +131,13 @@ extension IRGenerator {
                             let fieldType = canonicalize(field.type)
                             irTypes.append(fieldType)
                         }
-
                         irType.setBody(irTypes)
-
                         type.asStruct.ir.val = irType
 
                     case .union:
-                        // TODO: We need to make unions a `type { i(width) }` instead of just `i(width)`
-                        continue
+                        let body = IntType(width: type.width!)
+                        irType.setBody([body])
+                        type.asUnion.ir.val = irType
 
                     default:
                         fatalError()
@@ -416,11 +415,23 @@ extension IRGenerator {
                 return ir
 
             case .union:
-                let type = canonicalize(lit.type)
+                let unionType = (canonicalize(lit.type) as! StructType)
+                let unionIntType = unionType.elementTypes[0]
+                let elementIntType = IntType(width: lit.elements[0].exprType.width!)
+
                 var ir = emitExpr(node: lit.elements[0])
-                ir = builder.buildBitCast(ir, type: IntType(width: lit.elements[0].exprType.width!))
-                ir = builder.buildZExtOrBitCast(ir, type: type)
-                return ir
+
+                // cast the emitted value to an integer value of the same width
+                ir = builder.buildBitCast(ir, type: elementIntType)
+
+                // zext if needed to make the integer value into the width we need
+                ir = builder.buildZExtOrBitCast(ir, type: unionIntType)
+
+                var union = unionType.undef()
+
+                union = builder.buildInsertValue(aggregate: union, element: ir, index: 0)
+
+                return union
 
             default:
                 fatalError()
@@ -886,8 +897,7 @@ func canonicalize(_ type: Type) -> IRType {
         return type.asStruct.ir.val!
 
     case .union:
-//        return type.asUnion.ir.pointee!
-        return IntType(width: type.width!)
+        return type.asUnion.ir.val!
 
     case .tuple:
         let tuple = type.asTuple
