@@ -46,6 +46,42 @@ extension Type {
     ])
 }
 
+class BuiltinEntity {
+
+    var entity: Entity
+    var type: Type
+    var gen: (IRBuilder) -> IRValue
+
+    init(entity: Entity, type: Type, gen: @escaping (IRBuilder) -> IRValue) {
+        self.entity = entity
+        self.type = type
+        self.gen = {
+            if let value = entity.value {
+                return value
+            }
+            entity.value = gen($0)
+            return entity.value!
+        }
+    }
+
+    init(name: String, type: Type, gen: @escaping (IRBuilder) -> IRValue) {
+        let token = Token(kind: .ident, value: name, location: .unknown)
+        let entity = Entity(ident: token, type: type, flags: .none)
+        self.entity = entity
+        self.type = type
+        self.gen = {
+            if let value = entity.value {
+                return value
+            }
+            entity.value = gen($0)
+            return entity.value!
+        }
+    }
+
+    static let trué = BuiltinEntity(name: "true", type: Type.bool, gen: { $0.addGlobal("true", initializer: true.asLLVM()) })
+    static let falsé = BuiltinEntity(name: "false", type: Type.bool, gen: { $0.addGlobal("false", initializer: false.asLLVM()) })
+}
+
 class BuiltinFunction {
 
     typealias Generate = (BuiltinFunction, [AstNode], Module, IRBuilder) -> IRValue

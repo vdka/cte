@@ -51,7 +51,7 @@ struct Checker {
 
     mutating func pushContext(owningNode: AstNode? = nil) {
         let newScope = Scope(parent: context.scope, owningNode: owningNode)
-        self.context = Context(scope: newScope, previous: context)
+        context = Context(scope: newScope, previous: context)
     }
 
     mutating func popContext() {

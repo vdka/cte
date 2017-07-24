@@ -41,5 +41,5 @@ class Scope {
         members.append(entity)
     }
 
-    static let global = Scope(members: builtinEntities)
+    static let global = Scope(members: builtins)
 }

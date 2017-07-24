@@ -451,6 +451,16 @@ extension AstNode {
         )
     }
 }
+extension BuiltinEntity {
+
+    func copy() -> BuiltinEntity {
+        return BuiltinEntity(
+            entity: entity.copy(),
+            type: type.copy(),
+            gen: gen
+        )
+    }
+}
 extension Entity {
 
     func copy() -> Entity {

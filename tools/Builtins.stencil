@@ -15,14 +15,6 @@ extension Type {
 {% endfor %}
 }
 
-let builtinFunctions = [
-{% for type in types.all where type.name == "BuiltinFunction" %}
-{% for var in type.staticVariables %}
-    BuiltinFunction.{{ var.name }},
-{% endfor %}
-{% endfor %}
-]
-
 let builtinTypes = [
 {% for type in types.all where type.name == "BuiltinType" %}
 {% for var in type.staticVariables %}
@@ -32,6 +24,27 @@ let builtinTypes = [
 ]
 
 let builtinEntities = [
+{% for type in types.all where type.name == "BuiltinEntity" %}
+{% for var in type.staticVariables %}
+    BuiltinEntity.{{ var.name }},
+{% endfor %}
+{% endfor %}
+]
+
+let builtinFunctions = [
+{% for type in types.all where type.name == "BuiltinFunction" %}
+{% for var in type.staticVariables %}
+    BuiltinFunction.{{ var.name }},
+{% endfor %}
+{% endfor %}
+]
+
+let builtins = [
+{% for type in types.all where type.name == "BuiltinEntity" %}
+{% for var in type.staticVariables %}
+    BuiltinEntity.{{ var.name }}.entity,
+{% endfor %}
+{% endfor %}
 {% for type in types.all where type.name == "BuiltinFunction" %}
 {% for var in type.staticVariables %}
     BuiltinFunction.{{ var.name }}.entity,

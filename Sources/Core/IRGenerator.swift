@@ -8,33 +8,63 @@ var module: Module = {
 }()
 
 var builder: IRBuilder = {
-    return IRBuilder(module: module)
+    let builder = IRBuilder(module: module)
+
+    // At this point we want to generate the ir for the builtin entities
+    for builtinEntity in builtinEntities {
+        _ = builtinEntity.gen(builder)
+    }
+
+    return builder
+}()
+
+var main: Function = {
+    let mainType = FunctionType(argTypes: [], returnType: IntType.int32)
+    let function = builder.addFunction("main", type: mainType)
+    let entryBlock = function.appendBasicBlock(named: "entry")
+    return function
 }()
 
 struct IRGenerator {
 
     var file: SourceFile
-
-    var function: Function?
+    var context: Context
 
     init(file: SourceFile) {
         self.file = file
+        self.context = Context(mangledNamePrefix: "", previous: nil)
 
-        let mainType = FunctionType(argTypes: [], returnType: IntType.int32)
         if file.isInitialFile {
             // this is the file the compiler has been invoked upon
-            let mainFunction = builder.addFunction("main", type: mainType)
-            let entryBlock = mainFunction.appendBasicBlock(named: "entry")
-            builder.positionAtEnd(of: entryBlock)
-            self.function = mainFunction
+            builder.positionAtEnd(of: main.entryBlock!)
         }
+    }
+
+    class Context {
+        var mangledNamePrefix: String
+        var currentScopeCounter: UInt = 0
+
+        var previous: Context?
+
+        init(mangledNamePrefix: String, previous: Context?) {
+            self.mangledNamePrefix = mangledNamePrefix
+            self.previous = previous
+        }
+    }
+
+    mutating func pushContext(scopeName: String) {
+        context = Context(mangledNamePrefix: (context.mangledNamePrefix.isEmpty ? "" : context.mangledNamePrefix + ".") + scopeName, previous: context)
+    }
+
+    mutating func popContext() {
+        context = context.previous!
     }
 }
 
 
 extension IRGenerator {
 
-    func generate() {
+    mutating func generate() {
 
         for node in file.nodes {
             emit(node: node)
