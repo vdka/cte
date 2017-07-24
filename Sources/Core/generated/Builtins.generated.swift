@@ -31,7 +31,7 @@ extension Type {
 }
 
 let builtinFunctions = [
-    BuiltinFunction.typeof,
+    BuiltinFunction.typeinfo,
 ]
 
 let builtinTypes = [
@@ -49,7 +49,7 @@ let builtinTypes = [
 ]
 
 let builtinEntities = [
-    BuiltinFunction.typeof.entity,
+    BuiltinFunction.typeinfo.entity,
     BuiltinType.void.entity,
     BuiltinType.type.entity,
     BuiltinType.any.entity,

@@ -113,10 +113,10 @@ printf("%f, %f\n", foo.a, foo.b)
 printf("%f, %f\n", bar.foo.a, bar.foo.b)
 
 // NOTE: On the following 2 calls the kind value *must* be last due to what will otherwise be a misaligned stack pointer
-printf("%s's is of kind %d and is %d bits wide\n" , typeof(i64).name, typeof(i64).kind, typeof(i64).width)
-printf("%s's is of kind %d and is %d bits wide\n", typeof(string).name, typeof(string).kind, typeof(string).width)
+printf("%s's is of kind %d and is %d bits wide\n" , typeinfo(i64).name, typeinfo(i64).kind, typeinfo(i64).width)
+printf("%s's is of kind %d and is %d bits wide\n", typeinfo(string).name, typeinfo(string).kind, typeinfo(string).width)
 
-printf("%d, %d, %s\n", typeof(u8).kind, typeof(u8).width, typeof(u8).name)
+printf("%d, %d, %s\n", typeinfo(u8).kind, typeinfo(u8).width, typeinfo(u8).name)
 
 Baz :: union {
     i: i32

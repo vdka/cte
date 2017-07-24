@@ -73,11 +73,11 @@ class BuiltinFunction {
         return fn
     }
 
-    static let typeof = BuiltinFunction.make("typeof", in: [Type.type], out: [Type.typeInfo], gen: typeofGen)
+    static let typeinfo = BuiltinFunction.make("typeinfo", in: [Type.type], out: [Type.typeInfo], gen: typeinfoGen)
 }
 
 var typeInfoValues: [Type: IRValue] = [:]
-func typeofGen(builtinFunction: BuiltinFunction, parameters: [AstNode], module: Module, builder: IRBuilder) -> IRValue {
+func typeinfoGen(builtinFunction: BuiltinFunction, parameters: [AstNode], module: Module, builder: IRBuilder) -> IRValue {
     
     let typeInfoType = Type.typeInfo.asMetatype.instanceType
     let type = parameters[0].exprType.asMetatype.instanceType
