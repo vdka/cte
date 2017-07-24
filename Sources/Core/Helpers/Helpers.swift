@@ -164,6 +164,10 @@ extension String {
     public var basename: String {
         return String(self.split(separator: "/").last ?? "")
     }
+
+    public var withoutExtension: String {
+        return String(self.split(separator: ".").first ?? "")
+    }
 }
 
 extension Int {

@@ -216,7 +216,7 @@ public final class SourceFile {
             generateIntermediateRepresentation(to: module, for: importedFile)
         }
 
-        let irGenerator = IRGenerator(file: file)
+        var irGenerator = IRGenerator(file: file)
         irGenerator.generate()
 
         file.hasBeenGenerated = true

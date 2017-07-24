@@ -42,8 +42,6 @@ struct IRGenerator {
 
     class Context {
         var mangledNamePrefix: String
-        var currentScopeCounter: UInt = 0
-
         var previous: Context?
 
         init(mangledNamePrefix: String, previous: Context?) {
@@ -53,7 +51,7 @@ struct IRGenerator {
     }
 
     mutating func pushContext(scopeName: String) {
-        context = Context(mangledNamePrefix: (context.mangledNamePrefix.isEmpty ? "" : context.mangledNamePrefix + ".") + scopeName, previous: context)
+        context = Context(mangledNamePrefix: mangle(scopeName), previous: context)
     }
 
     mutating func popContext() {
@@ -66,16 +64,22 @@ extension IRGenerator {
 
     mutating func generate() {
 
+        if !file.isInitialFile {
+            pushContext(scopeName: file.pathFirstImportedAs.withoutExtension)
+        }
+
         for node in file.nodes {
             emit(node: node)
         }
 
-        if file.isInitialFile {
+        if !file.isInitialFile {
+            popContext()
+        } else if file.isInitialFile {
             builder.buildRet(IntType.int32.constant(0))
         }
     }
 
-    func emit(node: AstNode) {
+    mutating func emit(node: AstNode) {
 
         switch node.kind {
         case .comment, .import, .library, .empty:
@@ -118,7 +122,7 @@ extension IRGenerator {
             for (entity, value) in zip(decl.entities, decl.values) {
                 guard !entity.type!.isMetatype else {
                     let type = entity.type!.asMetatype.instanceType
-                    let irType = builder.createStruct(name: entity.name) // TODO: Mangled
+                    let irType = builder.createStruct(name: mangle(entity.name))
 
                     switch type.kind {
                     case .struct:
@@ -164,7 +168,7 @@ extension IRGenerator {
 
                 if entity.flags.contains(.compileTime) {
                     let value = emitExpr(node: value)
-                    var globalValue = builder.addGlobal(entity.name, initializer: value)
+                    var globalValue = builder.addGlobal(mangle(entity.name), initializer: value)
                     globalValue.isGlobalConstant = true
                     entity.value = globalValue
                     return
@@ -172,7 +176,7 @@ extension IRGenerator {
 
                 if let file = entity.owningScope.file, !file.isInitialFile {
                     let value = emitExpr(node: value)
-                    let globalValue = builder.addGlobal(entity.name, initializer: value)
+                    let globalValue = builder.addGlobal(mangle(entity.name), initializer: value)
                     entity.value = globalValue
                     return
                 }
@@ -371,7 +375,7 @@ extension IRGenerator {
         }
     }
 
-    func emitExpr(node: AstNode, returnAddress: Bool = false, name: String = "") -> IRValue {
+    mutating func emitExpr(node: AstNode, returnAddress: Bool = false, name: String = "") -> IRValue {
 
         switch node.kind {
         case .litInteger:
@@ -499,7 +503,7 @@ extension IRGenerator {
         }
     }
 
-    func emitPrefix(_ prefix: Checker.Prefix) -> IRValue {
+    mutating func emitPrefix(_ prefix: Checker.Prefix) -> IRValue {
 
         if prefix.token.kind == .ampersand {
             return emitExpr(node: prefix.expr, returnAddress: true)
@@ -525,7 +529,7 @@ extension IRGenerator {
         }
     }
 
-    func emitInfix(_ infix: Checker.Infix) -> IRValue {
+    mutating func emitInfix(_ infix: Checker.Infix) -> IRValue {
 
         var lhs = emitExpr(node: infix.lhs)
         var rhs = emitExpr(node: infix.rhs)
@@ -571,7 +575,7 @@ extension IRGenerator {
     }
 
     @discardableResult
-    func emitCall(_ call: Checker.Call) -> IRValue {
+    mutating func emitCall(_ call: Checker.Call) -> IRValue {
 
         if let builtinFunction = call.builtinFunction {
             return builtinFunction.generate(builtinFunction, call.arguments, module, builder)
@@ -591,9 +595,9 @@ extension IRGenerator {
         return builder.buildCall(callee, args: args)
     }
 
-    func emitFunction(named name: String, _ fn: Checker.Function) -> Function {
+    mutating func emitFunction(named name: String, _ fn: Checker.Function) -> Function {
 
-        let function = builder.addFunction(name, type: canonicalize(fn.type) as! FunctionType)
+        let function = builder.addFunction(mangle(name), type: canonicalize(fn.type) as! FunctionType)
 
         let lastBlock = builder.insertBlock
 
@@ -615,12 +619,14 @@ extension IRGenerator {
             builder.buildStore(irParam, to: entity.value!)
         }
 
+        pushContext(scopeName: name)
         emit(node: fn.body)
+        popContext()
 
         return function
     }
 
-    func emitPolymorphicFunction(named name: String, fn: Checker.PolymorphicFunction) {
+    mutating func emitPolymorphicFunction(named name: String, fn: Checker.PolymorphicFunction) {
 
         for specialization in fn.specializations {
             let fn = specialization.generatedFunctionNode.asCheckedFunction
@@ -630,7 +636,7 @@ extension IRGenerator {
         }
     }
 
-    func emitFor(_ foŕ: Checker.For) {
+    mutating func emitFor(_ foŕ: Checker.For) {
         let currentFunc = builder.currentFunction!
 
         var loopBody: BasicBlock
@@ -701,7 +707,7 @@ extension IRGenerator {
         builder.positionAtEnd(of: loopPost)
     }
 
-    func emitSwitch(_ swítch: Checker.Switch) {
+    mutating func emitSwitch(_ swítch: Checker.Switch) {
         let subject = swítch.subject!
 
         let ln = swítch.cases.first!.tokens[0].start.line
@@ -760,7 +766,7 @@ extension IRGenerator {
         builder.positionAtEnd(of: postBlock)
     }
 
-    func emitBSwitch(_ swítch: Checker.Switch) {
+    mutating func emitBSwitch(_ swítch: Checker.Switch) {
         let ln = swítch.cases.first!.tokens[0].start.line
 
         let currentFunc = builder.currentFunction!
@@ -815,6 +821,10 @@ extension IRGenerator {
 
         postBlock.moveAfter(thenBlocks.last!)
         builder.positionAtEnd(of: postBlock)
+    }
+
+    func mangle(_ name: String) -> String {
+        return (context.mangledNamePrefix.isEmpty ? "" : context.mangledNamePrefix + ".") + name
     }
 }
 
