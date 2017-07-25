@@ -227,6 +227,7 @@ struct Lexer {
                 case "#import":      kind = .directiveImport
                 case "#library":     kind = .directiveLibrary
                 case "#foreign":     kind = .directiveForeign
+                case "#linkName":    kind = .directiveLinkName
                 case "#discardable": kind = .directiveDiscardable
                 case "#callingConvention":  kind = .directiveCallingConvention
                 default:
@@ -487,7 +488,7 @@ extension Token {
         case directiveImport
         case directiveLibrary
         case directiveForeign
-        case directiveLinkname
+        case directiveLinkName
         case directiveDiscardable
         case directiveCvargs
         case directiveCallingConvention
@@ -582,7 +583,7 @@ extension Token: CustomStringConvertible {
         case .directiveImport: fallthrough
         case .directiveLibrary: fallthrough
         case .directiveForeign: fallthrough
-        case .directiveLinkname: fallthrough
+        case .directiveLinkName: fallthrough
         case .directiveDiscardable: fallthrough
         case .directiveCvargs: fallthrough
         case .directiveCallingConvention:
@@ -640,7 +641,7 @@ extension Token.Kind: CustomStringConvertible {
         case .directiveImport: return "#import"
         case .directiveLibrary: return "#library"
         case .directiveForeign: return "#foreign"
-        case .directiveLinkname: return "#linkname"
+        case .directiveLinkName: return "#linkname"
         case .directiveDiscardable: return "#discardable"
         case .directiveCvargs: return "#cvargs"
         case .directiveCallingConvention: return "#callingConvention"

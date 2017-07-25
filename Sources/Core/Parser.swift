@@ -746,6 +746,24 @@ struct Parser {
 
             return stmt
 
+        case .directiveLinkName:
+            let directive = advance()
+            let name = advance(expecting: .string)
+            consumeNewlines()
+            let stmt = expression()
+
+            let isDeclaration = stmt.kind == .declaration
+            guard isDeclaration && stmt.asDeclaration.names.count == 1 else {
+                reportError("#linkName is only valid on singular value declarations", at: stmt)
+                return stmt
+            }
+
+            if name.kind != .invalid {
+                stmt.asDeclaration.linkName = name.stringValue
+            }
+            stmt.tokens.insert(directive, at: 0)
+            return stmt
+
         case .directiveDiscardable:
             let directive = advance()
             consumeNewlines()
@@ -754,12 +772,16 @@ struct Parser {
             stmt.tokens.insert(directive, at: 0)
 
             let isDeclaration = stmt.kind == .declaration
+            guard isDeclaration else {
+                reportError("#discardable is only valid on function declarations", at: stmt)
+                return stmt
+            }
             let decl = stmt.asDeclaration
             let isFunction = decl.isFunction
             let isForeignFunction = context.state.contains(.foreign) && decl.isFunctionType
 
-            guard isDeclaration && (isFunction || isForeignFunction) else {
-                reportError("#discardable is only valid only function declarations", at: stmt)
+            guard isFunction || isForeignFunction else {
+                reportError("#discardable is only valid on function declarations", at: stmt)
                 return stmt
             }
 
@@ -968,23 +990,6 @@ struct Parser {
             let decl = AstNode.Declaration(names: explode(lvalue), type: type, values: values, linkName: nil, flags: flags)
             return AstNode(decl, tokens: [colon, token])
 
-        case .directiveLinkname:
-            let directive = advance()
-            let name = advance(expecting: .string)
-            guard lvalue.kind == .declaration else {
-                reportError("Linkname is only valid on declarations", at: directive)
-                return AstNode.invalid(with: [directive, name])
-            }
-
-            guard lvalue.asDeclaration.linkName == nil else {
-                reportError("Multiple linkname directives for single declaration", at: directive)
-                return lvalue
-            }
-
-            lvalue.asDeclaration.linkName = name.stringValue
-
-            return lvalue
-
         default:
             fatalError()
         }
@@ -1089,9 +1094,6 @@ extension Token.Kind {
     var lbp: UInt8 {
         switch self {
         case .colon, .equals:
-            return 10
-            
-        case .directiveLinkname:
             return 10
 
         case .comma:
