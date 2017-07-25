@@ -91,25 +91,38 @@ class BuiltinFunction {
     var generate: Generate
     var irValue: IRValue?
 
-    init(entity: Entity, generate: @escaping Generate) {
+    var onCallCheck: ((inout Checker, AstNode) -> Type)?
+
+    init(entity: Entity, generate: @escaping Generate, onCallCheck: ((inout Checker, AstNode) -> Type)?) {
         self.entity = entity
         self.type = entity.type!
         self.generate = generate
+        self.onCallCheck = onCallCheck
     }
 
     /// - Note: OutTypes must be metatypes and will be made instance instanceTypes
-    static func make(_ name: String, in inTypes: [Type], out outTypes: [Type], isVariadic: Bool = false, gen: @escaping Generate) -> BuiltinFunction {
+    static func make(_ name: String, in inTypes: [Type], out outTypes: [Type], isVariadic: Bool = false, gen: @escaping Generate, onCallCheck: ((inout Checker, AstNode) -> Type)? = nil) -> BuiltinFunction {
         let type = Type.fn(in: inTypes, out: outTypes.map({ $0.asMetatype.instanceType }), isVariadic: isVariadic)
 
         let token = Token(kind: .ident, value: name, location: .unknown)
         let entity = Entity(ident: token, type: type, flags: .none)
 
-        let fn = BuiltinFunction(entity: entity, generate: gen)
+        let fn = BuiltinFunction(entity: entity, generate: gen, onCallCheck: onCallCheck)
 
         return fn
     }
 
-    static let typeinfo = BuiltinFunction.make("typeinfo", in: [Type.type], out: [Type.typeInfo], gen: typeinfoGen)
+    static let typeinfo = BuiltinFunction.make("typeinfo", in: [Type.type], out: [Type.typeInfo], gen: typeinfoGen, onCallCheck: { checker, node in
+        let call = node.asCall
+
+        assert(call.arguments.count == 1)
+
+        var argType = checker.checkExpr(node: call.arguments[0])
+
+        argType = checker.lowerFromMetatype(argType, atNode: call.arguments[0])
+
+        return Type.makeTuple([Type.typeInfo.asMetatype.instanceType])
+    })
 }
 
 var typeInfoValues: [Type: IRValue] = [:]
@@ -135,4 +148,8 @@ func typeinfoGen(builtinFunction: BuiltinFunction, parameters: [AstNode], module
 
     typeInfoValues[type] = global
     return global
+}
+
+func lookupBuiltinFunction(_ callee: AstNode) -> BuiltinFunction? {
+    return builtinFunctions.first(where: { $0.entity.name == callee.asIdentifier.name })
 }

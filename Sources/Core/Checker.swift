@@ -1299,6 +1299,20 @@ extension Checker {
             return checkPolymorphicCall(callNode: node, calleeType: calleeType)
         }
 
+        if calleeFn.isBuiltin {
+            let builtin = lookupBuiltinFunction(call.callee)!
+            if let customCheck = builtin.onCallCheck {
+                var returnType = customCheck(&self, node)
+                if returnType.asTuple.types.count == 1 {
+                    returnType = returnType.asTuple.types[0]
+                }
+
+                node.value = Call(callee: call.callee, arguments: call.arguments, specialization: nil, builtinFunction: builtin, type: returnType)
+
+                return returnType
+            }
+        }
+
         for (arg, expectedType) in zip(call.arguments, calleeFn.params) {
 
             let argType = checkExpr(node: arg, desiredType: expectedType)
@@ -1311,7 +1325,7 @@ extension Checker {
 
         var builtinFunction: BuiltinFunction?
         if calleeFn.isBuiltin {
-            builtinFunction = builtinFunctions.first(where: { $0.type === calleeType })!
+            builtinFunction = lookupBuiltinFunction(call.callee)
         }
 
         var returnType = calleeFn.returnType
