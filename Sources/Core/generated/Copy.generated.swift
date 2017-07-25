@@ -81,6 +81,12 @@ extension AstValue {
         case is AstNode.Empty:
             return AstNode.Empty()
 
+        case let value as AstNode.EnumType:
+            return AstNode.EnumType(
+                associatedType: value.associatedType?.copy(),
+                cases: value.cases.map({ $0.copy() })
+        )
+
         case is AstNode.Fallthrough:
             return AstNode.Fallthrough()
 
@@ -294,6 +300,21 @@ extension AstValue {
                 linkName: value.linkName,
                 flags: value.flags,
                 entities: value.entities.map({ $0.copy() })
+        )
+
+        case let value as Checker.EnumCaseAccess:
+            return Checker.EnumCaseAccess(
+                aggregate: value.aggregate.copy(),
+                member: value.member.copy(),
+                casé: value.casé,
+                type: value.type.copy()
+        )
+
+        case let value as Checker.EnumType:
+            return Checker.EnumType(
+                associatedType: value.associatedType?.copy(),
+                cases: value.cases.map({ $0.copy() }),
+                type: value.type.copy()
         )
 
         case let value as Checker.Fallthrough:

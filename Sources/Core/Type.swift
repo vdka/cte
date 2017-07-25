@@ -82,6 +82,18 @@ class Type: Hashable, CustomStringConvertible {
         case .union:
             return "union { \n" + asUnion.fields.map({ "    " + $0.name + ": " + $0.type.description }).joined(separator: "\n") + "\n}"
 
+        case .enum:
+            return "enum { \n" + asEnum.cases
+                .map {
+                    var str = "    " + $0.name
+                    if let val = $0.associatedValue {
+                        str.append(" = ")
+                        str.append(val.description)
+                    }
+                    return str
+                }
+                .joined(separator: ", ") + "\n}"
+
         case .tuple:
             return "(" + asTuple.types.map({ $0.description }).joined(separator: ", ") + ")"
         }
@@ -184,6 +196,7 @@ enum TypeKind {
     case function
     case `struct`
     case union
+    case `enum`
     case tuple
     case pointer
     case polymorphic
@@ -281,6 +294,31 @@ extension Type {
         struct Field {
             let ident: Token
             let type: Type
+
+            var name: String {
+                return ident.stringValue
+            }
+        }
+    }
+
+    struct Enum: TypeValue {
+        static let typeKind: TypeKind = .enum
+
+        var node: AstNode
+
+        var associatedType: Type?
+        var cases: [Case] = []
+
+        /// Used for the named type
+        var ir: Ref<IRType?>
+
+        struct Case {
+            var ident: Token
+            let value: Int // FIXME: Make this any compile time value
+            let associatedValue: AstNode?
+
+            var valueIr: Ref<IRValue?>
+            var associatedValueIr: Ref<IRValue?>?
 
             var name: String {
                 return ident.stringValue

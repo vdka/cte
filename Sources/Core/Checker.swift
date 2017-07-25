@@ -953,6 +953,70 @@ extension Checker {
 
             return Type.makeMetatype(type)
 
+        case .enumType:
+            let enuḿ = node.asEnumType
+
+            var assocType: Type?
+            if let associatedType = enuḿ.associatedType {
+                assocType = checkExpr(node: associatedType)
+                assocType = lowerFromMetatype(assocType!, atNode: associatedType)
+            }
+
+            var currentValue = 0
+            var typeCases: [Type.Enum.Case] = []
+            pushContext()
+            for casé in enuḿ.cases {
+
+                switch casé.kind {
+                case .identifier:
+                    let typeCase = Type.Enum.Case(
+                        ident: casé.tokens[0], value: currentValue, associatedValue: nil,
+                        valueIr: Ref(nil), associatedValueIr: nil)
+
+                    currentValue += 1
+                    typeCases.append(typeCase)
+
+                case .assign:
+                    let assign = casé.asAssign
+                    assert(assign.lvalues.count == 1)
+                    assert(assign.rvalues.count == 1)
+
+                    let ident = assign.lvalues[0]
+                    let value = assign.rvalues[0]
+                    guard ident.kind == .identifier else {
+                        reportError("Expected identifier as lvalue", at: ident)
+                        return Type.invalid
+                    }
+
+                    let valueType = checkExpr(node: value, desiredType: assocType)
+                    if let associatedType = assocType, associatedType != valueType {
+                        reportError("Expected type '\(associatedType)' got type '\(valueType)'", at: value)
+                    }
+
+                    if value.kind == .litInteger {
+                        currentValue = Int(value.asIntegerLiteral.value)
+                    }
+
+                    let typeCase = Type.Enum.Case(
+                        ident: assign.lvalues[0].tokens[0], value: currentValue, associatedValue: value,
+                        valueIr: Ref(nil), associatedValueIr: Ref(nil))
+
+                    typeCases.append(typeCase)
+
+                    currentValue += 1
+
+                default:
+                    reportError("Unexpected \(casé.kind), expected either an identifier or an assignment", at: casé)
+                }
+            }
+            popContext()
+            let width = currentValue.bitsNeeded()
+
+            let value = Type.Enum(node: node, associatedType: assocType, cases: typeCases, ir: Ref(nil))
+            let type = Type(entity: nil, width: width, flags: .none, value: value)
+
+            return Type.makeMetatype(type)
+
         case .unionType:
             let union = node.asUnionType
 
@@ -1158,6 +1222,23 @@ extension Checker {
                 node.value = UnionFieldAccess(aggregate: access.aggregate, member: access.member, field: field)
 
                 return field.type
+
+            case .metatype:
+                let type = aggregateType.asMetatype.instanceType
+                switch type.kind {
+                case .enum:
+                    guard let casé = type.asEnum.cases.first(where: { $0.name == access.memberName }) else {
+                        reportError("Case '\(access.member)' not found in scope of '\(access.aggregate)'", at: access.member)
+                        return Type.invalid
+                    }
+
+                    node.value = EnumCaseAccess(aggregate: access.aggregate, member: access.member, casé: casé, type: type)
+                    return type
+
+                default:
+                    reportError("Not yet supported", at: node)
+                    return Type.invalid
+                }
 
             default:
                 reportError("'\(access.aggregate)' (type \(aggregateType)) is not an aggregate type", at: access.aggregate)
@@ -1624,6 +1705,7 @@ extension Checker {
         var type: Type
     }
 
+    // sourcery:NoCommon
     struct PolymorphicFunction: CheckedExpression, CheckedAstValue {
         static let astKind = AstKind.polymorphicFunction
 
@@ -1681,6 +1763,14 @@ extension Checker {
         let type: Type
     }
 
+    struct EnumType: CheckedExpression, CheckedAstValue {
+        typealias UncheckedValue = AstNode.EnumType
+
+        let associatedType: AstNode?
+        let cases: [AstNode]
+        let type: Type
+    }
+
     struct Declaration: CheckedAstValue {
         typealias UncheckedValue = AstNode.Declaration
 
@@ -1734,6 +1824,7 @@ extension Checker {
         let type: Type
     }
 
+    // sourcery:NoCommon
     struct Cast: CheckedExpression, CheckedAstValue {
         static let astKind = AstKind.cast
 
@@ -1761,6 +1852,7 @@ extension Checker {
         }
     }
 
+    // sourcery:NoCommon
     struct StructFieldAccess: CheckedExpression, CheckedAstValue {
         static let astKind = AstKind.structFieldAccess
         typealias UncheckedValue = AstNode.Access
@@ -1777,6 +1869,22 @@ extension Checker {
         }
     }
 
+    // sourcery:NoCommon
+    struct EnumCaseAccess: CheckedExpression, CheckedAstValue {
+        static let astKind = AstKind.enumCaseAccess
+        typealias UncheckedValue = AstNode.Access
+
+        let aggregate: AstNode
+        let member: AstNode
+        var memberName: String {
+            return member.asIdentifier.name
+        }
+
+        let casé: Type.Enum.Case
+        var type: Type
+    }
+
+    // sourcery:NoCommon
     struct UnionFieldAccess: CheckedExpression, CheckedAstValue {
         static let astKind = AstKind.unionFieldAccess
         typealias UncheckedValue = AstNode.Access

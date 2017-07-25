@@ -16,8 +16,7 @@ extension AstValue {
 
         case (let a as AstNode.Block, let b as AstNode.Block):
             if a.stmts != b.stmts { return false }
-            if a.isForeign != b.isForeign { return false }
-            if a.isFunction != b.isFunction { return false }
+            if a.flags != b.flags { return false }
             return true
 
         case (let a as AstNode.Break, let b as AstNode.Break):
@@ -65,6 +64,11 @@ extension AstValue {
             return true
 
         case (is AstNode.Empty, is AstNode.Empty):
+            return true
+
+        case (let a as AstNode.EnumType, let b as AstNode.EnumType):
+            if a.associatedType != b.associatedType { return false }
+            if a.cases != b.cases { return false }
             return true
 
         case (is AstNode.Fallthrough, is AstNode.Fallthrough):
@@ -173,6 +177,10 @@ extension AstValue {
             if a.label != b.label { return false }
             if a.subject != b.subject { return false }
             if a.cases != b.cases { return false }
+            return true
+
+        case (let a as AstNode.UnionType, let b as AstNode.UnionType):
+            if a.declarations != b.declarations { return false }
             return true
 
         case (let a as AstNode.Variadic, let b as AstNode.Variadic):

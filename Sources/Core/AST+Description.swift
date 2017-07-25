@@ -74,6 +74,9 @@ extension AstNode: CustomStringConvertible {
         case .unionType:
             return "union {\n" + asUnionType.declarations.map({ "    " + $0.description }).joined(separator: "\n") + "\n}"
 
+        case .enumType:
+            return "enum {\n" + asEnumType.cases.map({ "    " + $0.description }).joined(separator: "\n") + "\n}"
+
         case .compileTime:
             return "$" + asCompileTime.stmt.description
 
@@ -120,7 +123,7 @@ extension AstNode: CustomStringConvertible {
 
             return callee + "(" + arguments + ")"
 
-        case .access, .structFieldAccess, .unionFieldAccess, .staticFieldAccess:
+        case .access, .structFieldAccess, .enumCaseAccess, .unionFieldAccess:
             return asAccess.aggregate.description + "." + asAccess.member.description
 
         case .block:

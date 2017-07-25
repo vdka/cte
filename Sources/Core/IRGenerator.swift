@@ -25,6 +25,12 @@ var main: Function = {
     return function
 }()
 
+var memcpy: Function! = {
+    let args: [IRType] = [PointerType.toVoid, PointerType.toVoid, IntType.int64, IntType.int32, IntType.int1]
+    let type = FunctionType(argTypes: args, returnType: VoidType())
+    return builder.addFunction("llvm.memcpy.p0i8.p0i8.i64", type: type)
+}()
+
 struct IRGenerator {
 
     var file: SourceFile
@@ -133,6 +139,32 @@ extension IRGenerator {
                         }
                         irType.setBody(irTypes)
                         type.asStruct.ir.val = irType
+
+                    case .enum:
+                        let body = IntType(width: type.width!)
+                        irType.setBody([body])
+                        type.asEnum.ir.val = irType
+
+                        pushContext(scopeName: decl.names[0].asIdentifier.name)
+                        // declare constant values for the cases
+                        for casé in type.asEnum.cases {
+                            if let associatedValue = casé.associatedValue, let associatedType = type.asEnum.associatedType, associatedType.kind != .integer {
+                                var global: Global
+                                if associatedValue.kind == .litString {
+                                    global = builder.addGlobalString(name: mangle(casé.name) + "$associated", value: associatedValue.asStringLiteral.value)
+                                } else {
+                                    let ir = emitExpr(node: associatedValue)
+                                    global = builder.addGlobal(mangle(casé.name) + "$associated", initializer: ir)
+                                }
+                                casé.associatedValueIr!.val = global
+                            }
+
+                            let bodyValueIr = body.constant(casé.value)
+                            let ir = irType.constant(values: [bodyValueIr])
+                            let global = builder.addGlobal(mangle(casé.name), initializer: ir)
+                            casé.valueIr.val = global
+                        }
+                        popContext()
 
                     case .union:
                         let body = IntType(width: type.width!)
@@ -428,7 +460,6 @@ extension IRGenerator {
                 ir = builder.buildZExtOrBitCast(ir, type: unionIntType)
 
                 var union = unionType.undef()
-
                 union = builder.buildInsertValue(aggregate: union, element: ir, index: 0)
 
                 return union
@@ -497,6 +528,24 @@ extension IRGenerator {
                 return fieldAddress
             }
             return builder.buildLoad(fieldAddress)
+
+        case .enumCaseAccess:
+            let access = node.asCheckedEnumCaseAccess
+
+            if let associatedValueIr = access.casé.associatedValueIr?.val {
+
+                if returnAddress {
+                    return associatedValueIr
+                }
+                return builder.buildLoad(associatedValueIr)
+            }
+
+            let ir = access.casé.valueIr.val!
+
+            if returnAddress {
+                return ir
+            }
+            return builder.buildLoad(ir)
 
         case .unionFieldAccess:
             let access = node.asCheckedUnionFieldAccess
@@ -895,6 +944,9 @@ func canonicalize(_ type: Type) -> IRType {
 
     case .struct:
         return type.asStruct.ir.val!
+
+    case .enum:
+        return type.asEnum.ir.val!
 
     case .union:
         return type.asUnion.ir.val!

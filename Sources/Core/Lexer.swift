@@ -218,6 +218,7 @@ struct Lexer {
                 case "return":       kind = .keywordReturn
                 case "struct":       kind = .keywordStruct
                 case "union":        kind = .keywordUnion
+                case "enum":         kind = .keywordEnum
                 case "switch":       kind = .keywordSwitch
                 case "case":         kind = .keywordCase
                 case "break":        kind = .keywordBreak
@@ -481,6 +482,7 @@ extension Token {
         case keywordCase
         case keywordStruct
         case keywordUnion
+        case keywordEnum
         case keywordBreak
         case keywordContinue
         case keywordFallthrough
@@ -577,6 +579,7 @@ extension Token: CustomStringConvertible {
         case .keywordCase: fallthrough
         case .keywordStruct: fallthrough
         case .keywordUnion: fallthrough
+        case .keywordEnum: fallthrough
         case .keywordBreak: fallthrough
         case .keywordContinue: fallthrough
         case .keywordFallthrough: fallthrough
@@ -635,6 +638,7 @@ extension Token.Kind: CustomStringConvertible {
         case .keywordCase: return "case"
         case .keywordStruct: return "struct"
         case .keywordUnion: return "union"
+        case .keywordEnum: return "enum"
         case .keywordBreak: return "break"
         case .keywordContinue: return "continue"
         case .keywordFallthrough: return "fallthrough"

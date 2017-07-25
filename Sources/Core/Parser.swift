@@ -28,17 +28,23 @@ struct Parser {
     struct State: OptionSet {
         let rawValue: UInt16
 
-        static let permitExprList       = State(rawValue: 0b0000_0001)
-        static let permitAssignOrDecl   = State(rawValue: 0b0000_0010)
-        static let permitCase           = State(rawValue: 0b0000_0100)
-        static let permitCompositeLit   = State(rawValue: 0b0000_1000)
 
-        static let functionBody         = State(rawValue: 0b0001_0000)
-        static let structBody           = State(rawValue: 0b0010_0000)
-        static let unionBody            = State(rawValue: 0b0100_0000)
-        static let foreign              = State(rawValue: 0b1000_0000)
-        static let leaveTerminators     = State(rawValue: 0b0000_0001 << 8)
+        static let permitExprList       = State(rawValue: 0b0001)
+        static let permitCase           = State(rawValue: 0b0010)
+        static let permitCompositeLit   = State(rawValue: 0b0100)
 
+        static let permitDecl           = State(rawValue: 0b0001 << 4)
+        static let permitAssign         = State(rawValue: 0b0010 << 4)
+
+        static let functionBody         = State(rawValue: 0b0001 << 8)
+        static let structBody           = State(rawValue: 0b0010 << 8)
+        static let unionBody            = State(rawValue: 0b0100 << 8)
+        static let foreign              = State(rawValue: 0b1000 << 8)
+
+        static let enumBody             = State(rawValue: 0b0001 << 12)
+        static let leaveTerminators     = State(rawValue: 0b0010 << 12)
+
+        static let permitAssignOrDecl   = [.permitAssign, .permitDecl] as State
         static let `default`            = [.permitExprList, .permitAssignOrDecl] as State
     }
 
@@ -50,6 +56,7 @@ struct Parser {
         case parseFunctionBody
         case parseStructBody
         case parseUnionBody
+        case parseEnumBody
         case parseSwitchBody
         case parseDeferExpr
         case parseForeignDirectiveBody
@@ -80,6 +87,8 @@ struct Parser {
             state = [.permitExprList, .permitAssignOrDecl, .structBody]
         case .parseUnionBody:
             state = [.permitAssignOrDecl, .unionBody]
+        case .parseEnumBody:
+            state = [.permitAssign, .enumBody]
         case .parseSwitchBody:
             state.insert(.permitCase)
         case .parseDeferExpr:
@@ -154,7 +163,10 @@ struct Parser {
         if !context.state.contains(.permitExprList), token.kind == .comma {
             return 0
         }
-        if !context.state.contains(.permitAssignOrDecl), token.kind == .colon || token.kind == .equals {
+        if !context.state.contains(.permitAssign), token.kind == .equals {
+            return 0
+        }
+        if !context.state.contains(.permitDecl), token.kind == .colon {
             return 0
         }
         if !context.state.contains(.permitCompositeLit), token.kind == .lbrace {
@@ -243,7 +255,7 @@ struct Parser {
                 flags.insert(.function)
             }
             // these flags indicate that the caller will cleanup terminators
-            if context.state.intersection([.functionBody, .structBody, .unionBody, .foreign]).isEmpty &&
+            if context.state.intersection([.functionBody, .structBody, .enumBody, .unionBody, .foreign]).isEmpty &&
                 !context.state.contains(.leaveTerminators) {
                 expectTerminator()
             }
@@ -578,6 +590,28 @@ struct Parser {
 
             let value = AstNode.StructType(declarations: body.asBlock.stmts)
             return AstNode(value, tokens: [strućt] + body.tokens)
+
+        case .keywordEnum:
+            let enuḿ = advance()
+
+            var associatedType: AstNode?
+            if lexer.peek()?.kind != .lbrace {
+                pushContext(changingStateTo: .parseType)
+                associatedType = expression()
+                popContext()
+            }
+
+            guard lexer.peek()?.kind == .lbrace else {
+                reportError("Expected '{' to follow 'enum'", at: enuḿ)
+                return AstNode.invalid
+            }
+
+            pushContext(changingStateTo: .parseEnumBody)
+            let body = expression()
+            popContext()
+
+            let value = AstNode.EnumType(associatedType: associatedType, cases: body.asBlock.stmts)
+            return AstNode(value, tokens: [enuḿ] + body.tokens)
 
         case .keywordUnion:
             let union = advance()
@@ -1014,6 +1048,10 @@ struct Parser {
         }
         // NOTE: Currently only calls can be either an expression or statement
         if node.kind == .call {
+            consumeTerminator()
+        }
+        // However, if the current state is an enum body then identifiers can be too
+        if context.state.contains(.enumBody) && node.kind == .identifier {
             consumeTerminator()
         }
     }

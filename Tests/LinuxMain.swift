@@ -6,6 +6,13 @@ extension DeclTests {
   static var allTests = [
     ("testVerboseI64", testVerboseI64),
     ("testImplicitI64", testImplicitI64),
+    ("testVerboseF64", testVerboseF64),
+    ("testImplicitF64", testImplicitF64),
+    ("testVerboseString", testVerboseString),
+    ("testImplicitString", testImplicitString),
+    ("testVerboseIdentifier", testVerboseIdentifier),
+    ("testImplicitIdentifier", testImplicitIdentifier),
+    ("testImplicitMultiDeclaration", testImplicitMultiDeclaration),
   ]
 }
 

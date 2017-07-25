@@ -49,10 +49,8 @@ protocol Common{{ type.localName }}: AstValue {
 {% endif %}
 {% endfor %}
 
-{% for type in types.implementing.AstValue|!protocol %}
-{% if type.localName != "PolymorphicFunction" and type.localName != "Cast" and type.localName != "StructFieldAccess" and type.localName != "UnionFieldAccess" %}
+{% for type in types.implementing.AstValue|!protocol|!annotated:"NoCommon" %}
 extension {{ type.name }}: Common{{ type.localName }} {}
-{% endif %}
 {% endfor %}
 extension Checker.Cast: CommonCall {}
 extension Checker.PolymorphicFunction: CommonFunction {}

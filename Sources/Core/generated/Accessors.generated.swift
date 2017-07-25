@@ -238,6 +238,24 @@ extension AstNode {
         }
     }
 
+    var asEnumType: CommonEnumType {
+        get {
+            return value as! CommonEnumType
+        }
+        set {
+            self.value = newValue
+        }
+    }
+    var asUncheckedEnumType: AstNode.EnumType {
+        get {
+            assert(kind == AstNode.EnumType.astKind)
+            return value as! AstNode.EnumType
+        }
+        set {
+            value = newValue
+        }
+    }
+
     var asFallthrough: CommonFallthrough {
         get {
             return value as! CommonFallthrough
@@ -770,6 +788,26 @@ extension AstNode {
         }
     }
 
+    var asCheckedEnumCaseAccess: Checker.EnumCaseAccess {
+        get {
+            assert(kind == Checker.EnumCaseAccess.astKind)
+            return value as! Checker.EnumCaseAccess
+        }
+        set {
+            value = newValue
+        }
+    }
+
+    var asCheckedEnumType: Checker.EnumType {
+        get {
+            assert(kind == Checker.EnumType.astKind)
+            return value as! Checker.EnumType
+        }
+        set {
+            value = newValue
+        }
+    }
+
     var asCheckedFallthrough: Checker.Fallthrough {
         get {
             assert(kind == Checker.Fallthrough.astKind)
@@ -1038,6 +1076,12 @@ protocol CommonEmpty: AstValue {
 
 }
 
+protocol CommonEnumType: AstValue {
+
+    var associatedType: AstNode? { get }
+    var cases: [AstNode] { get }
+}
+
 protocol CommonFallthrough: AstValue {
 
 }
@@ -1192,6 +1236,7 @@ extension AstNode.CompositeLiteralField: CommonCompositeLiteralField {}
 extension AstNode.Continue: CommonContinue {}
 extension AstNode.Declaration: CommonDeclaration {}
 extension AstNode.Empty: CommonEmpty {}
+extension AstNode.EnumType: CommonEnumType {}
 extension AstNode.Fallthrough: CommonFallthrough {}
 extension AstNode.FloatLiteral: CommonFloatLiteral {}
 extension AstNode.For: CommonFor {}
@@ -1225,6 +1270,7 @@ extension Checker.CompositeLiteral: CommonCompositeLiteral {}
 extension Checker.CompositeLiteralField: CommonCompositeLiteralField {}
 extension Checker.Continue: CommonContinue {}
 extension Checker.Declaration: CommonDeclaration {}
+extension Checker.EnumType: CommonEnumType {}
 extension Checker.Fallthrough: CommonFallthrough {}
 extension Checker.FloatLiteral: CommonFloatLiteral {}
 extension Checker.For: CommonFor {}
@@ -1258,6 +1304,10 @@ extension Type {
 
     var asCVargsAny: Type.CVargsAny {
         return value as! Type.CVargsAny
+    }
+
+    var asEnum: Type.Enum {
+        return value as! Type.Enum
     }
 
     var asFile: Type.File {
