@@ -208,13 +208,37 @@ Types are just Expressions.
 ## StructType
 
     StructType      = "struct" "{" { StructFieldList } "}" .
-    StructFieldList = StructFieldDecl { Term StructFieldDecl Term }
+    StructFieldList = StructFieldDecl { Term StructFieldDecl Term } .
     StructFieldDecl = [ using ] (ExprList ":" Expr | Expr) [ Tag ] .
     Tag             = "@" Identifier [ "(" ArgumentList ")" ] .
 
 ## UnionType
 
     UnionType      = "union" "{" UnionFieldList "}" .
-    UnionFieldList = UnionFieldDecl { Term UnionFieldDecl }
+    UnionFieldList = UnionFieldDecl { Term UnionFieldDecl } .
     UnionFieldDecl = ExprList ":" Expr .
+
+## EnumType
+
+Enumeration types are a way to represent a finite state.
+They allow an _associated value_ of any type. The associated value *must* be known at compile time.
+
+For enumerations where the associated type is *not* an integer type the actual size of an enum has
+  no association with it's associated type. Instead the size of an enum is always the minimum number
+  of bits required to assign a unique value for each case.
+
+This size can be determined by:
+
+    floor(log2(n - 1) + 1)
+
+Where `n` is the number of cases for enums where the associated value is not provided or is a non integer type
+Otherwise `n` is the maximum value of the enumeration.
+
+When an enum's associated type is an Integer the value may be omitted and the case value will be the value of
+  the previous case's value incremented.
+When an enum's associated type is `string` the value may be omitted and the case name will be used as the value.
+
+    EnumType = "enum" [ Type ] "{" EnumFieldList "}" .
+    EnumFieldList = EnumFieldDecl { Term EnumFieldDecl } .
+    EnumFieldDecl = identifier [ "=" Expr ] [ Tag ] .
 
