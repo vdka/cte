@@ -33,6 +33,11 @@ struct BuiltinType {
 
 extension Entity {
     static let anonymous = Entity.makeBuiltin("_")
+
+    // NOTE: Used for builtins with generics
+    static let T = Entity.makeBuiltin("T")
+    static let U = Entity.makeBuiltin("U")
+    static let V = Entity.makeBuiltin("V")
 }
 
 extension Type {
@@ -82,9 +87,13 @@ class BuiltinEntity {
     static let falsé = BuiltinEntity(name: "false", type: Type.bool, gen: { $0.addGlobal("false", initializer: false.asLLVM()) })
 }
 
+let polymorphicT = Type.makePolymorphicMetatype(Entity.T)
+let polymorphicU = Type.makePolymorphicMetatype(Entity.U)
+let polymorphicV = Type.makePolymorphicMetatype(Entity.V)
+
 class BuiltinFunction {
 
-    typealias Generate = (BuiltinFunction, [AstNode], Module, IRBuilder) -> IRValue
+    typealias Generate = (BuiltinFunction, [AstNode], inout IRGenerator) -> IRValue
 
     var entity: Entity
     var type: Type
@@ -114,7 +123,6 @@ class BuiltinFunction {
 
     static let typeinfo = BuiltinFunction.make("typeinfo", in: [Type.type], out: [Type.typeInfo], gen: typeinfoGen, onCallCheck: { checker, node in
         let call = node.asCall
-
         assert(call.arguments.count == 1)
 
         var argType = checker.checkExpr(node: call.arguments[0])
@@ -123,10 +131,25 @@ class BuiltinFunction {
 
         return Type.makeTuple([Type.typeInfo.asMetatype.instanceType])
     })
+
+    static let bitcast = BuiltinFunction.make("bitcast", in: [polymorphicT.asMetatype.instanceType, Type.type], out: [polymorphicT], gen: bitcastGen, onCallCheck: { checker, node in
+        let call = node.asCall
+        assert(call.arguments.count == 2)
+
+        let argType = checker.checkExpr(node: call.arguments[0])
+        var targetType = checker.checkExpr(node: call.arguments[1])
+        targetType = checker.lowerFromMetatype(targetType, atNode: call.arguments[1])
+
+        if argType.width != targetType.width {
+            checker.reportError("Bitcast can only be used on types with the same width", at: node)
+        }
+
+        return Type.makeTuple([targetType])
+    })
 }
 
 var typeInfoValues: [Type: IRValue] = [:]
-func typeinfoGen(builtinFunction: BuiltinFunction, parameters: [AstNode], module: Module, builder: IRBuilder) -> IRValue {
+func typeinfoGen(builtinFunction: BuiltinFunction, parameters: [AstNode], generator: inout IRGenerator) -> IRValue {
     
     let typeInfoType = Type.typeInfo.asMetatype.instanceType
     let type = parameters[0].exprType.asMetatype.instanceType
@@ -148,6 +171,16 @@ func typeinfoGen(builtinFunction: BuiltinFunction, parameters: [AstNode], module
 
     typeInfoValues[type] = global
     return global
+}
+
+func bitcastGen(builtinFunction: BuiltinFunction, parameters: [AstNode], generator: inout IRGenerator) -> IRValue {
+    assert(parameters.count == 2)
+
+    let input = generator.emitExpr(node: parameters[0], returnAddress: true)
+    var outputType = canonicalize(parameters[1].exprType.asMetatype.instanceType)
+    outputType = PointerType(pointee: outputType)
+    let pointer = builder.buildBitCast(input, type: outputType)
+    return builder.buildLoad(pointer)
 }
 
 func lookupBuiltinFunction(_ callee: AstNode) -> BuiltinFunction? {

@@ -638,7 +638,7 @@ extension IRGenerator {
     mutating func emitCall(_ call: Checker.Call) -> IRValue {
 
         if let builtinFunction = call.builtinFunction {
-            return builtinFunction.generate(builtinFunction, call.arguments, module, builder)
+            return builtinFunction.generate(builtinFunction, call.arguments, &self)
         }
 
         var callee: IRValue

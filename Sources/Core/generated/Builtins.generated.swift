@@ -30,7 +30,7 @@ extension Type {
     static let i64 = BuiltinType.i64.type
 }
 
-let builtinTypes = [
+let builtinTypes: [BuiltinType] = [
     BuiltinType.void,
     BuiltinType.type,
     BuiltinType.any,
@@ -44,19 +44,21 @@ let builtinTypes = [
     BuiltinType.i64,
 ]
 
-let builtinEntities = [
+let builtinEntities: [BuiltinEntity] = [
     BuiltinEntity.trué,
     BuiltinEntity.falsé,
 ]
 
-let builtinFunctions = [
+let builtinFunctions: [BuiltinFunction] = [
     BuiltinFunction.typeinfo,
+    BuiltinFunction.bitcast,
 ]
 
-let builtins = [
+let builtins: [Entity] = [
     BuiltinEntity.trué.entity,
     BuiltinEntity.falsé.entity,
     BuiltinFunction.typeinfo.entity,
+    BuiltinFunction.bitcast.entity,
     BuiltinType.void.entity,
     BuiltinType.type.entity,
     BuiltinType.any.entity,

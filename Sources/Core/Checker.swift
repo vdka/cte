@@ -1505,13 +1505,13 @@ extension Checker {
         return type.asFunction.returnType
     }
 
-    func lowerFromMetatype(_ type: Type, atNode node: AstNode) -> Type {
+    func lowerFromMetatype(_ type: Type, atNode node: AstNode, file: StaticString = #file, line: UInt = #line) -> Type {
 
         if type.kind == .metatype {
             return Type.lowerFromMetatype(type)
         }
 
-        reportError("'\(type)' cannot be used as a type", at: node)
+        reportError("'\(type)' cannot be used as a type", at: node, file: file, line: line)
         return Type.invalid
     }
 
